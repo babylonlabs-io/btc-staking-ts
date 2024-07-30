@@ -1,5 +1,5 @@
 <p align="center">
-    <img alt="Babylon Logo" src="assets/logo-circle.png" width="100" />
+    <img alt="Babylon Logo" src="https://github.com/user-attachments/assets/b21652b5-847d-48b2-89a7-0f0969a50900" width="100" />
     <h3 align="center">btc-staking-ts</h3>
     <p align="center">Babylon Bitcoin Staking Protocol</p>
     <p align="center"><strong>TypeScript</strong> library</p>
@@ -10,7 +10,7 @@
 <br/>
 
 ## Notice
- 
+
 The library is in an experimental version and should not be used for production
 purposes and with real funds.
 
