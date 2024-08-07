@@ -281,7 +281,7 @@ function withdrawalTransaction(
     throw new Error("Timelock script is not valid");
   }
 
-  let timelock = 0;
+  let timelock: number;
 
   // if the timelock is a buffer, it means it's a number bigger than 16 blocks
   if (typeof decompiled[timePosition] !== "number") {
