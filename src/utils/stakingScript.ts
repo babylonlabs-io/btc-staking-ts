@@ -123,11 +123,7 @@ export class StakingScriptData {
     }
 
     // check that the magic bytes are 4 in length
-    if (this.#magicBytes.length != MAGIC_BYTES_LEN) {
-      return false;
-    }
-
-    return true;
+    return this.#magicBytes.length == MAGIC_BYTES_LEN;
   }
 
   // The staking script allows for multiple finality provider public keys
