@@ -314,7 +314,7 @@ describe("stakingScript", () => {
         magicBytes,
       );
 
-      const sortedPks = pks.sort(Buffer.compare);
+      const sortedPks = [...pks].sort(Buffer.compare);
 
       const unbondingScript = stakingScriptData.buildUnbondingScript();
       const decompiled = script.decompile(unbondingScript);
@@ -350,7 +350,7 @@ describe("stakingScript", () => {
         magicBytes,
       );
 
-      const sortedPks = pks.sort(Buffer.compare);
+      const sortedPks = [...pks].sort(Buffer.compare);
 
       const slashingScript = stakingScriptData.buildSlashingScript();
       const decompiled = script.decompile(slashingScript);

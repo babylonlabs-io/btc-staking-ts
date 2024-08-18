@@ -52,13 +52,13 @@ export const getStakingTxInputUTXOsAndFees = (
     throw new Error("Insufficient funds");
   }
   // Sort available UTXOs from highest to lowest value
-  availableUTXOs.sort((a, b) => b.value - a.value);
+  const sortedUTXOs = [...availableUTXOs].sort((a, b) => b.value - a.value);
 
   const selectedUTXOs: UTXO[] = [];
   let accumulatedValue = 0;
   let estimatedFee;
 
-  for (const utxo of availableUTXOs) {
+  for (const utxo of sortedUTXOs) {
     selectedUTXOs.push(utxo);
     accumulatedValue += utxo.value;
 
