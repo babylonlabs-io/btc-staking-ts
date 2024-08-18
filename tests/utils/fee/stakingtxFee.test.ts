@@ -144,7 +144,7 @@ testingNetworks.forEach(({ networkName, network, dataGenerator }) => {
       ];
 
       const outputs = buildStakingOutput(mockScripts, network, stakeAmount);
-      let result = getStakingTxInputUTXOsAndFees(
+      const result = getStakingTxInputUTXOsAndFees(
         network,
         availableUTXOs,
         stakeAmount,
@@ -176,7 +176,7 @@ testingNetworks.forEach(({ networkName, network, dataGenerator }) => {
       ];
 
       const outputs = buildStakingOutput(mockScripts, network, stakeAmount);
-      let result = getStakingTxInputUTXOsAndFees(
+      const result = getStakingTxInputUTXOsAndFees(
         network,
         availableUTXOs,
         stakeAmount,
@@ -208,7 +208,7 @@ testingNetworks.forEach(({ networkName, network, dataGenerator }) => {
       ];
 
       const outputs = buildStakingOutput(mockScripts, network, stakeAmount);
-      let result = getStakingTxInputUTXOsAndFees(
+      const result = getStakingTxInputUTXOsAndFees(
         network,
         availableUTXOs,
         stakeAmount,
