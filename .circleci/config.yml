@@ -69,18 +69,10 @@ workflows:
       - build_and_test
       - require_approval_for_canary:
           type: approval
-          filters:
-            branches:
-              only:
-                - dev
       - publish_canary:
           requires:
             - build_and_test
             - require_approval_for_canary
-          filters:
-            branches:
-              only:
-                - dev
       - validate_main_version:
           requires:
             - build_and_test
