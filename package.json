@@ -66,5 +66,8 @@
   "dependencies": {
     "@bitcoin-js/tiny-secp256k1-asmjs": "^2.2.3",
     "bitcoinjs-lib": "^6.1.5"
+  },
+  "publishConfig": {
+    "access": "public"
   }
 }
