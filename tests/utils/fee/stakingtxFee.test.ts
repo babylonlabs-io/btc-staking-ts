@@ -62,9 +62,9 @@ testingNetworks.forEach(({ networkName, network, dataGenerator }) => {
         availableUTXOs.length,
       );
       // Ensure the highest value UTXOs are selected
-      availableUTXOs.sort((a, b) => b.value - a.value);
+      const sortedUTXOs = [...availableUTXOs].sort((a, b) => b.value - a.value);
       expect(result.selectedUTXOs).toEqual(
-        availableUTXOs.slice(0, result.selectedUTXOs.length),
+        sortedUTXOs.slice(0, result.selectedUTXOs.length),
       );
       expect(result.fee).toBeGreaterThan(0);
     });
@@ -144,7 +144,7 @@ testingNetworks.forEach(({ networkName, network, dataGenerator }) => {
       ];
 
       const outputs = buildStakingOutput(mockScripts, network, stakeAmount);
-      let result = getStakingTxInputUTXOsAndFees(
+      const result = getStakingTxInputUTXOsAndFees(
         network,
         availableUTXOs,
         stakeAmount,
@@ -176,7 +176,7 @@ testingNetworks.forEach(({ networkName, network, dataGenerator }) => {
       ];
 
       const outputs = buildStakingOutput(mockScripts, network, stakeAmount);
-      let result = getStakingTxInputUTXOsAndFees(
+      const result = getStakingTxInputUTXOsAndFees(
         network,
         availableUTXOs,
         stakeAmount,
@@ -208,7 +208,7 @@ testingNetworks.forEach(({ networkName, network, dataGenerator }) => {
       ];
 
       const outputs = buildStakingOutput(mockScripts, network, stakeAmount);
-      let result = getStakingTxInputUTXOsAndFees(
+      const result = getStakingTxInputUTXOsAndFees(
         network,
         availableUTXOs,
         stakeAmount,

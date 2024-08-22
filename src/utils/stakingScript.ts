@@ -328,7 +328,7 @@ export class StakingScriptData {
       return this.#buildSingleKeyScript(pks[0], withVerify);
     }
     // keys must be sorted
-    const sortedPks = pks.sort(Buffer.compare);
+    const sortedPks = [...pks].sort(Buffer.compare);
     // verify there are no duplicates
     for (let i = 0; i < sortedPks.length - 1; ++i) {
       if (sortedPks[i].equals(sortedPks[i + 1])) {
