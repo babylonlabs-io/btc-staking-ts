@@ -1,5 +1,5 @@
 {
-  "name": "btc-staking-ts",
+  "name": "@babylonlabs-io/btc-staking-ts",
   "version": "0.3.0-canary.7",
   "description": "Library exposing methods for the creation and consumption of Bitcoin transactions pertaining to Babylon's Bitcoin Staking protocol.",
   "module": "dist/index.js",
@@ -66,5 +66,8 @@
   "dependencies": {
     "@bitcoin-js/tiny-secp256k1-asmjs": "^2.2.3",
     "bitcoinjs-lib": "^6.1.5"
+  },
+  "publishConfig": {
+    "access": "public"
   }
 }
