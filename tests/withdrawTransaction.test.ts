@@ -10,6 +10,7 @@ import { testingNetworks } from "./helper";
 import { DEFAULT_TEST_FEE_RATE, KeyPair } from "./helper/dataGenerator";
 import { NetworkConfig } from "./helper/testingNetworks";
 import { BTC_DUST_SAT } from "../src/constants/dustSat";
+import { PSBT_VERSION } from "../src/constants/psbt";
 
 interface WithdrawTransactionTestData {
   keyPair: KeyPair;
@@ -247,4 +248,9 @@ const validateCommonFields = (
   expect(
     psbt.txOutputs.find((output) => output.address === withdrawalAddress),
   ).toBeDefined();
+
+  // validate the psbt version
+  expect(psbt.version).toBe(PSBT_VERSION);
+  // validate the locktime
+  expect(psbt.locktime).toBe(0);
 };
