@@ -2,5 +2,5 @@
 export const RBF_SEQUENCE = 0xfffffffd;
 // This sequence means the transaction is not replaceable
 export const NON_RBF_SEQUENCE = 0xffffffff;
-// The PSBT version number used across the library
-export const PSBT_VERSION = 2;
+// The Transaction version number used across the library(to be set in the psbt)
+export const TRANSACTION_VERSION = 2;

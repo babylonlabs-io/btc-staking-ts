@@ -7,7 +7,7 @@ import {
 import { BTC_DUST_SAT } from "../src/constants/dustSat";
 import { internalPubkey } from "../src/constants/internalPubkey";
 import { DEFAULT_TEST_FEE_RATE, testingNetworks } from "./helper";
-import { NON_RBF_SEQUENCE, PSBT_VERSION } from "../src/constants/psbt";
+import { NON_RBF_SEQUENCE, TRANSACTION_VERSION } from "../src/constants/psbt";
 
 describe("slashingTransaction - ", () => {
   testingNetworks.map(({ network, networkName, dataGenerator }) => {
@@ -352,7 +352,7 @@ describe("slashingTransaction - ", () => {
           minSlashingFee;
         expect(psbt.txOutputs[1].value).toBe(expectedChangeOutputValue);
 
-        expect(psbt.version).toBe(PSBT_VERSION);
+        expect(psbt.version).toBe(TRANSACTION_VERSION);
         expect(psbt.locktime).toBe(0);
         psbt.txInputs.forEach((input) => {
           expect(input.sequence).toBe(NON_RBF_SEQUENCE);

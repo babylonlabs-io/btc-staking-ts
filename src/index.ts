@@ -11,7 +11,7 @@ import { getStakingTxInputUTXOsAndFees, getWithdrawTxFee } from "./utils/fee";
 import { inputValueSum } from "./utils/fee/utils";
 import { buildStakingOutput } from "./utils/staking";
 import { PK_LENGTH, StakingScriptData } from "./utils/stakingScript";
-import { NON_RBF_SEQUENCE, PSBT_VERSION, RBF_SEQUENCE } from "./constants/psbt";
+import { NON_RBF_SEQUENCE, TRANSACTION_VERSION, RBF_SEQUENCE } from "./constants/psbt";
 
 export { StakingScriptData, initBTCCurve };
 
@@ -95,7 +95,7 @@ export function stakingTransaction(
 
   // Create a partially signed transaction
   const psbt = new Psbt({ network });
-  psbt.setVersion(PSBT_VERSION);
+  psbt.setVersion(TRANSACTION_VERSION);
 
   // Add the UTXOs provided as inputs to the transaction
   for (let i = 0; i < selectedUTXOs.length; ++i) {
@@ -319,7 +319,7 @@ function withdrawalTransaction(
 
   // only transactions with version 2 can trigger OP_CHECKSEQUENCEVERIFY
   // https://github.com/btcsuite/btcd/blob/master/txscript/opcode.go#L1174
-  psbt.setVersion(PSBT_VERSION);
+  psbt.setVersion(TRANSACTION_VERSION);
 
   psbt.addInput({
     hash: tx.getHash(),
@@ -590,7 +590,7 @@ function slashingTransaction(
  
 
   const psbt = new Psbt({ network });
-  psbt.setVersion(PSBT_VERSION);
+  psbt.setVersion(TRANSACTION_VERSION);
 
   psbt.addInput({
     hash: transaction.getHash(),
@@ -682,7 +682,7 @@ export function unbondingTransaction(
   };
 
   const psbt = new Psbt({ network });
-  psbt.setVersion(PSBT_VERSION);
+  psbt.setVersion(TRANSACTION_VERSION);
 
   psbt.addInput({
     hash: stakingTx.getHash(),
