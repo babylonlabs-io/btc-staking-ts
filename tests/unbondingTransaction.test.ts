@@ -1,5 +1,6 @@
 import { initBTCCurve, unbondingTransaction } from "../src";
 import { BTC_DUST_SAT } from "../src/constants/dustSat";
+import { NON_RBF_SEQUENCE, TRANSACTION_VERSION } from "../src/constants/psbt";
 import { testingNetworks } from "./helper";
 
 describe("Unbonding Transaction - ", () => {
@@ -66,6 +67,12 @@ describe("Unbonding Transaction - ", () => {
         expect(psbt.txOutputs.length).toBe(1);
         // check output value
         expect(psbt.txOutputs[0].value).toBe(stakingAmount - unbondingFee);
+
+        expect(psbt.locktime).toBe(0);
+        expect(psbt.version).toBe(TRANSACTION_VERSION);
+        psbt.txInputs.forEach((input) => {
+          expect(input.sequence).toBe(NON_RBF_SEQUENCE);
+        });
       });
     });
   });
