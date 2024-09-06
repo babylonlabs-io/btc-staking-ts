@@ -2,9 +2,9 @@ import * as ecc from "@bitcoin-js/tiny-secp256k1-asmjs";
 import * as bitcoin from "bitcoinjs-lib";
 import ECPairFactory, { ECPairInterface } from "ecpair";
 import { StakingScriptData, stakingTransaction } from "../../src";
-import { StakingScripts } from "../../src/types/StakingScripts";
 import { UTXO } from "../../src/types/UTXO";
 import { generateRandomAmountSlices } from "./math";
+import { StakingScripts } from "../../src/staking/stakingScript";
 
 bitcoin.initEccLib(ecc);
 const ECPair = ECPairFactory(ecc);
