@@ -1,7 +1,7 @@
 import { BTC_DUST_SAT } from "../src/constants/dustSat";
 import { RBF_SEQUENCE } from "../src/constants/psbt";
 import { stakingTransaction } from "../src/index";
-import { StakingScripts } from "../src/types/StakingScripts";
+import { StakingScripts } from "../src/staking/stakingScript";
 import { PsbtTransactionResult } from "../src/types/transaction";
 import { getStakingTxInputUTXOsAndFees } from "../src/utils/fee";
 import { buildStakingOutput } from "../src/utils/staking";
