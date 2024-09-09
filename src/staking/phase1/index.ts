@@ -225,7 +225,7 @@ export class Phase1Staking {
     delegation: Phase1Delegation, stakingParams: Phase1Params,
   ) => {
     const stakingTx = delegation.stakingTx;
-    if (stakingTx.startHeight< stakingParams.activationHeight) {
+    if (stakingTx.startHeight < stakingParams.activationHeight) {
       throw new StakingError(
         StakingErrorCode.INVALID_INPUT,
         "Staking transaction start height cannot be less than activation height",

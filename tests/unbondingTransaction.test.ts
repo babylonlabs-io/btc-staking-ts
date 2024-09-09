@@ -11,7 +11,7 @@ describe("Unbonding Transaction - ", () => {
     const stakerKeyPair = dataGenerator.generateRandomKeyPair();
     const stakingAmount =
       dataGenerator.getRandomIntegerBetween(1000, 100000) + 10000;
-    const stakingTx = dataGenerator.generateRandomStakingTransaction(
+    const { signedPsbt} = dataGenerator.generateRandomStakingTransaction(
       stakerKeyPair,
       undefined,
       stakingAmount,
@@ -21,7 +21,7 @@ describe("Unbonding Transaction - ", () => {
     describe(`${networkName} - `, () => {
       it("should throw an error if the unbonding fee is not postive number", () => {
         expect(() =>
-          unbondingTransaction(stakingScripts, stakingTx, 0, network),
+          unbondingTransaction(stakingScripts, signedPsbt, 0, network),
         ).toThrow("Unbonding fee must be bigger than 0");
       });
 
@@ -29,7 +29,7 @@ describe("Unbonding Transaction - ", () => {
         expect(() =>
           unbondingTransaction(
             stakingScripts,
-            stakingTx,
+            signedPsbt,
             dataGenerator.getRandomIntegerBetween(1, 10000),
             network,
             -1,
@@ -42,7 +42,7 @@ describe("Unbonding Transaction - ", () => {
         expect(() =>
           unbondingTransaction(
             stakingScripts,
-            stakingTx,
+            signedPsbt,
             unbondingFee,
             network,
             0,
@@ -58,7 +58,7 @@ describe("Unbonding Transaction - ", () => {
           );
         const { psbt } = unbondingTransaction(
           stakingScripts,
-          stakingTx,
+          signedPsbt,
           unbondingFee,
           network,
           0,
