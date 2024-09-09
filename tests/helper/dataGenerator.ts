@@ -1,10 +1,12 @@
+/* eslint-disable @typescript-eslint/no-explicit-any */
 import * as ecc from "@bitcoin-js/tiny-secp256k1-asmjs";
 import * as bitcoin from "bitcoinjs-lib";
-import ECPairFactory, { ECPairInterface } from "ecpair";
+import ECPairFactory from "ecpair";
 import { StakingScriptData, stakingTransaction } from "../../src";
 import { UTXO } from "../../src/types/UTXO";
-import { generateRandomAmountSlices } from "./math";
 import { StakingScripts } from "../../src/staking/stakingScript";
+import { Phase1Params } from "../../src/types/params";
+import { generateRandomAmountSlices } from "./math";
 
 bitcoin.initEccLib(ecc);
 const ECPair = ECPairFactory(ecc);
@@ -15,7 +17,7 @@ export interface KeyPair {
   privateKey: string;
   publicKey: string;
   publicKeyNoCoord: string;
-  keyPair: ECPairInterface;
+  keyPair: bitcoin.Signer;
 }
 
 export class DataGenerator {
@@ -39,7 +41,7 @@ export class DataGenerator {
     if (!privateKey || !publicKey) {
       throw new Error("Failed to generate random key pair");
     }
-    let pk = publicKey.toString("hex");
+    const pk = publicKey.toString("hex");
 
     return {
       privateKey: privateKey.toString("hex"),
@@ -86,17 +88,35 @@ export class DataGenerator {
     return buffer;
   };
 
-  generateRandomGlobalParams = (stakingTerm: number, committeeSize: number) => {
+  generateRandomPhase1Params = (fixedTerm = false, stakingTerm?: number, committeeSize?: number): Phase1Params => {
+    if (!stakingTerm) {
+      stakingTerm = this.generateRandomStakingTerm();
+    }
+    if (!committeeSize) {
+      committeeSize = this.getRandomIntegerBetween(5, 50);
+    }
     const covenantPks = this.generateRandomCovenantCommittee(committeeSize).map(
       (buffer) => buffer.toString("hex"),
     );
     const covenantQuorum = Math.floor(Math.random() * (committeeSize - 1)) + 1;
     const unbondingTime = this.generateRandomUnbondingTime(stakingTerm);
     const tag = this.generateRandomTag().toString("hex");
+
+    const minStakingAmountSat = this.getRandomIntegerBetween(1000, 100000);
+    const minStakingTimeBlocks = this.getRandomIntegerBetween(1, 2000);
+    const maxStakingTimeBlocks = fixedTerm ? minStakingTimeBlocks : this.getRandomIntegerBetween(minStakingTimeBlocks, minStakingTimeBlocks + 1000);
     return {
       covenantPks,
       covenantQuorum,
       unbondingTime,
+      unbondingFeeSat: this.getRandomIntegerBetween(1000, 100000),
+      minStakingAmountSat,
+      maxStakingAmountSat: this.getRandomIntegerBetween(
+        minStakingAmountSat, minStakingAmountSat + 100000
+      ),
+      minStakingTimeBlocks,
+      maxStakingTimeBlocks,
+      activationHeight: this.getRandomIntegerBetween(1000, 100000),
       tag,
     };
   };
@@ -120,7 +140,8 @@ export class DataGenerator {
     const stakingTxTimelock = this.generateRandomStakingTerm();
     const publicKeyNoCoord = stakerKeyPair.publicKeyNoCoord;
     const committeeSize = this.getRandomIntegerBetween(1, 10);
-    const globalParams = this.generateRandomGlobalParams(
+    const globalParams = this.generateRandomPhase1Params(
+      false,
       stakingTxTimelock,
       committeeSize,
     );
@@ -142,7 +163,7 @@ export class DataGenerator {
         globalParams.unbondingTime,
         Buffer.from(globalParams.tag, "hex"),
       );
-    } catch (error: Error | any) {
+    } catch (error: any) {
       throw new Error(error?.message || "Cannot build staking script data");
     }
 
@@ -221,7 +242,7 @@ export class DataGenerator {
     const stakingTerm = this.generateRandomStakingTerm();
     const param = globalParam
       ? globalParam
-      : this.generateRandomGlobalParams(stakingTerm, committeeSize);
+      : this.generateRandomPhase1Params(false, stakingTerm, committeeSize);
     const timeLock = this.getRandomIntegerBetween(1, stakingTerm);
 
     const stakingScriptData = new StakingScriptData(
@@ -259,12 +280,13 @@ export class DataGenerator {
       .extractTransaction();
   };
 
-  private getTaprootAddress = (publicKey: string) => {
+  private getTaprootAddress = (publicKeyWithCoord: string) => {
     // Remove the prefix if it exists
-    if (publicKey.length == 66) {
-      publicKey = publicKey.slice(2);
+    let publicKeyNoCoord = "";
+    if (publicKeyWithCoord.length == 66) {
+      publicKeyNoCoord = publicKeyWithCoord.slice(2);
     }
-    const internalPubkey = Buffer.from(publicKey, "hex");
+    const internalPubkey = Buffer.from(publicKeyNoCoord, "hex");
     const { address, output: scriptPubKey } = bitcoin.payments.p2tr({
       internalPubkey,
       network: this.network,

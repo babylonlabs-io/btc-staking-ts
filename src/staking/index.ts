@@ -10,7 +10,7 @@ import { getStakingTxInputUTXOsAndFees, getWithdrawTxFee } from "../utils/fee";
 import { inputValueSum } from "../utils/fee/utils";
 import { buildStakingOutput } from "../utils/staking";
 import { NON_RBF_SEQUENCE, TRANSACTION_VERSION, RBF_SEQUENCE } from "../constants/psbt";
-import { NO_COORD_PK_LENGTH } from "../constants/keys";
+import { NO_COORD_PK_BYTE_LENGTH } from "../constants/keys";
 
 
 // https://bips.xyz/370
@@ -77,7 +77,7 @@ export function stakingTransaction(
   }
 
   // Check whether the public key is valid
-  if (publicKeyNoCoord && publicKeyNoCoord.length !== NO_COORD_PK_LENGTH) {
+  if (publicKeyNoCoord && publicKeyNoCoord.length !== NO_COORD_PK_BYTE_LENGTH) {
     throw new Error("Invalid public key");
   }
 

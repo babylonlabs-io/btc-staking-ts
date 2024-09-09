@@ -1,7 +1,7 @@
 import * as ecc from "@bitcoin-js/tiny-secp256k1-asmjs";
 import { initEccLib, address as addressChecker, networks } from "bitcoinjs-lib";
 import { TAPROOT_ADDRESS_LEN } from "../constants/address";
-import { NO_COORD_PK_LENGTH } from "../constants/keys";
+import { NO_COORD_PK_BYTE_LENGTH } from "../constants/keys";
 
 // Initialize elliptic curve library
 export function initBTCCurve() {
@@ -41,12 +41,12 @@ export const isTaproot = (address: string): boolean => {
 /**
  * Check whether the given public key is valid.
  *
- * @param {string} publicKey - The public key to check. 
+ * @param {string} publicKeyHex - The public key in hex to check. 
  * It should be public key without the coordinate.
  * @returns {boolean} - True if the public key is valid, otherwise false.
  */
-export const isValidNoCordPublicKey = (publicKey: string): boolean => {
-  return publicKey.length === NO_COORD_PK_LENGTH;
+export const isValidNoCordPublicKey = (publicKeyHex: string): boolean => {
+  return Buffer.from(publicKeyHex, "hex").length === NO_COORD_PK_BYTE_LENGTH;
 }
 
 export const getPublicKeyNoCoord = (pkHex: string): Buffer => {
