@@ -98,10 +98,8 @@ export class Phase1Staking {
     );
 
     // Create the staking transaction
-    let unsignedStakingPsbt;
-    let stakingFeeSat;
     try {
-      const { psbt, fee } = stakingTransaction(
+      return stakingTransaction(
         scripts,
         stakingAmountSat,
         this.stakerInfo.address,
@@ -115,16 +113,12 @@ export class Phase1Staking {
         // https://learnmeabitcoin.com/technical/transaction/locktime/
         params.activationHeight - 1,
       );
-      unsignedStakingPsbt = psbt;
-      stakingFeeSat = fee;
     } catch (error: unknown) {
       throw StakingError.fromUnknown(
         error, StakingErrorCode.BUILD_TRANSACTION_FAILURE,
         "Cannot build unsigned staking transaction",
       );
     }
-
-    return { psbt: unsignedStakingPsbt, fee: stakingFeeSat };
   };
 
   public createUnbondingTransaction = (
