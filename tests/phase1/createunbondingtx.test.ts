@@ -1,5 +1,3 @@
-/* eslint-disable @typescript-eslint/no-var-requires */
-/* eslint-disable @typescript-eslint/no-explicit-any */
 import { Transaction } from "bitcoinjs-lib";
 import { Phase1Staking } from "../../src";
 import { internalPubkey } from "../../src/constants/internalPubkey";
@@ -16,11 +14,11 @@ describe("Create unbonding transaction", () => {
     params.minStakingAmountSat, params.maxStakingAmountSat,
   );
   const finalityProviderPublicKey = dataGenerator.generateRandomKeyPair().publicKeyNoCoord;
-  const { signedPsbt, stakingTerm} = dataGenerator.generateRandomStakingTransaction(
+  const { stakingTx, stakingTerm} = dataGenerator.generateRandomStakingTransaction(
     keys, feeRate, stakingAmount, "nativeSegwit", params,
   );
   const phase1StakingTransaction = {
-    txHex: signedPsbt.toHex(),
+    txHex: stakingTx.toHex(),
     outputIndex: 0,
     startHeight: dataGenerator.getRandomIntegerBetween(
       params.activationHeight, params.activationHeight + 1000,
@@ -28,7 +26,7 @@ describe("Create unbonding transaction", () => {
     timelock: stakingTerm,
   }
   const phase1Delegation = {
-    stakingTxHashHex: signedPsbt.getHash().toString("hex"),
+    stakingTxHashHex: stakingTx.getHash().toString("hex"),
     stakerPkHex: keys.publicKeyNoCoord,
     finalityProviderPkHex: finalityProviderPublicKey,
     stakingTx: phase1StakingTransaction,
@@ -111,7 +109,7 @@ describe("Create unbonding transaction", () => {
 
     // StakingTxHashHex does not match from the staking transaction
     const anotherTx = dataGenerator.generateRandomStakingTransaction(dataGenerator.generateRandomKeyPair())
-    const invalidStakingTxHashHex = anotherTx.signedPsbt.getHash().toString("hex");
+    const invalidStakingTxHashHex = anotherTx.stakingTx.getHash().toString("hex");
     const invalidDelegation6 = {
       ...phase1Delegation,
       stakingTxHashHex: invalidStakingTxHashHex,
@@ -147,7 +145,7 @@ describe("Create unbonding transaction", () => {
 
   it(`${networkName} should successfully create an unbonding transaction`, async () => {
     const phase1Staking = new Phase1Staking(network, stakerInfo);
-    const { psbt} = phase1Staking.createUnbondingTransaction(
+    const { psbt } = phase1Staking.createUnbondingTransaction(
       params,
       phase1Delegation,
     );
@@ -156,11 +154,11 @@ describe("Create unbonding transaction", () => {
 
     // Check the psbt inputs
     expect(psbt.txInputs.length).toBe(1);
-    expect(psbt.txInputs[0].hash).toEqual(signedPsbt.getHash());
-    expect((psbt.data.inputs[0] as any).tapInternalKey).toEqual(internalPubkey);
-    expect((psbt.data.inputs[0] as any).tapLeafScript.length).toBe(1);
-    expect((psbt.data.inputs[0] as any).witnessUtxo.value).toEqual(stakingAmount);
-    expect((psbt.data.inputs[0] as any).witnessUtxo.script).toEqual(
+    expect(psbt.txInputs[0].hash).toEqual(stakingTx.getHash());
+    expect(psbt.data.inputs[0].tapInternalKey).toEqual(internalPubkey);
+    expect(psbt.data.inputs[0].tapLeafScript?.length).toBe(1);
+    expect(psbt.data.inputs[0].witnessUtxo?.value).toEqual(stakingAmount);
+    expect(psbt.data.inputs[0].witnessUtxo?.script).toEqual(
       btcTx.outs[phase1StakingTransaction.outputIndex].script,
     );
     expect(psbt.txInputs[0].sequence).toEqual(NON_RBF_SEQUENCE);

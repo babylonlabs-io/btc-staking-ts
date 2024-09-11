@@ -1,4 +1,3 @@
-/* eslint-disable @typescript-eslint/no-explicit-any */
 import * as ecc from "@bitcoin-js/tiny-secp256k1-asmjs";
 import * as bitcoin from "bitcoinjs-lib";
 import ECPairFactory from "ecpair";
@@ -278,12 +277,12 @@ export class DataGenerator {
       this.network,
       feeRate,
     );
-    const signedPsbt = psbt.signAllInputs(stakerKeyPair.keyPair)
+    const stakingTx = psbt.signAllInputs(stakerKeyPair.keyPair)
     .finalizeAllInputs()
     .extractTransaction();
 
     return {
-      signedPsbt,
+      stakingTx,
       unsignedPsbt: psbt,
       stakingTerm
     }

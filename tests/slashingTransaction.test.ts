@@ -19,7 +19,7 @@ describe("slashingTransaction - ", () => {
       dataGenerator.generateMockStakingScripts(stakerKeyPair);
     const stakingAmount =
       dataGenerator.getRandomIntegerBetween(1000, 100000) + 1000000;
-    const { signedPsbt} = dataGenerator.generateRandomStakingTransaction(
+    const { stakingTx} = dataGenerator.generateRandomStakingTransaction(
       stakerKeyPair,
       DEFAULT_TEST_FEE_RATE,
       stakingAmount,
@@ -37,7 +37,7 @@ describe("slashingTransaction - ", () => {
         expect(() =>
           slashTimelockUnbondedTransaction(
             stakingScripts,
-            signedPsbt,
+            stakingTx,
             slashingAddress,
             0,
             minSlashingFee,
@@ -49,7 +49,7 @@ describe("slashingTransaction - ", () => {
         expect(() =>
           slashTimelockUnbondedTransaction(
             stakingScripts,
-            signedPsbt,
+            stakingTx,
             slashingAddress,
             -0.1,
             minSlashingFee,
@@ -61,7 +61,7 @@ describe("slashingTransaction - ", () => {
         expect(() =>
           slashTimelockUnbondedTransaction(
             stakingScripts,
-            signedPsbt,
+            stakingTx,
             slashingAddress,
             1,
             minSlashingFee,
@@ -73,7 +73,7 @@ describe("slashingTransaction - ", () => {
         expect(() =>
           slashTimelockUnbondedTransaction(
             stakingScripts,
-            signedPsbt,
+            stakingTx,
             slashingAddress,
             1.1,
             minSlashingFee,
@@ -87,7 +87,7 @@ describe("slashingTransaction - ", () => {
         expect(() =>
           slashTimelockUnbondedTransaction(
             stakingScripts,
-            signedPsbt,
+            stakingTx,
             slashingAddress,
             slashingRate,
             0,
@@ -101,7 +101,7 @@ describe("slashingTransaction - ", () => {
         expect(() =>
           slashTimelockUnbondedTransaction(
             stakingScripts,
-            signedPsbt,
+            stakingTx,
             slashingAddress,
             slashingRate,
             1.2,
@@ -115,7 +115,7 @@ describe("slashingTransaction - ", () => {
         expect(() =>
           slashTimelockUnbondedTransaction(
             stakingScripts,
-            signedPsbt,
+            stakingTx,
             slashingAddress,
             slashingRate,
             minSlashingFee,
@@ -129,7 +129,7 @@ describe("slashingTransaction - ", () => {
         expect(() =>
           slashTimelockUnbondedTransaction(
             stakingScripts,
-            signedPsbt,
+            stakingTx,
             slashingAddress,
             slashingRate,
             minSlashingFee,
@@ -141,7 +141,7 @@ describe("slashingTransaction - ", () => {
         expect(() =>
           slashTimelockUnbondedTransaction(
             stakingScripts,
-            signedPsbt,
+            stakingTx,
             slashingAddress,
             slashingRate,
             minSlashingFee,
@@ -155,12 +155,12 @@ describe("slashingTransaction - ", () => {
         expect(() =>
           slashTimelockUnbondedTransaction(
             stakingScripts,
-            signedPsbt,
+            stakingTx,
             slashingAddress,
             slashingRate,
             minSlashingFee,
             network,
-            signedPsbt.outs.length,
+            stakingTx.outs.length,
           ),
         ).toThrow("Output index is out of range");
       });
@@ -169,7 +169,7 @@ describe("slashingTransaction - ", () => {
         expect(() =>
           slashTimelockUnbondedTransaction(
             stakingScripts,
-            signedPsbt,
+            stakingTx,
             slashingAddress,
             slashingRate,
             Math.ceil(stakingAmount * (1 - slashingRate) + 1),
@@ -182,7 +182,7 @@ describe("slashingTransaction - ", () => {
       it("should create the slashing time lock unbonded tx psbt successfully", () => {
         const { psbt } = slashTimelockUnbondedTransaction(
           stakingScripts,
-          signedPsbt,
+          stakingTx,
           slashingAddress,
           slashingRate,
           minSlashingFee,
@@ -216,7 +216,7 @@ describe("slashingTransaction - ", () => {
     describe(`${networkName} slashEarlyUnbondedTransaction - `, () => {
       const unbondingTx = unbondingTransaction(
         stakingScripts,
-        signedPsbt,
+        stakingTx,
         1,
         network,
       )
@@ -286,7 +286,7 @@ describe("slashingTransaction - ", () => {
       it("should throw error if user funds is less than dust", () => {
         const unbondingTxWithLimitedAmount = unbondingTransaction(
           stakingScripts,
-          signedPsbt,
+          stakingTx,
           1,
           network,
         )

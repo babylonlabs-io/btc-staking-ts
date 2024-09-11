@@ -221,7 +221,7 @@ export class Phase1Staking {
     }
   }
 
-  private validateAndDecodeDelegaitonInputs = (
+  validateAndDecodeDelegaitonInputs = (
     delegation: Phase1Delegation, stakingParams: Phase1Params,
   ) => {
     const stakingTx = delegation.stakingTx;

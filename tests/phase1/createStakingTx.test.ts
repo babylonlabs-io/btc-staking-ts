@@ -1,5 +1,3 @@
-/* eslint-disable @typescript-eslint/no-var-requires */
-/* eslint-disable @typescript-eslint/no-explicit-any */
 import { Phase1Staking } from "../../src";
 import { testingNetworks } from "../helper";
 import { Phase1Params } from "../../src/types/params";
@@ -135,15 +133,16 @@ describe("Create staking transaction", () => {
     // build the psbt input amount from psbt.data.inputs
     let psbtInputAmount = 0;
     for (let i = 0; i < psbt.data.inputs.length; i++) {
-      psbtInputAmount += (psbt.data.inputs[i].witnessUtxo as any).value;
+      const newValue = psbt.data.inputs[i].witnessUtxo?.value || 0;
+      psbtInputAmount += newValue;
     }
     const changeAmount = psbtInputAmount - amount - fee;
     expect(psbtInputAmount).toBeGreaterThanOrEqual(amount + fee);
     if (changeAmount > BTC_DUST_SAT) {
-      expect((psbt.txOutputs[psbt.txOutputs.length - 1] as any).value).toEqual(changeAmount);
-      expect((psbt.txOutputs[psbt.txOutputs.length - 1] as any).address).toEqual(stakerInfo.address);
+      expect(psbt.txOutputs[psbt.txOutputs.length - 1].value).toEqual(changeAmount);
+      expect(psbt.txOutputs[psbt.txOutputs.length - 1].address).toEqual(stakerInfo.address);
     }
-    expect((psbt.txOutputs[0] as any).value).toEqual(amount);
+    expect(psbt.txOutputs[0].value).toEqual(amount);
 
     // Check the psbt properties
     expect(psbt.locktime).toBe(params.activationHeight - 1);

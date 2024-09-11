@@ -35,14 +35,14 @@ describe("withdrawTransaction", () => {
     ).nativeSegwit.address;
     const stakingScripts =
       dataGenerator.generateMockStakingScripts(stakerKeyPair);
-    const { signedPsbt} =
+    const { stakingTx} =
       dataGenerator.generateRandomStakingTransaction(stakerKeyPair);
 
     return {
       keyPair: stakerKeyPair,
       address,
       stakingScripts,
-      stakingTx: signedPsbt,
+      stakingTx,
     };
   };
 
@@ -153,7 +153,7 @@ describe("withdrawTransaction", () => {
       const address = dataGenerator.getAddressAndScriptPubKey(keyPair.publicKey).nativeSegwit.address;
       const stakingScripts = dataGenerator.generateMockStakingScripts(keyPair);
       const amount = dataGenerator.getRandomIntegerBetween(1, 1000);
-      const { signedPsbt} = dataGenerator.generateRandomStakingTransaction(
+      const { stakingTx} = dataGenerator.generateRandomStakingTransaction(
         keyPair,
         DEFAULT_TEST_FEE_RATE,
         amount,
@@ -165,7 +165,7 @@ describe("withdrawTransaction", () => {
             stakingScripts.unbondingTimelockScript,
           slashingScript: stakingScripts.slashingScript,
         },
-        signedPsbt,
+        stakingTx,
         address,
         network,
         DEFAULT_TEST_FEE_RATE,
@@ -178,7 +178,7 @@ describe("withdrawTransaction", () => {
       const address = dataGenerator.getAddressAndScriptPubKey(keyPair.publicKey).nativeSegwit.address;
       const stakingScripts = dataGenerator.generateMockStakingScripts(keyPair);
       const amount = 1935 + BTC_DUST_SAT - 1; // 1935 is the manually calculated fee for the transaction
-      const { signedPsbt } = dataGenerator.generateRandomStakingTransaction(
+      const { stakingTx } = dataGenerator.generateRandomStakingTransaction(
         keyPair,
         DEFAULT_TEST_FEE_RATE,
         amount,
@@ -190,7 +190,7 @@ describe("withdrawTransaction", () => {
             stakingScripts.unbondingTimelockScript,
           slashingScript: stakingScripts.slashingScript,
         },
-        signedPsbt,
+        stakingTx,
         address,
         network,
         DEFAULT_TEST_FEE_RATE,
