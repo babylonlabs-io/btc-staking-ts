@@ -7,10 +7,7 @@
     "strict": true,
     "skipLibCheck": true,
     "isolatedModules": true,
-    "declaration": true,
-    "sourceMap": true, // Enable source maps
-    "outDir": "./dist", // Specify output directory for compiled files
-    // "rootDir": "./src" // Specify root directory for source files
+    "declaration": true
   },
   "exclude": [
     "node_modules",

@@ -1,9 +1,5 @@
 {
   "extends": "./tsconfig.json",
-  "compilerOptions": {
-    "sourceMap": true, // Ensure source maps are enabled for Jest
-    "outDir": "./dist" // Match outDir with your main tsconfig.json
-  },
   "include": [
     "src/**/*.ts",
     "tests/**/*.ts"

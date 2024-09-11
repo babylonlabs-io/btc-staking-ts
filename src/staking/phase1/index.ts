@@ -43,7 +43,6 @@ interface Phase1Delegation {
  * transactions.
  * The staker information includes the staker's address and 
  * public key(without coordinates).
- * 
  */
 export class Phase1Staking {
   private network: networks.Network;
@@ -70,7 +69,7 @@ export class Phase1Staking {
    * transaction.
    * @param {number} feeRate - The fee rate for the transaction in satoshis per byte.
    * 
-   * @returns {object} - An object containing the unsigned staking transaction
+   * @returns {PsbtTransactionResult} - An object containing the unsigned psbt and fee
    */
   public createStakingTransaction = (
     params: Phase1Params,
@@ -121,6 +120,16 @@ export class Phase1Staking {
     }
   };
 
+  /**
+   * Create an unbonding transaction for Phase 1 of the Babylon Staking protocol.
+   * 
+   * @param {Phase1Params} stakingParams - The staking parameters for Phase 1.
+   * @param {Phase1Delegation} delegation - The delegation to unbond.
+   * 
+   * @returns {Psbt} - The unsigned unbonding transaction
+   * 
+   * @throws {StakingError} - If the delegation is invalid or the transaction cannot be built
+   */
   public createUnbondingTransaction = (
     stakingParams: Phase1Params,
     delegation: Phase1Delegation,
@@ -153,6 +162,18 @@ export class Phase1Staking {
     }
   }
 
+  /**
+   * Create a withdraw early unbonded transaction for Phase 1 of the Babylon Staking protocol.
+   * 
+   * @param {Phase1Params} stakingParams - The staking parameters for Phase 1.
+   * @param {Phase1Delegation} delegation - The delegation to withdraw early.
+   * @param {Transaction} unbondingTx - The unbonding transaction to withdraw from.
+   * @param {number} feeRate - The fee rate for the transaction in satoshis per byte.
+   * 
+   * @returns {PsbtTransactionResult} - An object containing the unsigned psbt and fee
+   * 
+   * @throws {StakingError} - If the delegation is invalid or the transaction cannot be built
+   */
   public createWithdrawEarlyUnbondedTransaction = (
     stakingParams: Phase1Params,
     delegation: Phase1Delegation,
@@ -187,6 +208,17 @@ export class Phase1Staking {
     }
   }
 
+  /**
+   * Create a withdraw timelock unbonded transaction for Phase 1 of the Babylon Staking protocol.
+   * 
+   * @param {Phase1Params} stakingParams - The staking parameters for Phase 1.
+   * @param {Phase1Delegation} delegation - The delegation to withdraw from.
+   * @param {number} feeRate - The fee rate for the transaction in satoshis per byte.
+   * 
+   * @returns {PsbtTransactionResult} - An object containing the unsigned psbt and fee
+   * 
+   * @throws {StakingError} - If the delegation is invalid or the transaction cannot be built
+   */
   public createTimelockUnbondedTransaction = (
     stakingParams: Phase1Params,
     delegation: Phase1Delegation,
@@ -268,10 +300,9 @@ export class Phase1Staking {
   }
 }
 
-export const isValidStakerInfo = (stakerInfo: StakerInfo): boolean =>
+const isValidStakerInfo = (stakerInfo: StakerInfo): boolean =>
   isValidBitcoinAddress(stakerInfo.address, networks.bitcoin) &&
   isValidNoCordPublicKey(stakerInfo.publicKeyHex);
-
 
 const buildScripts = (
   params: Phase1Params,
