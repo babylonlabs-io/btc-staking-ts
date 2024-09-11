@@ -1,7 +1,8 @@
 import * as ecc from "@bitcoin-js/tiny-secp256k1-asmjs";
 import { initEccLib, address as addressChecker, networks } from "bitcoinjs-lib";
-import { TAPROOT_ADDRESS_LEN } from "../constants/address";
 import { NO_COORD_PK_BYTE_LENGTH } from "../constants/keys";
+
+const TAPROOT_ADDRESS_LEN = 62;
 
 // Initialize elliptic curve library
 export function initBTCCurve() {
