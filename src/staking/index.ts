@@ -12,7 +12,6 @@ import { buildStakingOutput } from "../utils/staking";
 import { NON_RBF_SEQUENCE, TRANSACTION_VERSION, RBF_SEQUENCE } from "../constants/psbt";
 import { NO_COORD_PK_BYTE_LENGTH } from "../constants/keys";
 
-
 // https://bips.xyz/370
 const BTC_LOCKTIME_HEIGHT_TIME_CUTOFF = 500000000;
 

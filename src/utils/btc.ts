@@ -1,8 +1,6 @@
 import * as ecc from "@bitcoin-js/tiny-secp256k1-asmjs";
-import { initEccLib, address as addressChecker, networks } from "bitcoinjs-lib";
+import { initEccLib, address as addressChecker, networks, address } from "bitcoinjs-lib";
 import { NO_COORD_PK_BYTE_LENGTH } from "../constants/keys";
-
-const TAPROOT_ADDRESS_LEN = 62;
 
 // Initialize elliptic curve library
 export function initBTCCurve() {
@@ -27,18 +25,34 @@ export const isValidBitcoinAddress = (
   }
 };
 
-// TODO: Improve this method to properly check the taproot address format.
 /**
  * Check whether the given address is a Taproot address.
  *
- * @param {string} address - The Bitcoin address to check.
+ * @param {string} taprootAddress - The Bitcoin address to check.
+ * @param {object} network - The Bitcoin network (e.g., bitcoin.networks.bitcoin).
  * @returns {boolean} - True if the address is a Taproot address, otherwise false.
  */
-export const isTaproot = (address: string): boolean => {
-  return address.length === TAPROOT_ADDRESS_LEN;
+export const isTaproot = (taprootAddress: string, network: networks.Network): boolean => {
+  try {
+    const decoded = address.fromBech32(taprootAddress);
+    if (decoded.version !== 1) {
+      return false;
+    }
+    switch (network) {
+      case networks.bitcoin:
+        // Check if address statrts with "tb"
+        return taprootAddress.startsWith("bc1p");
+      case networks.testnet:
+        // signet, regtest and testnet taproot addresses start with "tb" or "sb"
+        return taprootAddress.startsWith("tb1p") || taprootAddress.startsWith("sb1p");
+      default:
+        return false;
+    }  
+  } catch (error) {
+    return false;
+  }
 };
 
-// TODO: Improve this method to properly check the public key format.
 /**
  * Check whether the given public key is valid.
  *
@@ -50,6 +64,14 @@ export const isValidNoCordPublicKey = (publicKeyHex: string): boolean => {
   return Buffer.from(publicKeyHex, "hex").length === NO_COORD_PK_BYTE_LENGTH;
 }
 
+/**
+ * Get the public key without the coordinate.
+ * 
+ * @param {string} pkHex - The public key in hex.
+ * @returns {Buffer} - The public key without the coordinate.
+ * If the public key is already 32 bytes, return it as is.
+ * Otherwise, return the public key without the first byte.
+ */
 export const getPublicKeyNoCoord = (pkHex: string): Buffer => {
   const publicKey = Buffer.from(pkHex, "hex");
   // check the length of the public key, if it's already 32 bytes, return it

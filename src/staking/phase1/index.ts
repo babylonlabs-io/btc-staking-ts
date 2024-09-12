@@ -105,7 +105,7 @@ export class Phase1Staking {
         inputUTXOs,
         this.network,
         feeRate,
-        isTaproot(this.stakerInfo.address) ? Buffer.from(this.stakerInfo.publicKeyHex, "hex") : undefined,
+        isTaproot(this.stakerInfo.address, this.network) ? Buffer.from(this.stakerInfo.publicKeyHex, "hex") : undefined,
         // `lockHeight` is exclusive of the provided value.
         // For example, if a Bitcoin height of X is provided,
         // the transaction will be included starting from height X+1.

@@ -11,7 +11,6 @@ export interface Params {
   minStakingTimeBlocks: number;
 }
 
-
 export interface Phase1Params extends Params {
   activationHeight: number;
   tag: string;
