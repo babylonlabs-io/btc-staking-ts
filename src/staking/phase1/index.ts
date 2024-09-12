@@ -49,12 +49,12 @@ export class Phase1Staking {
   private stakerInfo: StakerInfo;
 
   constructor(network: networks.Network, stakerInfo: StakerInfo) {
-    this.network = network;
-    if (!isValidStakerInfo(stakerInfo)) {
+    if (!isValidStakerInfo(stakerInfo, network)) {
       throw new StakingError(
         StakingErrorCode.INVALID_INPUT, "Invalid staker info",
       );
     }
+    this.network = network;
     this.stakerInfo = stakerInfo;
   }
 
@@ -285,23 +285,24 @@ export class Phase1Staking {
         "Invalid staking transaction hex",
       );
     }
+    const btcTxId = Buffer.from(btcStakingTx.getHash()).reverse().toString('hex');
     if (!btcStakingTx.outs[stakingTx.outputIndex]) {
       throw new StakingError(
         StakingErrorCode.INVALID_INPUT,
         "Staking transaction output index is out of range",
       );
-    } else if (btcStakingTx.getHash().toString("hex") !== delegation.stakingTxHashHex) {
+    } else if (btcTxId !== delegation.stakingTxHashHex) {
       throw new StakingError(
         StakingErrorCode.INVALID_INPUT,
-        "Staking transaction hash does not match between the transaction and the provided hash",
+        "Staking transaction hash does not match between the btc transaction and the provided staking hash",
       );
     }
     return { btcStakingTx, stakingTx };
   }
 }
 
-const isValidStakerInfo = (stakerInfo: StakerInfo): boolean =>
-  isValidBitcoinAddress(stakerInfo.address, networks.bitcoin) &&
+const isValidStakerInfo = (stakerInfo: StakerInfo, network: networks.Network): boolean =>
+  isValidBitcoinAddress(stakerInfo.address, network) &&
   isValidNoCordPublicKey(stakerInfo.publicKeyHex);
 
 const buildScripts = (

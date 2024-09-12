@@ -22,7 +22,7 @@ describe("Create withdraw early unbonded transaction", () => {
     timelock: stakingTerm,
   }
   const phase1Delegation = {
-    stakingTxHashHex: stakingTx.getHash().toString("hex"),
+    stakingTxHashHex: Buffer.from(stakingTx.getHash()).reverse().toString('hex'),
     stakerPkHex: keys.publicKeyNoCoord,
     finalityProviderPkHex: finalityProviderPublicKey,
     stakingTx: phase1StakingTransaction,

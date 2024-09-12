@@ -1,5 +1,5 @@
 import * as ecc from "@bitcoin-js/tiny-secp256k1-asmjs";
-import { initEccLib, address as addressChecker, networks, address } from "bitcoinjs-lib";
+import { initEccLib, address, networks } from "bitcoinjs-lib";
 import { NO_COORD_PK_BYTE_LENGTH } from "../constants/keys";
 
 // Initialize elliptic curve library
@@ -10,16 +10,16 @@ export function initBTCCurve() {
 /**
  * Check whether the given address is a valid Bitcoin address.
  *
- * @param {string} address - The Bitcoin address to check.
+ * @param {string} btcAddress - The Bitcoin address to check.
  * @param {object} network - The Bitcoin network (e.g., bitcoin.networks.bitcoin).
  * @returns {boolean} - True if the address is valid, otherwise false.
  */
 export const isValidBitcoinAddress = (
-  address: string,
+  btcAddress: string,
   network: networks.Network,
 ): boolean => {
   try {
-    return !!addressChecker.toOutputScript(address, network);
+    return !!address.toOutputScript(btcAddress, network);
   } catch (error) {
     return false;
   }
@@ -40,10 +40,10 @@ export const isTaproot = (taprootAddress: string, network: networks.Network): bo
     }
     switch (network) {
       case networks.bitcoin:
-        // Check if address statrts with "tb"
+        // Check if address statrts with "tb1p"
         return taprootAddress.startsWith("bc1p");
       case networks.testnet:
-        // signet, regtest and testnet taproot addresses start with "tb" or "sb"
+        // signet, regtest and testnet taproot addresses start with "tb1p" or "sb1p"
         return taprootAddress.startsWith("tb1p") || taprootAddress.startsWith("sb1p");
       default:
         return false;

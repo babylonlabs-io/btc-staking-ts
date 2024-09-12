@@ -26,7 +26,7 @@ describe("Create unbonding transaction", () => {
     timelock: stakingTerm,
   }
   const phase1Delegation = {
-    stakingTxHashHex: stakingTx.getHash().toString("hex"),
+    stakingTxHashHex: Buffer.from(stakingTx.getHash()).reverse().toString('hex'),
     stakerPkHex: keys.publicKeyNoCoord,
     finalityProviderPkHex: finalityProviderPublicKey,
     stakingTx: phase1StakingTransaction,
@@ -115,7 +115,7 @@ describe("Create unbonding transaction", () => {
       stakingTxHashHex: invalidStakingTxHashHex,
     }
     expect(() => staking.createUnbondingTransaction(params, invalidDelegation6))
-      .toThrow("Staking transaction hash does not match between the transaction and the provided hash");
+      .toThrow("Staking transaction hash does not match between the btc transaction and the provided staking hash");
   });
 
 
