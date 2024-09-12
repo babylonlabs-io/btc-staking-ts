@@ -121,7 +121,7 @@ describe("Create withdraw early unbonded transaction", () => {
       jest.spyOn(staking, "validateAndDecodeDelegaitonInputs").mockImplementationOnce(() => {
         throw new Error("Fail to validate delegation inputs");
       });
-      expect(() => staking.createTimelockUnbondedTransaction(
+      expect(() => staking.createWithdrawTimelockUnbondedTransaction(
         params, invalidDelegation, feeRate,
       )).toThrow("Fail to validate delegation inputs");
     });
@@ -132,7 +132,7 @@ describe("Create withdraw early unbonded transaction", () => {
       });
       const phase1Staking = new Phase1Staking(network, stakerInfo);
 
-      expect(() => phase1Staking.createTimelockUnbondedTransaction(
+      expect(() => phase1Staking.createWithdrawTimelockUnbondedTransaction(
         params,
         phase1Delegation,
         feeRate,
@@ -145,7 +145,7 @@ describe("Create withdraw early unbonded transaction", () => {
       });
       const phase1Staking = new Phase1Staking(network, stakerInfo);
 
-      expect(() => phase1Staking.createTimelockUnbondedTransaction(
+      expect(() => phase1Staking.createWithdrawTimelockUnbondedTransaction(
         params,
         phase1Delegation,
         feeRate,
@@ -153,7 +153,7 @@ describe("Create withdraw early unbonded transaction", () => {
     });
 
     it(`${networkName} should create withdraw timelock unbonded transaction`, async () => {
-      const withdrawTx = phase1Staking.createTimelockUnbondedTransaction(
+      const withdrawTx = phase1Staking.createWithdrawTimelockUnbondedTransaction(
         params,
         phase1Delegation,
         feeRate,

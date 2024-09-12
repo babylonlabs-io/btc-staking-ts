@@ -219,7 +219,7 @@ export class Phase1Staking {
    * 
    * @throws {StakingError} - If the delegation is invalid or the transaction cannot be built
    */
-  public createTimelockUnbondedTransaction = (
+  public createWithdrawTimelockUnbondedTransaction = (
     stakingParams: Phase1Params,
     delegation: Phase1Delegation,
     feeRate: number,
