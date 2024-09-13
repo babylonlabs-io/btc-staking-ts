@@ -4,7 +4,7 @@ import ECPairFactory from "ecpair";
 import { StakingScriptData, stakingTransaction } from "../../src";
 import { UTXO } from "../../src/types/UTXO";
 import { StakingScripts } from "../../src/staking/stakingScript";
-import { Phase1Params } from "../../src/types/params";
+import { ObservableStakingParams } from "../../src/types/params";
 import { generateRandomAmountSlices } from "./math";
 
 bitcoin.initEccLib(ecc);
@@ -95,7 +95,7 @@ export class DataGenerator {
     return buffer;
   };
 
-  generateRandomPhase1Params = (fixedTerm = false, committeeSize?: number): Phase1Params => {
+  generateRandomObservalbleStakingParams = (fixedTerm = false, committeeSize?: number): ObservableStakingParams => {
     if (!committeeSize) {
       committeeSize = this.getRandomIntegerBetween(5, 50);
     }
@@ -146,7 +146,7 @@ export class DataGenerator {
     
     const publicKeyNoCoord = stakerKeyPair.publicKeyNoCoord;
     const committeeSize = this.getRandomIntegerBetween(1, 10);
-    const globalParams = this.generateRandomPhase1Params(
+    const globalParams = this.generateRandomObservalbleStakingParams(
       false,
       committeeSize,
     );
@@ -226,7 +226,7 @@ export class DataGenerator {
     feeRate: number = DEFAULT_TEST_FEE_RATE,
     stakingAmount?: number,
     addressType?: "taproot" | "nativeSegwit",
-    globalParam?: Phase1Params,
+    globalParam?: ObservableStakingParams,
   ) => {
     const { publicKey, publicKeyNoCoord: stakerPublicKeyNoCoord } =
       stakerKeyPair;
@@ -243,7 +243,7 @@ export class DataGenerator {
     
     const param = globalParam
       ? globalParam
-      : this.generateRandomPhase1Params(false, committeeSize);
+      : this.generateRandomObservalbleStakingParams(false, committeeSize);
     const stakingTerm = this.generateRandomStakingTerm(param);
     
     const stakingScriptData = new StakingScriptData(

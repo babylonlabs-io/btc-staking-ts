@@ -40,7 +40,7 @@ export const isTaproot = (taprootAddress: string, network: networks.Network): bo
     }
     switch (network) {
       case networks.bitcoin:
-        // Check if address statrts with "tb1p"
+        // Check if address statrts with "bc1p"
         return taprootAddress.startsWith("bc1p");
       case networks.testnet:
         // signet, regtest and testnet taproot addresses start with "tb1p" or "sb1p"
@@ -54,14 +54,29 @@ export const isTaproot = (taprootAddress: string, network: networks.Network): bo
 };
 
 /**
- * Check whether the given public key is valid.
+ * Check whether the given public key is a valid public key without a coordinate.
  *
- * @param {string} publicKeyHex - The public key in hex to check. 
- * It should be public key without the coordinate.
- * @returns {boolean} - True if the public key is valid, otherwise false.
+ * @param {string} pkWithNoCoord - public key without the coordinate.  
+ * @returns {boolean} - True if the public key without the coordinate is valid, otherwise false.
  */
-export const isValidNoCordPublicKey = (publicKeyHex: string): boolean => {
-  return Buffer.from(publicKeyHex, "hex").length === NO_COORD_PK_BYTE_LENGTH;
+export const isValidNoCordPublicKey = (pkWithNoCoord: string): boolean => {
+  try {
+    const keyBuffer = Buffer.from(pkWithNoCoord, 'hex');
+
+    if (keyBuffer.length !== NO_COORD_PK_BYTE_LENGTH) {
+      return false;
+    }
+
+    // Try both compressed forms: y-coordinate even (0x02) and y-coordinate odd (0x03)
+    const compressedKeyEven = Buffer.concat([Buffer.from([0x02]), keyBuffer]);
+    const compressedKeyOdd = Buffer.concat([Buffer.from([0x03]), keyBuffer]);
+
+    return (
+      ecc.isPoint(compressedKeyEven) || ecc.isPoint(compressedKeyOdd)
+    );
+  } catch (error) {
+    return false;
+  }
 }
 
 /**
@@ -71,6 +86,7 @@ export const isValidNoCordPublicKey = (publicKeyHex: string): boolean => {
  * @returns {Buffer} - The public key without the coordinate.
  * If the public key is already 32 bytes, return it as is.
  * Otherwise, return the public key without the first byte.
+ * @throws {Error} - If the public key is invalid.
  */
 export const getPublicKeyNoCoord = (pkHex: string): Buffer => {
   const publicKey = Buffer.from(pkHex, "hex");
@@ -78,6 +94,6 @@ export const getPublicKeyNoCoord = (pkHex: string): Buffer => {
   if (publicKey.length === 32) {
     return publicKey;
   }
-  return publicKey.subarray(1, 33);
+  return publicKey.subarray(1, 33);  
 };
 

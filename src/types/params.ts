@@ -1,5 +1,3 @@
-// Common params across multiple phases, according to
-// https://github.com/babylonlabs-io/pm/blob/main/adr/adr-023-update-btcstaking-params.md
 export interface Params {
   covenantPks: string[];
   covenantQuorum: number;
@@ -11,7 +9,7 @@ export interface Params {
   minStakingTimeBlocks: number;
 }
 
-export interface Phase1Params extends Params {
+export interface ObservableStakingParams extends Params {
   activationHeight: number;
   tag: string;
 }

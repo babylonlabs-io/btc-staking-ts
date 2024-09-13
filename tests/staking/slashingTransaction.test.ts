@@ -3,11 +3,11 @@ import {
   slashEarlyUnbondedTransaction,
   slashTimelockUnbondedTransaction,
   unbondingTransaction,
-} from "../src";
-import { BTC_DUST_SAT } from "../src/constants/dustSat";
-import { internalPubkey } from "../src/constants/internalPubkey";
-import { DEFAULT_TEST_FEE_RATE, testingNetworks } from "./helper";
-import { NON_RBF_SEQUENCE, TRANSACTION_VERSION } from "../src/constants/psbt";
+} from "../../src";
+import { BTC_DUST_SAT } from "../../src/constants/dustSat";
+import { internalPubkey } from "../../src/constants/internalPubkey";
+import { DEFAULT_TEST_FEE_RATE, testingNetworks } from "../helper";
+import { NON_RBF_SEQUENCE, TRANSACTION_VERSION } from "../../src/constants/psbt";
 
 describe("slashingTransaction - ", () => {
   testingNetworks.map(({ network, networkName, dataGenerator }) => {

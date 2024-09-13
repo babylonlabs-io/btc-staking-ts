@@ -3,14 +3,14 @@ import {
   initBTCCurve,
   withdrawEarlyUnbondedTransaction,
   withdrawTimelockUnbondedTransaction,
-} from "../src/index";
-import { PsbtTransactionResult } from "../src/types/transaction";
-import { testingNetworks } from "./helper";
-import { DEFAULT_TEST_FEE_RATE, KeyPair } from "./helper/dataGenerator";
-import { NetworkConfig } from "./helper/testingNetworks";
-import { BTC_DUST_SAT } from "../src/constants/dustSat";
-import { TRANSACTION_VERSION } from "../src/constants/psbt";
-import { StakingScripts } from "../src/staking/stakingScript";
+} from "../../src/index";
+import { PsbtTransactionResult } from "../../src/types/transaction";
+import { testingNetworks } from "../helper";
+import { DEFAULT_TEST_FEE_RATE, KeyPair } from "../helper/dataGenerator";
+import { NetworkConfig } from "../helper/testingNetworks";
+import { BTC_DUST_SAT } from "../../src/constants/dustSat";
+import { TRANSACTION_VERSION } from "../../src/constants/psbt";
+import { StakingScripts } from "../../src/staking/stakingScript";
 
 interface WithdrawTransactionTestData {
   keyPair: KeyPair;

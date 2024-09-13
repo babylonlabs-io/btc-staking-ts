@@ -1,17 +1,20 @@
-import { Phase1Staking } from "../../src";
-import { testingNetworks } from "../helper";
-import { Phase1Params } from "../../src/types/params";
-import { UTXO } from "../../src/types/UTXO";
-import { StakingError, StakingErrorCode } from "../../src/error";
-import { BTC_DUST_SAT } from "../../src/constants/dustSat";
-import { RBF_SEQUENCE } from "../../src/constants/psbt";
+import { ObservableStaking } from "../../../src";
+import { testingNetworks } from "../../helper";
+import { ObservableStakingParams } from "../../../src/types/params";
+import { UTXO } from "../../../src/types/UTXO";
+import { StakingError, StakingErrorCode } from "../../../src/error";
+import { BTC_DUST_SAT } from "../../../src/constants/dustSat";
+import { RBF_SEQUENCE } from "../../../src/constants/psbt";
+import * as stakingUtils from "../../../src/utils/staking";
+import * as stakingScript from "../../../src/staking/stakingScript";
+import * as staking from "../../../src/staking";
 
 describe("Create staking transaction", () => {
   const { network, networkName, dataGenerator } = testingNetworks[0];
 
-  let stakerInfo: { address: string, publicKeyHex: string, publicKeyWithCoord: string };
+  let stakerInfo: { address: string, publicKeyNoCoordHex: string, publicKeyWithCoord: string };
   let finalityProviderPublicKey: string;
-  let params: Phase1Params;
+  let params: ObservableStakingParams;
   let stakingTerm: number;
   let utxos: UTXO[];
   const feeRate = 1;
@@ -28,11 +31,11 @@ describe("Create staking transaction", () => {
     
     stakerInfo = {
       address,
-      publicKeyHex: publicKeyNoCoord,
+      publicKeyNoCoordHex: publicKeyNoCoord,
       publicKeyWithCoord: publicKey,
     };
     finalityProviderPublicKey = dataGenerator.generateRandomKeyPair().publicKeyNoCoord;
-    params = dataGenerator.generateRandomPhase1Params(true);
+    params = dataGenerator.generateRandomObservalbleStakingParams(true);
     stakingTerm = dataGenerator.generateRandomStakingTerm(params);
     utxos = dataGenerator.generateRandomUTXOs(
       params.maxStakingAmountSat * dataGenerator.getRandomIntegerBetween(1, 100),
@@ -44,21 +47,28 @@ describe("Create staking transaction", () => {
   it(`${networkName} throw StakingError if stakerInfo is incorrect`, async () => {
     const stakerInfoWithCoordPk = {
       address: stakerInfo.address,
-      publicKeyHex: stakerInfo.publicKeyWithCoord,
+      publicKeyNoCoordHex: stakerInfo.publicKeyWithCoord,
     };
-    expect(() => new Phase1Staking(network, stakerInfoWithCoordPk)).toThrow(
-      // Specify the expected error class and message
-      new StakingError(StakingErrorCode.SCRIPT_FAILURE, "Invalid staker info")
+    expect(() => new ObservableStaking(network, stakerInfoWithCoordPk)).toThrow(
+      "Invalid staker public key"
+    );
+
+    const stakerInfoWithInvalidAddress = {
+      address: "abc",
+      publicKeyNoCoordHex: stakerInfo.publicKeyNoCoordHex,
+    };
+    expect(() => new ObservableStaking(network, stakerInfoWithInvalidAddress)).toThrow(
+      "Invalid staker bitcoin address"
     );
   });
 
   it(`${networkName} should throw an error if input data validaiton failed`, async () => {
-    jest.spyOn(require("../../src/utils/staking"), "validateStakingTxInputData").mockImplementation(() => {
+    jest.spyOn(stakingUtils, "validateStakingTxInputData").mockImplementation(() => {
       throw new StakingError(StakingErrorCode.INVALID_INPUT, "some error");
     });
-    const phase1Staking = new Phase1Staking(network, stakerInfo);
+    const observableStaking = new ObservableStaking(network, stakerInfo);
 
-    expect(() => phase1Staking.createStakingTransaction(
+    expect(() => observableStaking.createStakingTransaction(
       params,
       params.minStakingAmountSat,
       stakingTerm,
@@ -71,12 +81,12 @@ describe("Create staking transaction", () => {
   });
 
   it(`${networkName} should throw an error if fail to build scripts`, async () => {
-    jest.spyOn(require("../../src/staking/stakingScript"), "StakingScriptData").mockImplementation(() => {
+    jest.spyOn(stakingScript, "StakingScriptData").mockImplementation(() => {
       throw new StakingError(StakingErrorCode.SCRIPT_FAILURE, "some error");
     });
-    const phase1Staking = new Phase1Staking(network, stakerInfo);
+    const observableStaking = new ObservableStaking(network, stakerInfo);
 
-    expect(() => phase1Staking.createStakingTransaction(
+    expect(() => observableStaking.createStakingTransaction(
       params,
       params.minStakingAmountSat,
       stakingTerm,
@@ -89,12 +99,12 @@ describe("Create staking transaction", () => {
   });
 
   it(`${networkName} should throw an error if fail to build staking tx`, async () => {
-    jest.spyOn(require("../../src/staking"), "stakingTransaction").mockImplementation(() => {
+    jest.spyOn(staking, "stakingTransaction").mockImplementation(() => {
       throw new Error("fail to build staking tx");
     });
-    const phase1Staking = new Phase1Staking(network, stakerInfo);
+    const observableStaking = new ObservableStaking(network, stakerInfo);
 
-    expect(() => phase1Staking.createStakingTransaction(
+    expect(() => observableStaking.createStakingTransaction(
       params,
       params.minStakingAmountSat,
       stakingTerm,
@@ -107,11 +117,11 @@ describe("Create staking transaction", () => {
   });
 
   it(`${networkName} should successfully create a staking transaction`, async () => {
-    const phase1Staking = new Phase1Staking(network, stakerInfo);
+    const observableStaking = new ObservableStaking(network, stakerInfo);
     const amount = dataGenerator.getRandomIntegerBetween(
       params.minStakingAmountSat, params.maxStakingAmountSat,
     );
-    const { psbt, fee} = phase1Staking.createStakingTransaction(
+    const { psbt, fee} = observableStaking.createStakingTransaction(
       params,
       amount,
       stakingTerm,
@@ -125,7 +135,7 @@ describe("Create staking transaction", () => {
     
     // Check the inputs
     expect(psbt.data.inputs.length).toBe(1);
-    expect(psbt.data.inputs[0].tapInternalKey?.toString("hex")).toEqual(stakerInfo.publicKeyHex);
+    expect(psbt.data.inputs[0].tapInternalKey?.toString("hex")).toEqual(stakerInfo.publicKeyNoCoordHex);
     expect(psbt.data.inputs[0].witnessUtxo?.script.toString("hex")).toEqual(utxos[0].scriptPubKey);
 
     // Check the outputs

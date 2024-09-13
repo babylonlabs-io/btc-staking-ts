@@ -4,6 +4,7 @@ export enum StakingErrorCode {
   INVALID_OUTPUT = "INVALID_OUTPUT",
   SCRIPT_FAILURE = "SCRIPT_FAILURE",
   BUILD_TRANSACTION_FAILURE = "BUILD_TRANSACTION_FAILURE",
+  INVALID_PARAMS = "INVALID_PARAMS",
 }
 
 export class StakingError extends Error {
@@ -24,6 +25,6 @@ export class StakingError extends Error {
     if (error instanceof Error) {
       return new StakingError(code, error.message);
     }
-    return new StakingError(code,fallbackMsg);
+    return new StakingError(code, fallbackMsg);
   }
 }

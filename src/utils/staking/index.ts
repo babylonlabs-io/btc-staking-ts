@@ -75,7 +75,7 @@ export const buildStakingOutput = (
 export const getStakingTerm = (params: Params, term: number) => {
   // check if term is fixed
   let termWithFixed;
-  if (params && params.minStakingTimeBlocks === params.maxStakingTimeBlocks) {
+  if (params.minStakingTimeBlocks === params.maxStakingTimeBlocks) {
     // if term is fixed, use the API value
     termWithFixed = params.minStakingTimeBlocks;
   } else {
@@ -92,7 +92,7 @@ export const getStakingTerm = (params: Params, term: number) => {
  * @param {number} stakingTerm - The staking term in blocks.
  * @param {Params} params - The staking parameters.
  * @param {UTXO[]} inputUTXOs - The input UTXOs.
- * @param {number} feeRate - The fee rate.
+ * @param {number} feeRate - The Bitcoin fee rate in sat/vbyte
  * @throws {StakingError} - If the input data is invalid.
  */
 export const validateStakingTxInputData = (
@@ -109,14 +109,18 @@ export const validateStakingTxInputData = (
     throw new StakingError(
       StakingErrorCode.INVALID_INPUT, "Invalid staking amount",
     );
-  } else if (
+  }
+
+  if (
     stakingTerm < params.minStakingTimeBlocks ||
     stakingTerm > params.maxStakingTimeBlocks
   ) {
     throw new StakingError(
       StakingErrorCode.INVALID_INPUT, "Invalid staking term",
     );
-  } else if (inputUTXOs.length == 0) {
+  }
+
+  if (inputUTXOs.length == 0) {
     throw new StakingError(
       StakingErrorCode.INVALID_INPUT, "No input UTXOs provided",
     );
@@ -127,3 +131,65 @@ export const validateStakingTxInputData = (
   }
 }
 
+/**
+ * Validate the parameters for staking.
+ * 
+ * @param {Params} params - The staking parameters.
+ * @throws {StakingError} - If the parameters are invalid.
+ */
+export const validateParams = (params: Params) => {
+  if (params.covenantPks.length == 0) {
+    throw new StakingError(
+      StakingErrorCode.INVALID_PARAMS,
+      "Could not find any covenant public keys",
+    );
+  }
+  if (params.covenantPks.length < params.covenantQuorum) {
+    throw new StakingError(
+      StakingErrorCode.INVALID_PARAMS,
+      "Covenant public keys must be greater than or equal to the quorum",
+    );
+  }
+  if (params.unbondingTime <= 0) {
+    throw new StakingError(
+      StakingErrorCode.INVALID_PARAMS,
+      "Unbonding time must be greater than 0",
+    );
+  }
+  if (params.unbondingFeeSat <= 0) {
+    throw new StakingError(
+      StakingErrorCode.INVALID_PARAMS,
+      "Unbonding fee must be greater than 0",
+    );
+  }
+  if (params.maxStakingAmountSat < params.minStakingAmountSat) {
+    throw new StakingError(
+      StakingErrorCode.INVALID_PARAMS,
+      "Max staking amount must be greater or equal to min staking amount",
+    );
+  }
+  if (params.minStakingAmountSat < 0) {
+    throw new StakingError(
+      StakingErrorCode.INVALID_PARAMS,
+      "Min staking amount must be greater than 0",
+    );
+  }
+  if (params.maxStakingTimeBlocks < params.minStakingTimeBlocks) {
+    throw new StakingError(
+      StakingErrorCode.INVALID_PARAMS,
+      "Max staking time must be greater or equal to min staking time",
+    );
+  }
+  if (params.minStakingTimeBlocks < 0) {
+    throw new StakingError(
+      StakingErrorCode.INVALID_PARAMS,
+      "Max staking time must be greater than 0",
+    );
+  }
+  if (params.covenantQuorum <= 0) {
+    throw new StakingError(
+      StakingErrorCode.INVALID_PARAMS,
+      "Covenant quorum must be greater than 0",
+    );
+  }
+}

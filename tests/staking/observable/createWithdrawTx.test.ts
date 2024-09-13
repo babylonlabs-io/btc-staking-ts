@@ -1,19 +1,22 @@
-import { Phase1Staking } from "../../src";
-import { testingNetworks } from "../helper";
+import { ObservableStaking } from "../../../src";
+import { testingNetworks } from "../../helper";
+import * as stakingScript from "../../../src/staking/stakingScript";
+import * as observableStakingUtils from "../../../src/staking/observable";
+import * as staking from "../../../src/staking";
 
 describe("Create withdraw early unbonded transaction", () => {
   const { network, networkName, dataGenerator } = testingNetworks[0];
-  const params = dataGenerator.generateRandomPhase1Params(true);
+  const params = dataGenerator.generateRandomObservalbleStakingParams(true);
   const keys = dataGenerator.generateRandomKeyPair();
   const feeRate = 1;
   const stakingAmount = dataGenerator.getRandomIntegerBetween(
     params.minStakingAmountSat, params.maxStakingAmountSat,
   );
-  const finalityProviderPublicKey = dataGenerator.generateRandomKeyPair().publicKeyNoCoord;
+  const finalityProviderPkNoCoordHex = dataGenerator.generateRandomKeyPair().publicKeyNoCoord;
   const { stakingTx, stakingTerm} = dataGenerator.generateRandomStakingTransaction(
     keys, feeRate, stakingAmount, "nativeSegwit", params,
   );
-  const phase1StakingTransaction = {
+  const observableStakingTransaction = {
     txHex: stakingTx.toHex(),
     outputIndex: 0,
     startHeight: dataGenerator.getRandomIntegerBetween(
@@ -21,21 +24,21 @@ describe("Create withdraw early unbonded transaction", () => {
     ),
     timelock: stakingTerm,
   }
-  const phase1Delegation = {
+  const delegation = {
     stakingTxHashHex: Buffer.from(stakingTx.getHash()).reverse().toString('hex'),
     stakerPkHex: keys.publicKeyNoCoord,
-    finalityProviderPkHex: finalityProviderPublicKey,
-    stakingTx: phase1StakingTransaction,
+    finalityProviderPkNoCoordHex,
+    stakingTx: observableStakingTransaction,
   }
   const stakerInfo = {
     address: dataGenerator.getAddressAndScriptPubKey(keys.publicKey).nativeSegwit.address,
-    publicKeyHex: keys.publicKeyNoCoord,
+    publicKeyNoCoordHex: keys.publicKeyNoCoord,
     publicKeyWithCoord: keys.publicKey,
   }
-  const phase1Staking = new Phase1Staking(network, stakerInfo);
-  const unbondingTx = phase1Staking.createUnbondingTransaction(
+  const observableStaking = new ObservableStaking(network, stakerInfo);
+  const unbondingTx = observableStaking.createUnbondingTransaction(
     params,
-    phase1Delegation,
+    delegation,
   ).psbt.signAllInputs(keys.keyPair).finalizeAllInputs().extractTransaction();
 
 
@@ -50,15 +53,15 @@ describe("Create withdraw early unbonded transaction", () => {
       // Staking tx height is less than activation height
       const invalidStakingTxHeight = dataGenerator.getRandomIntegerBetween(0, params.activationHeight);
       const invalidStakingTx = {
-        ...phase1StakingTransaction,
+        ...observableStakingTransaction,
         startHeight: invalidStakingTxHeight,
       }
       const invalidDelegation = {
-        ...phase1Delegation,
+        ...delegation,
         stakingTx: invalidStakingTx,
       }
-      const staking = new Phase1Staking(network, stakerInfo);
-      jest.spyOn(staking, "validateAndDecodeDelegaitonInputs").mockImplementationOnce(() => {
+      const staking = new ObservableStaking(network, stakerInfo);
+      jest.spyOn(observableStakingUtils, "validateAndDecodeDelegationInputs").mockImplementationOnce(() => {
         throw new Error("Fail to validate delegation inputs");
       });
       expect(() => staking.createWithdrawEarlyUnbondedTransaction(
@@ -67,37 +70,37 @@ describe("Create withdraw early unbonded transaction", () => {
     });
 
     it(`${networkName} should throw an error if fail to build scripts`, async () => {
-      jest.spyOn(require("../../src/staking/stakingScript"), "StakingScriptData").mockImplementation(() => {
+      jest.spyOn(stakingScript, "StakingScriptData").mockImplementation(() => {
         throw new Error("withdraw early unbonded delegation build script error");
       });
-      const phase1Staking = new Phase1Staking(network, stakerInfo);
-
-      expect(() => phase1Staking.createWithdrawEarlyUnbondedTransaction(
+      
+      const observableStaking = new ObservableStaking(network, stakerInfo);
+      expect(() => observableStaking.createWithdrawEarlyUnbondedTransaction(
         params,
-        phase1Delegation,
+        delegation,
         unbondingTx,
         feeRate,
       )).toThrow("withdraw early unbonded delegation build script error");
     });
 
     it(`${networkName} should throw an error if fail to build early unbonded withdraw tx`, async () => {
-      jest.spyOn(require("../../src/staking"), "withdrawEarlyUnbondedTransaction").mockImplementation(() => {
+      jest.spyOn(staking, "withdrawEarlyUnbondedTransaction").mockImplementation(() => {
         throw new Error("fail to build withdraw tx");
       });
-      const phase1Staking = new Phase1Staking(network, stakerInfo);
+      const observableStaking = new ObservableStaking(network, stakerInfo);
 
-      expect(() => phase1Staking.createWithdrawEarlyUnbondedTransaction(
+      expect(() => observableStaking.createWithdrawEarlyUnbondedTransaction(
         params,
-        phase1Delegation,
+        delegation,
         unbondingTx,
         feeRate,
       )).toThrow("fail to build withdraw tx");
     });
 
     it(`${networkName} should create withdraw early unbonded transaction`, async () => {
-      const withdrawTx = phase1Staking.createWithdrawEarlyUnbondedTransaction(
+      const withdrawTx = observableStaking.createWithdrawEarlyUnbondedTransaction(
         params,
-        phase1Delegation,
+        delegation,
         unbondingTx,
         feeRate,
       );
@@ -110,15 +113,15 @@ describe("Create withdraw early unbonded transaction", () => {
       // Staking tx height is less than activation height
       const invalidStakingTxHeight = dataGenerator.getRandomIntegerBetween(0, params.activationHeight);
       const invalidStakingTx = {
-        ...phase1StakingTransaction,
+        ...observableStakingTransaction,
         startHeight: invalidStakingTxHeight,
       }
       const invalidDelegation = {
-        ...phase1Delegation,
+        ...delegation,
         stakingTx: invalidStakingTx,
       }
-      const staking = new Phase1Staking(network, stakerInfo);
-      jest.spyOn(staking, "validateAndDecodeDelegaitonInputs").mockImplementationOnce(() => {
+      const staking = new ObservableStaking(network, stakerInfo);
+      jest.spyOn(observableStakingUtils, "validateAndDecodeDelegationInputs").mockImplementationOnce(() => {
         throw new Error("Fail to validate delegation inputs");
       });
       expect(() => staking.createWithdrawTimelockUnbondedTransaction(
@@ -127,35 +130,36 @@ describe("Create withdraw early unbonded transaction", () => {
     });
 
     it(`${networkName} should throw an error if fail to build scripts`, async () => {
-      jest.spyOn(require("../../src/staking/stakingScript"), "StakingScriptData").mockImplementation(() => {
+      jest.spyOn(stakingScript, "StakingScriptData").mockImplementation(() => {
         throw new Error("withdraw timelock unbonded delegation build script error");
       });
-      const phase1Staking = new Phase1Staking(network, stakerInfo);
+      const observableStaking = new ObservableStaking(network, stakerInfo);
 
-      expect(() => phase1Staking.createWithdrawTimelockUnbondedTransaction(
+      expect(() => observableStaking.createWithdrawTimelockUnbondedTransaction(
         params,
-        phase1Delegation,
+        delegation,
         feeRate,
       )).toThrow("withdraw timelock unbonded delegation build script error");
     });
 
     it(`${networkName} should throw an error if fail to build timelock unbonded withdraw tx`, async () => {
-      jest.spyOn(require("../../src/staking"), "withdrawTimelockUnbondedTransaction").mockImplementation(() => {
+      jest.spyOn(staking, "withdrawTimelockUnbondedTransaction").mockImplementation(() => {
         throw new Error("fail to build withdraw tx");
       });
-      const phase1Staking = new Phase1Staking(network, stakerInfo);
 
-      expect(() => phase1Staking.createWithdrawTimelockUnbondedTransaction(
+      const observableStaking = new ObservableStaking(network, stakerInfo);
+
+      expect(() => observableStaking.createWithdrawTimelockUnbondedTransaction(
         params,
-        phase1Delegation,
+        delegation,
         feeRate,
       )).toThrow("fail to build withdraw tx");
     });
 
     it(`${networkName} should create withdraw timelock unbonded transaction`, async () => {
-      const withdrawTx = phase1Staking.createWithdrawTimelockUnbondedTransaction(
+      const withdrawTx = observableStaking.createWithdrawTimelockUnbondedTransaction(
         params,
-        phase1Delegation,
+        delegation,
         feeRate,
       );
       expect(withdrawTx).toBeDefined();
