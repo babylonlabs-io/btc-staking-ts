@@ -1,3 +1,4 @@
+/* eslint-disable no-undef */
 import { build } from "esbuild";
 import { readFile } from "fs/promises";
 import path from "path";
@@ -17,6 +18,7 @@ async function main() {
     ...shared,
     platform: "node", // for CJS
     outfile: "dist/index.cjs",
+    format: "cjs",
   });
 
   await build({
