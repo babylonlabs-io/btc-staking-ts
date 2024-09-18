@@ -29,6 +29,7 @@ export const getInputSizeByScript = (script: Buffer): number => {
     if (p2wpkhAddress) {
       return P2WPKH_INPUT_SIZE;
     }
+    // eslint-disable-next-line no-empty
   } catch (error) {} // Ignore errors
   // Check if input is in the format of "51 <32-byte public key>"
   // If yes, it is a P2TR input
@@ -39,6 +40,7 @@ export const getInputSizeByScript = (script: Buffer): number => {
     if (p2trAddress) {
       return P2TR_INPUT_SIZE;
     }
+    // eslint-disable-next-line no-empty
   } catch (error) {} // Ignore errors
   // Otherwise, assume the input is largest P2PKH address type
   return DEFAULT_INPUT_SIZE;

@@ -1,4 +1,5 @@
 import { BTC_DUST_SAT } from "../src/constants/dustSat";
+import { RBF_SEQUENCE } from "../src/constants/psbt";
 import { stakingTransaction } from "../src/index";
 import { StakingScripts } from "../src/types/StakingScripts";
 import { PsbtTransactionResult } from "../src/types/transaction";
@@ -31,7 +32,7 @@ describe("stakingTransaction", () => {
           mainnet.network,
           1,
           Buffer.from(
-            testnetDataGenerator.generateRandomKeyPair(true).publicKey,
+            testnetDataGenerator.generateRandomKeyPair().publicKeyNoCoord,
             "hex",
           ),
         ),
@@ -56,7 +57,7 @@ describe("stakingTransaction", () => {
           testnet.network,
           1,
           Buffer.from(
-            mainnetDataGenerator.generateRandomKeyPair(true).publicKey,
+            mainnetDataGenerator.generateRandomKeyPair().publicKeyNoCoord,
             "hex",
           ),
         ),
@@ -304,7 +305,7 @@ describe("stakingTransaction", () => {
             network,
             feeRate,
             Buffer.from(
-              dataGenerator.generateRandomKeyPair(true).publicKey,
+              dataGenerator.generateRandomKeyPair().publicKeyNoCoord,
               "hex",
             ),
           );
@@ -327,7 +328,7 @@ describe("stakingTransaction", () => {
             network,
             feeRate,
             Buffer.from(
-              dataGenerator.generateRandomKeyPair(true).publicKey,
+              dataGenerator.generateRandomKeyPair().publicKeyNoCoord,
               "hex",
             ),
             lockHeight,
@@ -393,4 +394,9 @@ const validateCommonFields = (
   expect(
     psbt.txOutputs.find((output) => output.value === randomAmount),
   ).toBeDefined();
+
+  psbt.txInputs.map((input) => {
+    expect(input.sequence).toBe(RBF_SEQUENCE);
+  });
+  expect(psbt.version).toBe(2);
 };

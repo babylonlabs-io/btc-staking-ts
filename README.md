@@ -1,6 +1,6 @@
 <p align="center">
     <img alt="Babylon Logo" src="https://github.com/user-attachments/assets/b21652b5-847d-48b2-89a7-0f0969a50900" width="100" />
-    <h3 align="center">btc-staking-ts</h3>
+    <h3 align="center">@babylonlabs-io/btc-staking-ts</h3>
     <p align="center">Babylon Bitcoin Staking Protocol</p>
     <p align="center"><strong>TypeScript</strong> library</p>
     <p align="center">
@@ -9,15 +9,10 @@
 </p>
 <br/>
 
-## Notice
-
-The library is in an experimental version and should not be used for production
-purposes and with real funds.
-
 ## Installation
 
 ```console
-npm i btc-staking-ts
+npm i @babylonlabs-io/btc-staking-ts
 ```
 
 ## Version Release
@@ -127,7 +122,7 @@ const network = networks.testnet;
 ```
 
 ### Fee Calculation
-The fee calculation in the btc-staking-ts library is based on an estimated size 
+The fee calculation in the @babylonlabs-io/btc-staking-ts library is based on an estimated size 
 of the transaction in virtual bytes (vB). This estimation helps in calculating 
 the appropriate fee to include in the transaction to ensure it is processed by 
 the Bitcoin network efficiently.
@@ -152,7 +147,7 @@ First, create an instance of the `StakingScriptData` class
 and construct the Bitcoin scipts associated with Bitcoin staking using it.
 
 ```ts
-import { StakingScriptData } from "btc-staking-ts";
+import { StakingScriptData } from "@babylonlabs-io/btc-staking-ts";
 
 const stakingScriptData = new StakingScriptData(
   stakerPk,
@@ -191,7 +186,7 @@ transaction and later sign it using a supported wallet's method.
 In this instance, we use the `btcWallet.signTransaction()` method.
 
 ```ts
-import { stakingTransaction } from "btc-staking-ts";
+import { stakingTransaction } from "@babylonlabs-io/btc-staking-ts";
 import { Psbt, Transaction } from "bitcoinjs-lib";
 
 // stakingTransaction constructs an unsigned BTC Staking transaction
@@ -225,7 +220,7 @@ the staking transaction timelock expires, subject to an unbonding period.
 The unbonding transaction can be created as follows:
 
 ```ts
-import { unbondingTransaction } from "btc-staking-ts";
+import { unbondingTransaction } from "@babylonlabs-io/btc-staking-ts";
 import { Psbt, Transaction } from "bitcoinjs-lib";
 
 // Unbonding fee in satoshis. number
@@ -305,7 +300,7 @@ There are two types of withdrawal
 
 ```ts
 import { Psbt, Transaction } from "bitcoinjs-lib";
-import { withdrawTimelockUnbondedTransaction } from "btc-staking-ts";
+import { withdrawTimelockUnbondedTransaction } from "@babylonlabs-io/btc-staking-ts";
 
 // staking transaction. Transaction
 const stakingTx: Transaction = undefined;
@@ -314,7 +309,7 @@ const unsignedWithdrawalPsbt: {psbt: Psbt, fee: number} = withdrawTimelockUnbond
   scripts: {
     timelockScript,
     slashingScript,
-    unbondingScript,  
+    unbondingScript,
   },
   stakingTx,
   btcWallet.address,
@@ -329,21 +324,17 @@ const unsignedWithdrawalPsbt: {psbt: Psbt, fee: number} = withdrawTimelockUnbond
 
 ```ts
 import { Psbt, Transaction } from "bitcoinjs-lib";
-import { withdrawEarlyUnbondedTransaction } from "btc-staking-ts";
+import { withdrawEarlyUnbondedTransaction } from "@babylonlabs-io/btc-staking-ts";
 
-// unbonding transaction. Transaction
-const unbondingTx: Transaction = undefined;
-
-const unsignedWithdrawalPsbt: {psbt: Psbt, fee: number} = withdrawEarlyUnbondedTransaction(
+const unsignedWithdrawalPsbt: { psbt: Psbt, fee: number } = withdrawEarlyUnbondedTransaction(
   scripts: {
     unbondingTimelockScript,
     slashingScript,
-    unbondingTx,  
   },
+  unbondingTx,
   withdrawalAddress,
   network,
   feeRate,
-  stakingOutputIndex,
 );
 
 const signedWithdrawalPsbt = await signPsbt(unsignedWithdrawalPsbt.psbt.toHex());
@@ -366,7 +357,7 @@ These are Babylon parameters and should be collected from the Babylon system.
 ```ts
 // The address to which the slashed funds should go to.
 const slashingAddress: string = "";
-// The slashing percentage rate.
+// The slashing percentage rate. It shall be decimal number between 0-1
 const slashingRate: number = 0;
 // The required fee for the slashing transaction in satoshis.
 const minimumSlashingFee: number = 500;
@@ -378,7 +369,7 @@ There are two types of slashing transactions:
 1. Slashing of the staking transaction when no unbonding has been performed:
 
 ```ts
-import { slashTimelockUnbondedTransaction } from "btc-staking-ts";
+import { slashTimelockUnbondedTransaction } from "@babylonlabs-io/btc-staking-ts";
 import { Psbt, Transaction } from "bitcoinjs-lib";
 
 const outputIndex: number = 0;
@@ -408,22 +399,18 @@ create unsigned unbonding slashing transaction
 
 ```ts
 import { Psbt, Transaction } from "bitcoinjs-lib";
-import { slashEarlyUnbondedTransaction } from "btc-staking-ts";
-
-const outputIndex: number = 0;
+import { slashEarlyUnbondedTransaction } from "@babylonlabs-io/btc-staking-ts";
 
 const unsignedUnbondingSlashingPsbt: {psbt: Psbt} = slashEarlyUnbondedTransaction(
   scripts: {
     slashingScript,
     unbondingTimelockScript,
   },
-  unbondingScriptTree,
   unbondingTx,
   slashingAddress,
   slashingRate,
   minimumSlashingFee,
   network,
-  outputIndex
 );
 
 const signedUnbondingSlashingPsbt = await signPsbt(unsignedUnbondingSlashingPsbt.psbt.toHex());

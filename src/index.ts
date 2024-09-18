@@ -11,6 +11,7 @@ import { getStakingTxInputUTXOsAndFees, getWithdrawTxFee } from "./utils/fee";
 import { inputValueSum } from "./utils/fee/utils";
 import { buildStakingOutput } from "./utils/staking";
 import { PK_LENGTH, StakingScriptData } from "./utils/stakingScript";
+import { NON_RBF_SEQUENCE, TRANSACTION_VERSION, RBF_SEQUENCE } from "./constants/psbt";
 
 export { StakingScriptData, initBTCCurve };
 
@@ -94,6 +95,8 @@ export function stakingTransaction(
 
   // Create a partially signed transaction
   const psbt = new Psbt({ network });
+  psbt.setVersion(TRANSACTION_VERSION);
+
   // Add the UTXOs provided as inputs to the transaction
   for (let i = 0; i < selectedUTXOs.length; ++i) {
     const input = selectedUTXOs[i];
@@ -106,7 +109,8 @@ export function stakingTransaction(
       },
       // this is needed only if the wallet is in taproot mode
       ...(publicKeyNoCoord && { tapInternalKey: publicKeyNoCoord }),
-      sequence: 0xfffffffd, // Enable locktime by setting the sequence value to (RBF-able)
+      // Enable locktime and setting the sequence value to (RBF-able)
+      sequence: RBF_SEQUENCE,
     });
   }
 
@@ -147,7 +151,7 @@ export function stakingTransaction(
  * - scripts: Scripts used to construct the taproot output.
  *   - unbondingTimelockScript: Script for the unbonding timelock condition.
  *   - slashingScript: Script for the slashing condition.
- * - tx: The original staking transaction.
+ * - unbondingTx: The unbonding transaction.
  * - withdrawalAddress: The address to send the withdrawn funds to.
  * - network: The Bitcoin network.
  * - feeRate: The fee rate for the transaction in satoshis per byte.
@@ -157,11 +161,10 @@ export function stakingTransaction(
  * - psbt: The partially signed transaction (PSBT).
  *
  * @param {Object} scripts - The scripts used in the transaction.
- * @param {Transaction} tx - The original staking transaction.
+ * @param {Transaction} unbondingTx - The unbonding transaction.
  * @param {string} withdrawalAddress - The address to send the withdrawn funds to.
  * @param {networks.Network} network - The Bitcoin network.
  * @param {number} feeRate - The fee rate for the transaction in satoshis per byte.
- * @param {number} [outputIndex=0] - The index of the output to be spent in the original transaction.
  * @returns {PsbtTransactionResult} An object containing the partially signed transaction (PSBT).
  */
 export function withdrawEarlyUnbondedTransaction(
@@ -169,11 +172,10 @@ export function withdrawEarlyUnbondedTransaction(
     unbondingTimelockScript: Buffer;
     slashingScript: Buffer;
   },
-  tx: Transaction,
+  unbondingTx: Transaction,
   withdrawalAddress: string,
   network: networks.Network,
   feeRate: number,
-  outputIndex: number = 0,
 ): PsbtTransactionResult {
   const scriptTree: Taptree = [
     {
@@ -187,11 +189,11 @@ export function withdrawEarlyUnbondedTransaction(
       timelockScript: scripts.unbondingTimelockScript,
     },
     scriptTree,
-    tx,
+    unbondingTx,
     withdrawalAddress,
     network,
     feeRate,
-    outputIndex,
+    0, // unbonding always has a single output
   );
 }
 
@@ -317,7 +319,7 @@ function withdrawalTransaction(
 
   // only transactions with version 2 can trigger OP_CHECKSEQUENCEVERIFY
   // https://github.com/btcsuite/btcd/blob/master/txscript/opcode.go#L1174
-  psbt.setVersion(2);
+  psbt.setVersion(TRANSACTION_VERSION);
 
   psbt.addInput({
     hash: tx.getHash(),
@@ -345,6 +347,10 @@ function withdrawalTransaction(
     address: withdrawalAddress,
     value: outputValue,
   });
+
+  // Withdraw transaction has no time-based restrictions and can be included 
+  // in the next block immediately.
+  psbt.setLocktime(0);
 
   return {
     psbt,
@@ -376,7 +382,7 @@ function withdrawalTransaction(
  * - outputIndex: The index of the output to be spent in the original transaction (default is 0).
  *
  * @param {Object} scripts - The scripts used in the transaction.
- * @param {Transaction} transaction - The original staking transaction.
+ * @param {Transaction} stakingTransaction - The original staking transaction.
  * @param {string} slashingAddress - The address to send the slashed funds to.
  * @param {number} slashingRate - The rate at which the funds are slashed.
  * @param {number} minimumFee - The minimum fee for the transaction in satoshis.
@@ -433,7 +439,7 @@ export function slashTimelockUnbondedTransaction(
  * - scripts: Scripts used to construct the taproot output.
  *   - slashingScript: Script for the slashing condition.
  *   - unbondingTimelockScript: Script for the unbonding timelock condition.
- * - transaction: The original staking transaction.
+ * - transaction: The unbonding transaction.
  * - slashingAddress: The address to send the slashed funds to.
  * - slashingRate: The rate at which the funds are slashed (0 < slashingRate < 1).
  * - minimumFee: The minimum fee for the transaction in satoshis.
@@ -444,12 +450,11 @@ export function slashTimelockUnbondedTransaction(
  * - psbt: The partially signed transaction (PSBT).
  *
  * @param {Object} scripts - The scripts used in the transaction. e.g slashingScript, unbondingTimelockScript
- * @param {Transaction} transaction - The original staking transaction.
+ * @param {Transaction} unbondingTx - The unbonding transaction.
  * @param {string} slashingAddress - The address to send the slashed funds to.
  * @param {number} slashingRate - The rate at which the funds are slashed.
- * @param {number} minimumFee - The minimum fee for the transaction in satoshis.
+ * @param {number} minimumSlashingFee - The minimum fee for the transaction in satoshis.
  * @param {networks.Network} network - The Bitcoin network.
- * @param {number} [outputIndex=0] - The index of the output to be spent in the original transaction.
  * @returns {{ psbt: Psbt }} An object containing the partially signed transaction (PSBT).
  */
 export function slashEarlyUnbondedTransaction(
@@ -457,12 +462,11 @@ export function slashEarlyUnbondedTransaction(
     slashingScript: Buffer;
     unbondingTimelockScript: Buffer;
   },
-  stakingTransaction: Transaction,
+  unbondingTx: Transaction,
   slashingAddress: string,
   slashingRate: number,
-  minimumFee: number,
+  minimumSlashingFee: number,
   network: networks.Network,
-  outputIndex: number = 0,
 ): { psbt: Psbt } {
   const unbondingScriptTree: Taptree = [
     {
@@ -478,12 +482,12 @@ export function slashEarlyUnbondedTransaction(
       slashingScript: scripts.slashingScript,
     },
     unbondingScriptTree,
-    stakingTransaction,
+    unbondingTx,
     slashingAddress,
     slashingRate,
-    minimumFee,
+    minimumSlashingFee,
     network,
-    outputIndex,
+    0, // unbonding always has a single output
   );
 }
 
@@ -501,7 +505,7 @@ export function slashEarlyUnbondedTransaction(
  * - scripts: Scripts used to construct the taproot output.
  *   - slashingScript: Script for the slashing condition.
  *   - unbondingTimelockScript: Script for the unbonding timelock condition.
- * - transaction: The original staking transaction.
+ * - transaction: The original staking/unbonding transaction.
  * - slashingAddress: The address to send the slashed funds to.
  * - slashingRate: The rate at which the funds are slashed (0 < slashingRate < 1).
  * - minimumFee: The minimum fee for the transaction in satoshis.
@@ -509,9 +513,9 @@ export function slashEarlyUnbondedTransaction(
  * - outputIndex: The index of the output to be spent in the original transaction (default is 0).
  *
  * @param {Object} scripts - The scripts used in the transaction. e.g slashingScript, unbondingTimelockScript
- * @param {Transaction} transaction - The original staking transaction.
+ * @param {Transaction} transaction - The original staking/unbonding transaction.
  * @param {string} slashingAddress - The address to send the slashed funds to.
- * @param {number} slashingRate - The rate at which the funds are slashed.
+ * @param {number} slashingRate - The rate at which the funds are slashed. Two decimal places, otherwise it will be rounded down.
  * @param {number} minimumFee - The minimum fee for the transaction in satoshis.
  * @param {networks.Network} network - The Bitcoin network.
  * @param {number} [outputIndex=0] - The index of the output to be spent in the original transaction.
@@ -533,13 +537,24 @@ function slashingTransaction(
   psbt: Psbt;
 } {
   // Check that slashing rate and minimum fee are bigger than 0
-  if (slashingRate <= 0 || minimumFee <= 0) {
-    throw new Error("Slashing rate and minimum fee must be bigger than 0");
+  if (slashingRate <= 0 || slashingRate >= 1) {
+    throw new Error("Slashing rate must be between 0 and 1");
+  }
+  // Round the slashing rate to two decimal places
+  slashingRate = parseFloat(slashingRate.toFixed(2));
+  // Minimum fee must be a postive integer
+  if (minimumFee <= 0 || !Number.isInteger(minimumFee)) {
+    throw new Error("Minimum fee must be a positve integer");
   }
 
   // Check that outputIndex is bigger or equal to 0
-  if (outputIndex < 0) {
-    throw new Error("Output index must be bigger or equal to 0");
+  if (outputIndex < 0 || !Number.isInteger(outputIndex)) {
+    throw new Error("Output index must be an integer bigger or equal to 0");
+  }
+
+  // Check that outputIndex is within the bounds of the transaction
+  if (!transaction.outs[outputIndex]) {
+    throw new Error("Output index is out of range");
   }
 
   const redeem = {
@@ -560,31 +575,41 @@ function slashingTransaction(
     controlBlock: p2tr.witness![p2tr.witness!.length - 1],
   };
 
+  const stakingAmount = transaction.outs[outputIndex].value;
+  // Slashing rate is a percentage of the staking amount, rounded down to
+  // the nearest integer to avoid sending decimal satoshis
+  const slashingAmount = Math.floor(stakingAmount * slashingRate);
+  if (slashingAmount <= BTC_DUST_SAT) {
+    throw new Error("Slashing amount is less than dust limit");
+  }
+
+  const userFunds = stakingAmount - slashingAmount - minimumFee;
+  if (userFunds <= BTC_DUST_SAT) {
+    throw new Error("User funds are less than dust limit");
+  }
+ 
+
   const psbt = new Psbt({ network });
+  psbt.setVersion(TRANSACTION_VERSION);
+
   psbt.addInput({
     hash: transaction.getHash(),
     index: outputIndex,
     tapInternalKey: internalPubkey,
     witnessUtxo: {
-      value: transaction.outs[outputIndex].value,
+      value: stakingAmount,
       script: transaction.outs[outputIndex].script,
     },
     tapLeafScript: [tapLeafScript],
+    // not RBF-able
+    sequence: NON_RBF_SEQUENCE,
   });
 
-  const userValue =
-    transaction.outs[outputIndex].value * (1 - slashingRate) - minimumFee;
-
-  // We need to verify that this is above 0
-  if (userValue <= 0) {
-    // If it is not, then an error is thrown and the user has to stake more
-    throw new Error("Not enough funds to slash, stake more");
-  }
 
   // Add the slashing output
   psbt.addOutput({
     address: slashingAddress,
-    value: transaction.outs[outputIndex].value * slashingRate,
+    value: slashingAmount,
   });
 
   // Change output contains unbonding timelock script
@@ -593,13 +618,15 @@ function slashingTransaction(
     scriptTree: { output: scripts.unbondingTimelockScript },
     network,
   });
-
   // Add the change output
   psbt.addOutput({
     address: changeOutput.address!,
-    value:
-      transaction.outs[outputIndex].value * (1 - slashingRate) - minimumFee,
+    value: userFunds,
   });
+
+  // Slashing transaction has no time-based restrictions and can be included 
+  // in the next block immediately.
+  psbt.setLocktime(0);
 
   return { psbt };
 }
@@ -655,6 +682,8 @@ export function unbondingTransaction(
   };
 
   const psbt = new Psbt({ network });
+  psbt.setVersion(TRANSACTION_VERSION);
+
   psbt.addInput({
     hash: stakingTx.getHash(),
     index: outputIndex,
@@ -664,6 +693,8 @@ export function unbondingTransaction(
       script: stakingTx.outs[outputIndex].script,
     },
     tapLeafScript: [inputTapLeafScript],
+    // not RBF-able
+    sequence: NON_RBF_SEQUENCE,
   });
 
   // Build output tapleaf script
@@ -680,11 +711,6 @@ export function unbondingTransaction(
     network,
   });
   const outputValue = stakingTx.outs[outputIndex].value - transactionFee;
-  if (outputValue < 0) {
-    throw new Error(
-      "Not enough funds to cover the fee for unbonding transaction",
-    );
-  }
   if (outputValue < BTC_DUST_SAT) {
     throw new Error("Output value is less than dust limit");
   }
@@ -693,6 +719,10 @@ export function unbondingTransaction(
     address: unbondingOutput.address!,
     value: outputValue,
   });
+
+  // Unbonding transaction has no time-based restrictions and can be included 
+  // in the next block immediately.
+  psbt.setLocktime(0);
 
   return {
     psbt,
