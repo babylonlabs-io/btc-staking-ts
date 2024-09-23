@@ -28,7 +28,7 @@ describe('ObservableStaking input validations', () => {
     finalityProviderPkNoCoordHex: '063deb187a4bf11c114cf825a4726e4c2c35fea5c4c44a20ff08a30a752ec7e0',
     stakingTx: {
       txHex: '020000000001028b0558fff11446d093b910172220c8f2ff66b9ecbc8c6ca06780b40b1c02c6460000000000fdffffff97510b2407b07205f137d24b42dabdb991ebb02877cf972c57395a65643375ef0100000000fdffffff0350c3000000000000225120af4bc06f28acd3385adaf413fcc7ff8ac1d27bbc54f9c413c1561276ed40eb980000000000000000496a4762626234002a5b87690d12741e12341e603eed289cacb5e8e0660ac6371816a1ae834418f3063deb187a4bf11c114cf825a4726e4c2c35fea5c4c44a20ff08a30a752ec7e0009698510000000000002251203ba1d14c8716be7930aebf51cd0866ac56af9b85078df5fc31756a094ba55c6f0140378b1d31fdbb2257441b5b135a866f9ffee9c8549b10076356c791ba3906ff339d24ac66b36cee83be1f1072bcf7f7cf6aada1f110b81d87ec2267d60513698c01406e79cf5a6104acd39452fc057e19693a611bad3c420e4c1cfb77c3cfa18003f7f6fae8ce8a16f26008eb17793d09333a60bff991611f07fc1d6aaae90dead854340e0d00',
-      outputIndex: 0,
+      stakingOutptuIndex: 0,
       startHeight: 855890,
       timelock: 150,
     },
@@ -82,7 +82,7 @@ describe('ObservableStaking input validations', () => {
     it('should throw an error if the output index is out of range', () => {
       const invalidDelegation = {
         ...validDelegation,
-        stakingTx: { ...validDelegation.stakingTx, outputIndex: 100 },
+        stakingTx: { ...validDelegation.stakingTx, stakingOutptuIndex: 100 },
       };
   
       expect(() => {

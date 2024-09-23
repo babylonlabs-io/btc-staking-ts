@@ -18,7 +18,7 @@ describe("Create withdraw early unbonded transaction", () => {
   );
   const observableStakingTransaction = {
     txHex: stakingTx.toHex(),
-    outputIndex: 0,
+    stakingOutptuIndex: 0,
     startHeight: dataGenerator.getRandomIntegerBetween(
       params.activationHeight, params.activationHeight + 1000,
     ),

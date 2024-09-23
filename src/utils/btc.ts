@@ -28,7 +28,7 @@ export const isValidBitcoinAddress = (
 /**
  * Check whether the given address is a Taproot address.
  *
- * @param {string} taprootAddress - The Bitcoin address to check.
+ * @param {string} taprootAddress - The Bitcoin bech32 encoded address to check.
  * @param {object} network - The Bitcoin network (e.g., bitcoin.networks.bitcoin).
  * @returns {boolean} - True if the address is a Taproot address, otherwise false.
  */

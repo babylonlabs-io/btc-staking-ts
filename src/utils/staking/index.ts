@@ -183,7 +183,7 @@ export const validateParams = (params: Params) => {
   if (params.minStakingTimeBlocks < 0) {
     throw new StakingError(
       StakingErrorCode.INVALID_PARAMS,
-      "Max staking time must be greater than 0",
+      "Min staking time must be greater than 0",
     );
   }
   if (params.covenantQuorum <= 0) {

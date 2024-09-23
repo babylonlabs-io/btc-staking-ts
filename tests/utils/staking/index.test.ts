@@ -81,7 +81,7 @@ describe('validateParams', () => {
     const params = { ...validParams, minStakingTimeBlocks: -1 };
 
     expect(() => validateParams(params)).toThrow(
-      'Max staking time must be greater than 0'
+      'Min staking time must be greater than 0'
     );
   });
 

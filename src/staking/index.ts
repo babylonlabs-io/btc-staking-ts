@@ -152,7 +152,6 @@ export function stakingTransaction(
  * - withdrawalAddress: The address to send the withdrawn funds to.
  * - network: The Bitcoin network.
  * - feeRate: The fee rate for the transaction in satoshis per byte.
- * - outputIndex: The index of the output to be spent in the original transaction (default is 0).
  *
  * Returns:
  * - psbt: The partially signed transaction (PSBT).
@@ -441,7 +440,6 @@ export function slashTimelockUnbondedTransaction(
  * - slashingRate: The rate at which the funds are slashed (0 < slashingRate < 1).
  * - minimumFee: The minimum fee for the transaction in satoshis.
  * - network: The Bitcoin network.
- * - outputIndex: The index of the output to be spent in the original transaction (default is 0).
  *
  * Returns:
  * - psbt: The partially signed transaction (PSBT).

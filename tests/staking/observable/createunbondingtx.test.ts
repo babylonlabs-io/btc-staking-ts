@@ -21,7 +21,7 @@ describe("Create unbonding transaction", () => {
   );
   const observableStakingTransaction = {
     txHex: stakingTx.toHex(),
-    outputIndex: 0,
+    stakingOutptuIndex: 0,
     startHeight: dataGenerator.getRandomIntegerBetween(
       params.activationHeight, params.activationHeight + 1000,
     ),
@@ -100,7 +100,7 @@ describe("Create unbonding transaction", () => {
       // Transaction output index is out of range
     const invalidStakingTx4 = {
       ...observableStakingTransaction,
-      outputIndex: dataGenerator.getRandomIntegerBetween(100, 1000),
+      stakingOutptuIndex: dataGenerator.getRandomIntegerBetween(100, 1000),
     }
     const invalidDelegation5 = {
       ...delegation,
@@ -161,10 +161,10 @@ describe("Create unbonding transaction", () => {
     expect(psbt.data.inputs[0].tapLeafScript?.length).toBe(1);
     expect(psbt.data.inputs[0].witnessUtxo?.value).toEqual(stakingAmount);
     expect(psbt.data.inputs[0].witnessUtxo?.script).toEqual(
-      btcTx.outs[observableStakingTransaction.outputIndex].script,
+      btcTx.outs[observableStakingTransaction.stakingOutptuIndex].script,
     );
     expect(psbt.txInputs[0].sequence).toEqual(NON_RBF_SEQUENCE);
-    expect(psbt.txInputs[0].index).toEqual(observableStakingTransaction.outputIndex);
+    expect(psbt.txInputs[0].index).toEqual(observableStakingTransaction.stakingOutptuIndex);
 
     // Check the psbt outputs
     expect(psbt.txOutputs.length).toBe(1);

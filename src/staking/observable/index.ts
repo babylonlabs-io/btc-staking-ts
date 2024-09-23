@@ -23,7 +23,7 @@ interface StakerInfo {
 
 interface ObservableStakingTransaction {
   txHex: string;
-  outputIndex: number;
+  stakingOutptuIndex: number;
   startHeight: number;
   timelock: number;
 }
@@ -160,7 +160,7 @@ export class ObservableStaking {
         btcStakingTx,
         stakingParams.unbondingFeeSat,
         this.network,
-        stakingTx.outputIndex,
+        stakingTx.stakingOutptuIndex,
       );
       return { psbt, fee: stakingParams.unbondingFeeSat };
     } catch (error) {
@@ -254,7 +254,7 @@ export class ObservableStaking {
         this.stakerInfo.address,
         this.network,
         feeRate,
-        stakingTx.outputIndex,
+        stakingTx.stakingOutptuIndex,
       );  
     } catch (error) {
       throw StakingError.fromUnknown(
@@ -304,7 +304,7 @@ export const validateAndDecodeDelegationInputs = (
     );
   }
 
-  if (!btcStakingTx.outs[stakingTx.outputIndex]) {
+  if (!btcStakingTx.outs[stakingTx.stakingOutptuIndex]) {
     throw new StakingError(
       StakingErrorCode.INVALID_INPUT,
       "Staking transaction output index is out of range",
