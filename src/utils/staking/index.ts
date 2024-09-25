@@ -168,7 +168,7 @@ export const validateParams = (params: Params) => {
       "Max staking amount must be greater or equal to min staking amount",
     );
   }
-  if (params.minStakingAmountSat < 0) {
+  if (params.minStakingAmountSat <= 0) {
     throw new StakingError(
       StakingErrorCode.INVALID_PARAMS,
       "Min staking amount must be greater than 0",
@@ -180,7 +180,7 @@ export const validateParams = (params: Params) => {
       "Max staking time must be greater or equal to min staking time",
     );
   }
-  if (params.minStakingTimeBlocks < 0) {
+  if (params.minStakingTimeBlocks <= 0) {
     throw new StakingError(
       StakingErrorCode.INVALID_PARAMS,
       "Min staking time must be greater than 0",

@@ -61,10 +61,16 @@ describe('validateParams', () => {
     );
   });
 
-  it('should throw an error if min staking amount is less than 0', () => {
-    const params = { ...validParams, minStakingAmountSat: -1 };
+  it('should throw an error if min staking amount is less than 1', () => {
+    const paramsMinutes = { ...validParams, minStakingAmountSat: -1 };
 
-    expect(() => validateParams(params)).toThrow(
+    expect(() => validateParams(paramsMinutes)).toThrow(
+      'Min staking amount must be greater than 0'
+    );
+
+    const params0 = { ...validParams, minStakingAmountSat: 0 };
+
+    expect(() => validateParams(params0)).toThrow(
       'Min staking amount must be greater than 0'
     );
   });
@@ -77,10 +83,16 @@ describe('validateParams', () => {
     );
   });
 
-  it('should throw an error if min staking time is less than 0', () => {
-    const params = { ...validParams, minStakingTimeBlocks: -1 };
+  it('should throw an error if min staking time is less than 1', () => {
+    const paramsMinutes = { ...validParams, minStakingTimeBlocks: -1 };
 
-    expect(() => validateParams(params)).toThrow(
+    expect(() => validateParams(paramsMinutes)).toThrow(
+      'Min staking time must be greater than 0'
+    );
+
+    const params0 = { ...validParams, minStakingTimeBlocks: 0 };
+
+    expect(() => validateParams(params0)).toThrow(
       'Min staking time must be greater than 0'
     );
   });
