@@ -7,9 +7,10 @@ import { NON_RBF_SEQUENCE } from "../../../src/constants/psbt";
 import * as stakingScript from "../../../src/staking/stakingScript";
 import * as staking from "../../../src/staking";
 
-describe("Create unbonding transaction", () => {
-  const { network, networkName, dataGenerator } = testingNetworks[0];
-  const params = dataGenerator.generateRandomObservalbleStakingParams(true);
+describe.each(testingNetworks)("Create unbonding transaction", ({
+  network, networkName, dataGenerator
+}) => {
+  const params = dataGenerator.generateRandomObservableStakingParams(true);
   const keys = dataGenerator.generateRandomKeyPair();
   const feeRate = 1;
   const stakingAmount = dataGenerator.getRandomIntegerBetween(
@@ -19,19 +20,16 @@ describe("Create unbonding transaction", () => {
   const { stakingTx, stakingTerm} = dataGenerator.generateRandomStakingTransaction(
     keys, feeRate, stakingAmount, "nativeSegwit", params,
   );
-  const observableStakingTransaction = {
-    txHex: stakingTx.toHex(),
-    stakingOutptuIndex: 0,
+  const delegation = {
+    stakingTxHashHex: stakingTx.getId(),
+    stakerPkNoCoordHex: keys.publicKeyNoCoord,
+    finalityProviderPkNoCoordHex,
+    stakingTx,
+    stakingOutputIndex: 0,
     startHeight: dataGenerator.getRandomIntegerBetween(
       params.activationHeight, params.activationHeight + 1000,
     ),
     timelock: stakingTerm,
-  }
-  const delegation = {
-    stakingTxHashHex: Buffer.from(stakingTx.getHash()).reverse().toString('hex'),
-    stakerPkHex: keys.publicKeyNoCoord,
-    finalityProviderPkNoCoordHex,
-    stakingTx: observableStakingTransaction,
   }
   const stakerInfo = {
     address: dataGenerator.getAddressAndScriptPubKey(keys.publicKey).nativeSegwit.address,
@@ -48,13 +46,9 @@ describe("Create unbonding transaction", () => {
   it(`${networkName} should throw an error if delegation input is invalid`, async () => {
     // Staking tx height is less than activation height
     const invalidStakingTxHeight = dataGenerator.getRandomIntegerBetween(0, params.activationHeight);
-    const invalidStakingTx = {
-      ...observableStakingTransaction,
-      startHeight: invalidStakingTxHeight,
-    }
     const invalidDelegation = {
       ...delegation,
-      stakingTx: invalidStakingTx,
+      startHeight: invalidStakingTxHeight,
     }
     const staking = new ObservableStaking(network, stakerInfo);
     expect(() => staking.createUnbondingTransaction(params, invalidDelegation))
@@ -64,13 +58,9 @@ describe("Create unbonding transaction", () => {
     const invalidStakingTxTimelock = dataGenerator.getRandomIntegerBetween(
       params.minStakingTimeBlocks - 100, params.minStakingTimeBlocks - 1,
     );
-    const invalidStakingTx2 = {
-      ...observableStakingTransaction,
-      timelock: invalidStakingTxTimelock,
-    }
     const invalidDelegation2 = {
       ...delegation,
-      stakingTx: invalidStakingTx2,
+      timelock: invalidStakingTxTimelock,
     }
     expect(() => staking.createUnbondingTransaction(params, invalidDelegation2))
       .toThrow("Staking transaction timelock is out of range");
@@ -79,32 +69,15 @@ describe("Create unbonding transaction", () => {
     const invalidStakerPk = dataGenerator.generateRandomKeyPair().publicKeyNoCoord;
     const invalidDelegation3 = {
       ...delegation,
-      stakerPkHex: invalidStakerPk,
+      stakerPkNoCoordHex: invalidStakerPk,
     }
     expect(() => staking.createUnbondingTransaction(params, invalidDelegation3))
       .toThrow("Staker public key does not match between connected staker and delegation staker");
 
-    // Invalid staking transaction hex
-    const invalidStakingTxHex = "invalid";
-    const invalidStakingTx3 = {
-      ...observableStakingTransaction,
-      txHex: invalidStakingTxHex,
-    }
-    const invalidDelegation4 = {
-      ...delegation,
-      stakingTx: invalidStakingTx3,
-    }
-    expect(() => staking.createUnbondingTransaction(params, invalidDelegation4))
-      .toThrow("Invalid staking transaction hex");
-
-      // Transaction output index is out of range
-    const invalidStakingTx4 = {
-      ...observableStakingTransaction,
-      stakingOutptuIndex: dataGenerator.getRandomIntegerBetween(100, 1000),
-    }
+    // Transaction output index is out of range
     const invalidDelegation5 = {
       ...delegation,
-      stakingTx: invalidStakingTx4,
+      stakingOutputIndex: dataGenerator.getRandomIntegerBetween(100, 1000),
     }
     expect(() => staking.createUnbondingTransaction(params, invalidDelegation5))
       .toThrow("Staking transaction output index is out of range");
@@ -152,7 +125,6 @@ describe("Create unbonding transaction", () => {
       delegation,
     );
     expect(psbt).toBeDefined();
-    const btcTx = Transaction.fromHex(delegation.stakingTx.txHex);
 
     // Check the psbt inputs
     expect(psbt.txInputs.length).toBe(1);
@@ -161,10 +133,10 @@ describe("Create unbonding transaction", () => {
     expect(psbt.data.inputs[0].tapLeafScript?.length).toBe(1);
     expect(psbt.data.inputs[0].witnessUtxo?.value).toEqual(stakingAmount);
     expect(psbt.data.inputs[0].witnessUtxo?.script).toEqual(
-      btcTx.outs[observableStakingTransaction.stakingOutptuIndex].script,
+      delegation.stakingTx.outs[delegation.stakingOutputIndex].script,
     );
     expect(psbt.txInputs[0].sequence).toEqual(NON_RBF_SEQUENCE);
-    expect(psbt.txInputs[0].index).toEqual(observableStakingTransaction.stakingOutptuIndex);
+    expect(psbt.txInputs[0].index).toEqual(delegation.stakingOutputIndex);
 
     // Check the psbt outputs
     expect(psbt.txOutputs.length).toBe(1);

@@ -1,5 +1,5 @@
 export interface Params {
-  covenantPks: string[];
+  covenantNoCoordPks: string[];
   covenantQuorum: number;
   unbondingTime: number;
   unbondingFeeSat: number;

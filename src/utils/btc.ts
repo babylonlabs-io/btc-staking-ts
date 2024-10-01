@@ -59,21 +59,10 @@ export const isTaproot = (taprootAddress: string, network: networks.Network): bo
  * @param {string} pkWithNoCoord - public key without the coordinate.  
  * @returns {boolean} - True if the public key without the coordinate is valid, otherwise false.
  */
-export const isValidNoCordPublicKey = (pkWithNoCoord: string): boolean => {
+export const isValidNoCoordPublicKey = (pkWithNoCoord: string): boolean => {
   try {
     const keyBuffer = Buffer.from(pkWithNoCoord, 'hex');
-
-    if (keyBuffer.length !== NO_COORD_PK_BYTE_LENGTH) {
-      return false;
-    }
-
-    // Try both compressed forms: y-coordinate even (0x02) and y-coordinate odd (0x03)
-    const compressedKeyEven = Buffer.concat([Buffer.from([0x02]), keyBuffer]);
-    const compressedKeyOdd = Buffer.concat([Buffer.from([0x03]), keyBuffer]);
-
-    return (
-      ecc.isPoint(compressedKeyEven) || ecc.isPoint(compressedKeyOdd)
-    );
+    return validateNoCoordPublicKeyBuffer(keyBuffer);
   } catch (error) {
     return false;
   }
@@ -82,18 +71,36 @@ export const isValidNoCordPublicKey = (pkWithNoCoord: string): boolean => {
 /**
  * Get the public key without the coordinate.
  * 
- * @param {string} pkHex - The public key in hex.
- * @returns {Buffer} - The public key without the coordinate.
- * If the public key is already 32 bytes, return it as is.
- * Otherwise, return the public key without the first byte.
+ * @param {string} pkHex - The public key in hex, with or without the coordinate.
+ * @returns {string} - The public key without the coordinate in hex.
  * @throws {Error} - If the public key is invalid.
  */
-export const getPublicKeyNoCoord = (pkHex: string): Buffer => {
+export const getPublicKeyNoCoord = (pkHex: string): String => {
   const publicKey = Buffer.from(pkHex, "hex");
-  // check the length of the public key, if it's already 32 bytes, return it
-  if (publicKey.length === 32) {
-    return publicKey;
+
+  const publicKeyNoCoordBuffer =
+    publicKey.length === NO_COORD_PK_BYTE_LENGTH
+      ? publicKey
+      : publicKey.subarray(1, 33);
+
+  // Validate the public key without coordinate
+  if (!validateNoCoordPublicKeyBuffer(publicKeyNoCoordBuffer)) {
+    throw new Error("Invalid public key without coordinate");
   }
-  return publicKey.subarray(1, 33);  
+
+  return publicKeyNoCoordBuffer.toString("hex");
 };
 
+const validateNoCoordPublicKeyBuffer = (pkBuffer: Buffer): boolean => {
+  if (pkBuffer.length !== NO_COORD_PK_BYTE_LENGTH) {
+    return false;
+  }
+
+  // Try both compressed forms: y-coordinate even (0x02) and y-coordinate odd (0x03)
+  const compressedKeyEven = Buffer.concat([Buffer.from([0x02]), pkBuffer]);
+  const compressedKeyOdd = Buffer.concat([Buffer.from([0x03]), pkBuffer]);
+
+  return (
+    ecc.isPoint(compressedKeyEven) || ecc.isPoint(compressedKeyOdd)
+  );
+};

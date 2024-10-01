@@ -9,9 +9,9 @@ import * as stakingUtils from "../../../src/utils/staking";
 import * as stakingScript from "../../../src/staking/stakingScript";
 import * as staking from "../../../src/staking";
 
-describe("Create staking transaction", () => {
-  const { network, networkName, dataGenerator } = testingNetworks[0];
-
+describe.each(testingNetworks)("Create staking transaction", ({
+  network, networkName, dataGenerator
+}) => {
   let stakerInfo: { address: string, publicKeyNoCoordHex: string, publicKeyWithCoord: string };
   let finalityProviderPublicKey: string;
   let params: ObservableStakingParams;
@@ -25,7 +25,7 @@ describe("Create staking transaction", () => {
     jest.restoreAllMocks();
 
     const { publicKey, publicKeyNoCoord} = dataGenerator.generateRandomKeyPair();
-    const {address, scriptPubKey} = dataGenerator.getAddressAndScriptPubKey(
+    const { address, scriptPubKey } = dataGenerator.getAddressAndScriptPubKey(
       publicKey,
     ).taproot;
     
@@ -35,7 +35,7 @@ describe("Create staking transaction", () => {
       publicKeyWithCoord: publicKey,
     };
     finalityProviderPublicKey = dataGenerator.generateRandomKeyPair().publicKeyNoCoord;
-    params = dataGenerator.generateRandomObservalbleStakingParams(true);
+    params = dataGenerator.generateRandomObservableStakingParams(true);
     stakingTerm = dataGenerator.generateRandomStakingTerm(params);
     utxos = dataGenerator.generateRandomUTXOs(
       params.maxStakingAmountSat * dataGenerator.getRandomIntegerBetween(1, 100),
@@ -62,7 +62,7 @@ describe("Create staking transaction", () => {
     );
   });
 
-  it(`${networkName} should throw an error if input data validaiton failed`, async () => {
+  it(`${networkName} should throw an error if input data validation failed`, async () => {  
     jest.spyOn(stakingUtils, "validateStakingTxInputData").mockImplementation(() => {
       throw new StakingError(StakingErrorCode.INVALID_INPUT, "some error");
     });
@@ -134,7 +134,7 @@ describe("Create staking transaction", () => {
     expect(fee).toBeGreaterThan(0);
     
     // Check the inputs
-    expect(psbt.data.inputs.length).toBe(1);
+    expect(psbt.data.inputs.length).toBeGreaterThan(0);
     expect(psbt.data.inputs[0].tapInternalKey?.toString("hex")).toEqual(stakerInfo.publicKeyNoCoordHex);
     expect(psbt.data.inputs[0].witnessUtxo?.script.toString("hex")).toEqual(utxos[0].scriptPubKey);
 

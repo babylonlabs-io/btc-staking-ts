@@ -95,11 +95,11 @@ export class DataGenerator {
     return buffer;
   };
 
-  generateRandomObservalbleStakingParams = (fixedTerm = false, committeeSize?: number): ObservableStakingParams => {
+  generateRandomObservableStakingParams = (fixedTerm = false, committeeSize?: number): ObservableStakingParams => {
     if (!committeeSize) {
       committeeSize = this.getRandomIntegerBetween(5, 50);
     }
-    const covenantPks = this.generateRandomCovenantCommittee(committeeSize).map(
+    const covenantNoCoordPks = this.generateRandomCovenantCommittee(committeeSize).map(
       (buffer) => buffer.toString("hex"),
     );
     const covenantQuorum = Math.floor(Math.random() * (committeeSize - 1)) + 1;
@@ -112,7 +112,7 @@ export class DataGenerator {
     const stakingTerm = this.generateRandomStakingTerm({minStakingTimeBlocks, maxStakingTimeBlocks});
     const unbondingTime = this.generateRandomUnbondingTime(stakingTerm);
     return {
-      covenantPks,
+      covenantNoCoordPks,
       covenantQuorum,
       unbondingTime,
       unbondingFeeSat: this.getRandomIntegerBetween(1000, 100000),
@@ -146,14 +146,14 @@ export class DataGenerator {
     
     const publicKeyNoCoord = stakerKeyPair.publicKeyNoCoord;
     const committeeSize = this.getRandomIntegerBetween(1, 10);
-    const globalParams = this.generateRandomObservalbleStakingParams(
+    const globalParams = this.generateRandomObservableStakingParams(
       false,
       committeeSize,
     );
     const stakingTxTimelock = this.generateRandomStakingTerm(globalParams);
 
     // Convert covenant PKs to buffers
-    const covenantPKsBuffer = globalParams.covenantPks.map((pk: string) =>
+    const covenantPKsBuffer = globalParams.covenantNoCoordPks.map((pk: string) =>
       Buffer.from(pk, "hex"),
     );
 
@@ -243,13 +243,13 @@ export class DataGenerator {
     
     const param = globalParam
       ? globalParam
-      : this.generateRandomObservalbleStakingParams(false, committeeSize);
+      : this.generateRandomObservableStakingParams(false, committeeSize);
     const stakingTerm = this.generateRandomStakingTerm(param);
     
     const stakingScriptData = new StakingScriptData(
       Buffer.from(stakerPublicKeyNoCoord, "hex"),
       [Buffer.from(fpPkHex, "hex")],
-      param.covenantPks.map((pk: string) => Buffer.from(pk, "hex")),
+      param.covenantNoCoordPks.map((pk: string) => Buffer.from(pk, "hex")),
       param.covenantQuorum,
       stakingTerm,
       param.unbondingTime,

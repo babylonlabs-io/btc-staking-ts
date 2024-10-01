@@ -1,36 +1,36 @@
-import { getStakingTerm, validateParams, validateStakingTxInputData } from "../../../src/utils/staking";
+import { validateParams, validateStakingTxInputData } from "../../../src/utils/staking";
+import { testingNetworks } from "../../helper";
 
-
-describe('validateParams', () => {
-  const validParams = {
-    covenantPks: [
-      "02a10a06bb3bae360db3aef0326413b55b9e46bf20b9a96fc8a806a99e644fe277",
-      "026f13a6d104446520d1757caec13eaf6fbcf29f488c31e0107e7351d4994cd068",
-      "02a5e21514682b87e37fb5d3c9862055041d1e6f4cc4f3034ceaf3d90f86b230a6"
-    ],
-    covenantQuorum: 2,
-    unbondingTime: 100,
-    unbondingFeeSat: 1000,
-    maxStakingAmountSat: 2000,
-    minStakingAmountSat: 1000,
-    maxStakingTimeBlocks: 500,
-    minStakingTimeBlocks: 100,
-  };
+describe.each(testingNetworks)('validateParams', (
+  { dataGenerator }
+) => {
+  const validParams = dataGenerator.generateRandomObservableStakingParams();
 
   it('should pass with valid parameters', () => {
     expect(() => validateParams(validParams)).not.toThrow();
   });
 
   it('should throw an error if covenant public keys are empty', () => {
-    const params = { ...validParams, covenantPks: [] };
+    const params = { ...validParams, covenantNoCoordPks: [] };
 
     expect(() => validateParams(params)).toThrow(
       'Could not find any covenant public keys'
     );
   });
 
+  it('should throw an error if covenant public keys are with coordinates', () => {
+    const params = {
+      ...validParams, 
+      covenantNoCoordPks: validParams.covenantNoCoordPks.map(pk => '02' + pk )
+    };
+
+    expect(() => validateParams(params)).toThrow(
+      'Covenant public key should contains no coordinate'
+    );
+  });
+
   it('should throw an error if covenant public keys are less than the quorum', () => {
-    const params = { ...validParams, covenantPks: ['abcdef1234567890'], covenantQuorum: 2 };
+    const params = { ...validParams, covenantQuorum: validParams.covenantNoCoordPks.length + 1 };
 
     expect(() => validateParams(params)).toThrow(
       'Covenant public keys must be greater than or equal to the quorum'
@@ -65,18 +65,18 @@ describe('validateParams', () => {
     const paramsMinutes = { ...validParams, minStakingAmountSat: -1 };
 
     expect(() => validateParams(paramsMinutes)).toThrow(
-      'Min staking amount must be greater than 0'
+      'Min staking amount must be greater than unbonding fee plus 1000'
     );
 
     const params0 = { ...validParams, minStakingAmountSat: 0 };
 
     expect(() => validateParams(params0)).toThrow(
-      'Min staking amount must be greater than 0'
+      'Min staking amount must be greater than unbonding fee plus 1000'
     );
   });
 
   it('should throw an error if max staking time is less than min staking time', () => {
-    const params = { ...validParams, maxStakingTimeBlocks: 50 };
+    const params = { ...validParams, maxStakingTimeBlocks: validParams.minStakingTimeBlocks - 1 };
 
     expect(() => validateParams(params)).toThrow(
       'Max staking time must be greater or equal to min staking time'
@@ -106,74 +106,121 @@ describe('validateParams', () => {
   });
 });
 
-describe('getStakingTerm', () => {
-  const params: any = {
-    minStakingTimeBlocks: 100,
-    maxStakingTimeBlocks: 200,
-  };
-
-  it('should return the fixed term when minStakingTimeBlocks equals maxStakingTimeBlocks', () => {
-    const fixedParams = { ...params, minStakingTimeBlocks: 150, maxStakingTimeBlocks: 150 };
-    const term = 120;
-    const result = getStakingTerm(fixedParams, term);
-    expect(result).toBe(150);
-  });
-
-  it('should return the input term when minStakingTimeBlocks does not equal maxStakingTimeBlocks', () => {
-    const inputTerm = 120;
-    const result = getStakingTerm(params, inputTerm);
-    expect(result).toBe(inputTerm);
-  });
-});
-
-describe('validateStakingTxInputData', () => {
-  const params: any = {
-    minStakingAmountSat: 1000,
-    maxStakingAmountSat: 1000000,
-    minStakingTimeBlocks: 10,
-    maxStakingTimeBlocks: 1000,
-  };
-  const validInputUTXOs: any = [{ txid: 'some-txid', vout: 0, value: 100000 }];
+describe.each(testingNetworks)('validateStakingTxInputData', (
+  { dataGenerator }
+) => {
+  const params = dataGenerator.generateRandomObservableStakingParams();
+  const balance = dataGenerator.getRandomIntegerBetween(
+    params.maxStakingAmountSat, params.maxStakingAmountSat + 100000000,
+  );
+  const numberOfUTXOs = dataGenerator.getRandomIntegerBetween(1, 10);
+  const validInputUTXOs = dataGenerator.generateRandomUTXOs(balance, numberOfUTXOs);
+  const { publicKeyNoCoord : finalityProviderPublicKey } = dataGenerator.generateRandomKeyPair();
+  const feeRate = 1;
 
   it('should pass with valid staking amount, term, UTXOs, and fee rate', () => {
     expect(() =>
-      validateStakingTxInputData(5000, 50, params, validInputUTXOs, 10)
+      validateStakingTxInputData(
+        params.minStakingAmountSat,
+        params.minStakingTimeBlocks,
+        params,
+        validInputUTXOs,
+        feeRate,
+        finalityProviderPublicKey,
+      )
     ).not.toThrow();
   });
 
   it('should throw an error if staking amount is less than the minimum', () => {
     expect(() =>
-      validateStakingTxInputData(500, 50, params, validInputUTXOs, 10)
+      validateStakingTxInputData(
+        params.minStakingAmountSat -1 ,
+        params.minStakingTimeBlocks,
+        params,
+        validInputUTXOs,
+        feeRate,
+        finalityProviderPublicKey,
+      )
     ).toThrow('Invalid staking amount');
   });
 
   it('should throw an error if staking amount is greater than the maximum', () => {
     expect(() =>
-      validateStakingTxInputData(2000000, 50, params, validInputUTXOs, 10)
+      validateStakingTxInputData(
+        params.maxStakingAmountSat + 1 ,
+        params.minStakingTimeBlocks,
+        params,
+        validInputUTXOs,
+        feeRate,
+        finalityProviderPublicKey,
+      )
     ).toThrow('Invalid staking amount');
   });
 
   it('should throw an error if staking term is less than the minimum', () => {
     expect(() =>
-      validateStakingTxInputData(5000, 5, params, validInputUTXOs, 10)
+      validateStakingTxInputData(
+        params.maxStakingAmountSat,
+        params.minStakingTimeBlocks -1 ,
+        params,
+        validInputUTXOs,
+        feeRate,
+        finalityProviderPublicKey,
+      )
     ).toThrow('Invalid staking term');
   });
 
   it('should throw an error if staking term is greater than the maximum', () => {
     expect(() =>
-      validateStakingTxInputData(5000, 1500, params, validInputUTXOs, 10)
+      validateStakingTxInputData(
+        params.maxStakingAmountSat,
+        params.maxStakingTimeBlocks + 1 ,
+        params,
+        validInputUTXOs,
+        feeRate,
+        finalityProviderPublicKey,
+      )
     ).toThrow('Invalid staking term');
   });
 
   it('should throw an error if no input UTXOs are provided', () => {
     expect(() =>
-      validateStakingTxInputData(5000, 50, params, [], 10)
+      validateStakingTxInputData(
+        params.maxStakingAmountSat,
+        params.maxStakingTimeBlocks,
+        params,
+        [],
+        feeRate,
+        finalityProviderPublicKey,
+      )
     ).toThrow('No input UTXOs provided');
   });
 
   it('should throw an error if fee rate is less than or equal to zero', () => {
     expect(() =>
-      validateStakingTxInputData(5000, 50, params, validInputUTXOs, 0)
+      validateStakingTxInputData(
+        params.maxStakingAmountSat,
+        params.maxStakingTimeBlocks,
+        params,
+        validInputUTXOs,
+        0,
+        finalityProviderPublicKey,
+      )
     ).toThrow('Invalid fee rate');
+  });
+
+  it('should throw an error if finality provider public key contains coordinates', () => {
+    const invalidFinalityProviderPublicKey = '02' + finalityProviderPublicKey;
+
+    expect(() =>
+      validateStakingTxInputData(
+        params.maxStakingAmountSat,
+        params.maxStakingTimeBlocks,
+        params,
+        validInputUTXOs,
+        feeRate,
+        invalidFinalityProviderPublicKey,
+      )
+    ).toThrow('Finality provider public key should contains no coordinate');
   });
 });

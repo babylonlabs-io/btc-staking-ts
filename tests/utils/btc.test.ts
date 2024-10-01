@@ -1,32 +1,38 @@
 import { isTaproot } from '../../src/utils/btc';
 import { networks } from 'bitcoinjs-lib';
-
-const mainnetTaprootAddress = 'bc1p8wsazny8z6l8jv9whagu6zrx43t2lxu9q7xltlp3w44qjja9t3hscc85ux';
-const signetTaprootAddress = 'tb1p2wl2dglg0sqv4r8l7r4uc5av72hyty8zprelfa4kwxw9xhqkv55s3kz7ze';
+import { testingNetworks } from '../helper';
 
 describe('isTaproot', () => {
-  it('should return true for a valid mainnet Taproot address', () => {
-    expect(isTaproot(mainnetTaprootAddress, networks.bitcoin)).toBe(true);
+  describe.each(testingNetworks)('should return true for a valid Taproot address', ({ network, dataGenerator }) => {
+    const addresses = dataGenerator.getAddressAndScriptPubKey(
+      dataGenerator.generateRandomKeyPair().publicKey
+    );
+    it('should return true for a valid Taproot address', () => {
+      expect(isTaproot(addresses.taproot.address, network)).toBe(true);
+    });
+
+    it('should return false for non-Taproot address', () => {
+      expect(isTaproot(addresses.nativeSegwit.address, network)).toBe(false);
+
+      const legacyAddress = '16o1TKSUWXy51oDpL5wbPxnezSGWC9rMPv';
+      expect(isTaproot(legacyAddress, network)).toBe(false);
+
+      const nestedSegWidth = '3A2yqzgfxwwqxgse5rDTCQ2qmxZhMnfd5b';
+      expect(isTaproot(nestedSegWidth, network)).toBe(false);
+    });
   });
 
-  it('should return true for a valid signet Taproot address', () => {
-    expect(isTaproot(signetTaprootAddress, networks.testnet)).toBe(true);
-  });
-
-  it('should return false for a mainnet non-Taproot address', () => {
-    const nativeSegWidthAddress = 'bc1qem92n3xk2rm72mua7jq66m700m3r2ama60mc35';
-    expect(isTaproot(nativeSegWidthAddress, networks.bitcoin)).toBe(false);
-
-    const legacyAddress = '16o1TKSUWXy51oDpL5wbPxnezSGWC9rMPv';
-    expect(isTaproot(legacyAddress, networks.bitcoin)).toBe(false);
-
-    const nestedSegWidth = '3A2yqzgfxwwqxgse5rDTCQ2qmxZhMnfd5b';
-    expect(isTaproot(nestedSegWidth, networks.bitcoin)).toBe(false);
-  });
+  const mainnetDatagen = testingNetworks[0]
+  const signetDatagen = testingNetworks[1]
+  const mainnetAddresses = mainnetDatagen.dataGenerator.getAddressAndScriptPubKey(
+    mainnetDatagen.dataGenerator.generateRandomKeyPair().publicKey
+  );
+  const signetAddresses = signetDatagen.dataGenerator.getAddressAndScriptPubKey(
+    signetDatagen.dataGenerator.generateRandomKeyPair().publicKey
+  );
 
   it('should return false for a signet non-Taproot address', () => {
-    const nativeSegWidthAddress = 'tb1qpfctsp5vdsjfg657g8pruka5pp84ye4q9g6u3r';
-    expect(isTaproot(nativeSegWidthAddress, networks.testnet)).toBe(false);
+    expect(isTaproot(signetAddresses.nativeSegwit.address, networks.testnet)).toBe(false);
 
     const legacyAddress = 'n2eq5iP3UsdfmGsJyEEMXyRGNx5ysUXLXb';
     expect(isTaproot(legacyAddress, networks.testnet)).toBe(false);
@@ -41,9 +47,9 @@ describe('isTaproot', () => {
   });
 
   it('should return false for an incorrect network', () => {
-    expect(isTaproot(mainnetTaprootAddress, networks.testnet)).toBe(false);
-    expect(isTaproot(mainnetTaprootAddress, networks.regtest)).toBe(false);
+    expect(isTaproot(mainnetAddresses.taproot.address, networks.testnet)).toBe(false);
+    expect(isTaproot(mainnetAddresses.taproot.address, networks.regtest)).toBe(false);
 
-    expect(isTaproot(signetTaprootAddress, networks.bitcoin)).toBe(false);
+    expect(isTaproot(signetAddresses.taproot.address, networks.bitcoin)).toBe(false);
   });
 });

@@ -1,4 +1,4 @@
-import { networks, Psbt, Transaction } from "bitcoinjs-lib";
+import { networks, Transaction } from "bitcoinjs-lib";
 import { ObservableStakingParams } from "../../types/params";
 import { UTXO } from "../../types/UTXO";
 import { StakingScripts } from "../stakingScript";
@@ -10,29 +10,25 @@ import {
   withdrawTimelockUnbondedTransaction
 } from "..";
 import { 
-  getPublicKeyNoCoord, isTaproot,
-  isValidBitcoinAddress, isValidNoCordPublicKey
+  isTaproot,
+  isValidBitcoinAddress, isValidNoCoordPublicKey
 } from "../../utils/btc";
-import { getStakingTerm, validateParams, validateStakingTxInputData } from "../../utils/staking";
+import { validateParams, validateStakingTxInputData } from "../../utils/staking";
 import { PsbtTransactionResult } from "../../types/transaction";
 
-interface StakerInfo {
+export interface StakerInfo {
   address: string;
   publicKeyNoCoordHex: string;
 }
 
-interface ObservableStakingTransaction {
-  txHex: string;
-  stakingOutptuIndex: number;
+export interface ObservableDelegation {
+  stakingTxHashHex: string;
+  stakerPkNoCoordHex: string;
+  finalityProviderPkNoCoordHex: string;
+  stakingTx: Transaction;
+  stakingOutputIndex: number;
   startHeight: number;
   timelock: number;
-}
-
-interface ObservableDelegation {
-  stakingTxHashHex: string;
-  stakerPkHex: string;
-  finalityProviderPkNoCoordHex: string;
-  stakingTx: ObservableStakingTransaction;
 }
 
 /**
@@ -54,7 +50,7 @@ export class ObservableStaking {
         StakingErrorCode.INVALID_INPUT, "Invalid staker bitcoin address",
       );
     }
-    if (!isValidNoCordPublicKey(stakerInfo.publicKeyNoCoordHex)) {
+    if (!isValidNoCoordPublicKey(stakerInfo.publicKeyNoCoordHex)) {
       throw new StakingError(
         StakingErrorCode.INVALID_INPUT, "Invalid staker public key",
       );
@@ -80,20 +76,19 @@ export class ObservableStaking {
   public createStakingTransaction = (
     params: ObservableStakingParams,
     stakingAmountSat: number,
-    stakingTimeBlocks: number,
+    stakingTerm: number,
     finalityProviderPkNoCoord: string,
     inputUTXOs: UTXO[],
     feeRate: number,
   ): PsbtTransactionResult => {
     validateParams(params);
-    const stakingTerm = getStakingTerm(params, stakingTimeBlocks);
-
     validateStakingTxInputData(
       stakingAmountSat,
       stakingTerm,
       params,
       inputUTXOs,
       feeRate,
+      finalityProviderPkNoCoord,
     );
 
     const scripts = buildScripts(
@@ -142,40 +137,46 @@ export class ObservableStaking {
     delegation: ObservableDelegation,
   ) : PsbtTransactionResult => {
     validateParams(stakingParams);
-    const {btcStakingTx, stakingTx } = validateAndDecodeDelegationInputs(
+    validateDelegationInputs(
       delegation, stakingParams, this.stakerInfo,
-    );  
+    );
+    const { 
+      stakingTx,
+      stakingOutputIndex,
+      timelock,
+      finalityProviderPkNoCoordHex,
+      stakerPkNoCoordHex
+    } = delegation;
     // Build scripts
     const scripts = buildScripts(
       stakingParams,
-      delegation.finalityProviderPkNoCoordHex,
-      stakingTx.timelock,
-      delegation.stakerPkHex,
+      finalityProviderPkNoCoordHex,
+      timelock,
+      stakerPkNoCoordHex,
     );
-
     // Create the unbonding transaction
     try {
       const { psbt } = unbondingTransaction(
         scripts,
-        btcStakingTx,
+        stakingTx,
         stakingParams.unbondingFeeSat,
         this.network,
-        stakingTx.stakingOutptuIndex,
+        stakingOutputIndex,
       );
       return { psbt, fee: stakingParams.unbondingFeeSat };
     } catch (error) {
       throw StakingError.fromUnknown(
         error, StakingErrorCode.BUILD_TRANSACTION_FAILURE,
-        "Cannot build unsigned unbonding transaction",
+        "Cannot build the unbonding transaction",
       );
     }
   }
 
   /**
-   * Create a withdraw early unbonded transaction for observable staking.
+   * Create a withdrawal transaction that spends an unbonding transaction for observable staking.  
    * 
    * @param {ObservableStakingParams} stakingParams - The staking parameters for observable staking.
-   * @param {ObservableDelegation} delegation - The delegation to withdraw early.
+   * @param {ObservableDelegation} delegation - The delegation that has been on-demand unbonded.
    * @param {Transaction} unbondingTx - The unbonding transaction to withdraw from.
    * @param {number} feeRate - The fee rate for the transaction in satoshis per byte.
    * 
@@ -190,15 +191,20 @@ export class ObservableStaking {
     feeRate: number,
   ): PsbtTransactionResult => {
     validateParams(stakingParams);
-    const { stakingTx } = validateAndDecodeDelegationInputs(
+    validateDelegationInputs(
       delegation, stakingParams, this.stakerInfo,
     );
+    const {
+      timelock,
+      finalityProviderPkNoCoordHex,
+      stakerPkNoCoordHex
+    } = delegation;
     // Build scripts
     const scripts = buildScripts(
       stakingParams,
-      delegation.finalityProviderPkNoCoordHex,
-      stakingTx.timelock,
-      delegation.stakerPkHex,
+      finalityProviderPkNoCoordHex,
+      timelock,
+      stakerPkNoCoordHex,
     );
 
     // Create the withdraw early unbonded transaction
@@ -219,7 +225,7 @@ export class ObservableStaking {
   }
 
   /**
-   * Create a withdraw timelock unbonded transaction for observable staking.
+   * Create a withdrawal transaction that spends a naturally expired staking transaction for observable staking.
    * 
    * @param {ObservableStakingParams} stakingParams - The staking parameters for observable staking.
    * @param {ObservableDelegation} delegation - The delegation to withdraw from.
@@ -235,26 +241,34 @@ export class ObservableStaking {
     feeRate: number,
   ): PsbtTransactionResult => {
     validateParams(stakingParams);
-    const { stakingTx, btcStakingTx } = validateAndDecodeDelegationInputs(
+    validateDelegationInputs(
       delegation, stakingParams, this.stakerInfo,
     );
+    const { 
+      stakingTx,
+      stakingOutputIndex,
+      timelock,
+      finalityProviderPkNoCoordHex,
+      stakerPkNoCoordHex,
+    } = delegation;
+
     // Build scripts
     const scripts = buildScripts(
       stakingParams,
-      delegation.finalityProviderPkNoCoordHex,
-      stakingTx.timelock,
-      delegation.stakerPkHex,
+      finalityProviderPkNoCoordHex,
+      timelock,
+      stakerPkNoCoordHex,
     );
 
     // Create the timelock unbonded transaction
     try {
       return withdrawTimelockUnbondedTransaction(
         scripts,
-        btcStakingTx,
+        stakingTx,
         this.stakerInfo.address,
         this.network,
         feeRate,
-        stakingTx.stakingOutptuIndex,
+        stakingOutputIndex,
       );  
     } catch (error) {
       throw StakingError.fromUnknown(
@@ -265,12 +279,13 @@ export class ObservableStaking {
   }
 }
 
-export const validateAndDecodeDelegationInputs = (
-  delegation: ObservableDelegation, stakingParams: ObservableStakingParams,
+export const validateDelegationInputs = (
+  delegation: ObservableDelegation,
+  stakingParams: ObservableStakingParams,
   stakerInfo: StakerInfo,
 ) => {
-  const stakingTx = delegation.stakingTx;
-  if (stakingTx.startHeight < stakingParams.activationHeight) {
+  const { stakingTx, startHeight, timelock, stakingOutputIndex } = delegation;
+  if (startHeight < stakingParams.activationHeight) {
     throw new StakingError(
       StakingErrorCode.INVALID_INPUT,
       "Staking transaction start height cannot be less than activation height",
@@ -278,8 +293,8 @@ export const validateAndDecodeDelegationInputs = (
   }
 
   if (
-    stakingTx.timelock < stakingParams.minStakingTimeBlocks ||
-    stakingTx.timelock > stakingParams.maxStakingTimeBlocks
+    timelock < stakingParams.minStakingTimeBlocks ||
+    timelock > stakingParams.maxStakingTimeBlocks
   ) {
     throw new StakingError(
       StakingErrorCode.INVALID_INPUT,
@@ -287,50 +302,46 @@ export const validateAndDecodeDelegationInputs = (
     );
   }
 
-  if (delegation.stakerPkHex !== stakerInfo.publicKeyNoCoordHex) {
+  if (delegation.stakerPkNoCoordHex !== stakerInfo.publicKeyNoCoordHex) {
     throw new StakingError(
       StakingErrorCode.INVALID_INPUT,
       "Staker public key does not match between connected staker and delegation staker",
     );
   }
 
-  let btcStakingTx: Transaction;
-  try {
-    btcStakingTx = Transaction.fromHex(stakingTx.txHex);
-  } catch (error: unknown) {
-    throw StakingError.fromUnknown(
-      error, StakingErrorCode.INVALID_INPUT,
-      "Invalid staking transaction hex",
+  if (!isValidNoCoordPublicKey(delegation.finalityProviderPkNoCoordHex)) {
+    throw new StakingError(
+      StakingErrorCode.INVALID_INPUT,
+      "Finality provider public key should not have a coordinate",
     );
   }
 
-  if (!btcStakingTx.outs[stakingTx.stakingOutptuIndex]) {
+  if (!stakingTx.outs[stakingOutputIndex]) {
     throw new StakingError(
       StakingErrorCode.INVALID_INPUT,
       "Staking transaction output index is out of range",
     );
   }
 
-  if (btcStakingTx.getId() !== delegation.stakingTxHashHex) {
+  if (stakingTx.getId() !== delegation.stakingTxHashHex) {
     throw new StakingError(
       StakingErrorCode.INVALID_INPUT,
       "Staking transaction hash does not match between the btc transaction and the provided staking hash",
     );
   }
-  return { btcStakingTx, stakingTx };
 }
 
 export const buildScripts = (
   params: ObservableStakingParams,
   finalityProviderPkNoCoordHex: string,
-  stakingTxTimelock: number,
-  publicKeyHex: string,
+  stakingTerm: number,
+  stakerPkNoCoordHex: string,
 ): StakingScripts => {
   // Convert covenant PKs to buffers
-  let covenantPKsBuffer;
+  let covenantNoCoordPKsBuffer;
   try {
-    covenantPKsBuffer = params?.covenantPks?.map((pk) =>
-      getPublicKeyNoCoord(pk),
+    covenantNoCoordPKsBuffer = params.covenantNoCoordPks.map((pk) =>
+      Buffer.from(pk, "hex")
     );
   } catch (error) {
     throw StakingError.fromUnknown(
@@ -343,11 +354,11 @@ export const buildScripts = (
   let stakingScriptData;
   try {
     stakingScriptData = new StakingScriptData(
-      Buffer.from(publicKeyHex, "hex"),
+      Buffer.from(stakerPkNoCoordHex, "hex"),
       [Buffer.from(finalityProviderPkNoCoordHex, "hex")],
-      covenantPKsBuffer,
+      covenantNoCoordPKsBuffer,
       params.covenantQuorum,
-      stakingTxTimelock,
+      stakingTerm,
       params.unbondingTime,
       Buffer.from(params.tag, "hex"),
     );

@@ -5,6 +5,11 @@ import { PsbtOutputExtended } from "../../types/psbtOutputs";
 import { Params } from "../../types/params";
 import { StakingError, StakingErrorCode } from "../../error";
 import { UTXO } from "../../types/UTXO";
+import { isValidNoCoordPublicKey } from "../btc";
+
+// minimum unbonding output value to avoid the unbonding output value being
+// less than Bitcoin dust
+const MIN_UNBONDING_OUTPUT_VALUE = 1000;
 
 /**
  * Build the staking output for the transaction which contains p2tr output 
@@ -65,27 +70,6 @@ export const buildStakingOutput = (
 };
 
 /**
- * Get the staking term, it will ignore the `stakingTimeBlocks` and
- * use the value from params if the min and max staking time blocks are the same
- *
- * @param {Params} params - The staking parameters.
- * @param {number} term - The staking term.
- * @returns {number} - The staking term.
- */
-export const getStakingTerm = (params: Params, term: number) => {
-  // check if term is fixed
-  let termWithFixed;
-  if (params.minStakingTimeBlocks === params.maxStakingTimeBlocks) {
-    // if term is fixed, use the API value
-    termWithFixed = params.minStakingTimeBlocks;
-  } else {
-    // if term is not fixed, use the term from the input
-    termWithFixed = term;
-  }
-  return termWithFixed;
-};
-
-/**
  * Validate the staking transaction input data.
  *
  * @param {number} stakingAmountSat - The staking amount in satoshis.
@@ -101,6 +85,7 @@ export const validateStakingTxInputData = (
   params: Params,
   inputUTXOs: UTXO[],
   feeRate: number,
+  finalityProviderPkNoCoord: string,
 ) => {
   if (
     stakingAmountSat < params.minStakingAmountSat ||
@@ -124,9 +109,15 @@ export const validateStakingTxInputData = (
     throw new StakingError(
       StakingErrorCode.INVALID_INPUT, "No input UTXOs provided",
     );
-  } else if (feeRate <= 0) {
+  }
+  if (feeRate <= 0) {
     throw new StakingError(
       StakingErrorCode.INVALID_INPUT, "Invalid fee rate",
+    );
+  }
+  if (!isValidNoCoordPublicKey(finalityProviderPkNoCoord)) {
+    throw new StakingError(
+      StakingErrorCode.INVALID_INPUT, "Finality provider public key should contains no coordinate",
     );
   }
 }
@@ -138,18 +129,28 @@ export const validateStakingTxInputData = (
  * @throws {StakingError} - If the parameters are invalid.
  */
 export const validateParams = (params: Params) => {
-  if (params.covenantPks.length == 0) {
+  // Check covenant public keys
+  if (params.covenantNoCoordPks.length == 0) {
     throw new StakingError(
       StakingErrorCode.INVALID_PARAMS,
       "Could not find any covenant public keys",
     );
   }
-  if (params.covenantPks.length < params.covenantQuorum) {
+  if (params.covenantNoCoordPks.length < params.covenantQuorum) {
     throw new StakingError(
       StakingErrorCode.INVALID_PARAMS,
       "Covenant public keys must be greater than or equal to the quorum",
     );
   }
+  params.covenantNoCoordPks.forEach((pk) => {
+    if (!isValidNoCoordPublicKey(pk)) {
+      throw new StakingError(
+        StakingErrorCode.INVALID_PARAMS,
+        "Covenant public key should contains no coordinate",
+      );
+    }
+  });
+  // Check other parameters
   if (params.unbondingTime <= 0) {
     throw new StakingError(
       StakingErrorCode.INVALID_PARAMS,
@@ -168,10 +169,10 @@ export const validateParams = (params: Params) => {
       "Max staking amount must be greater or equal to min staking amount",
     );
   }
-  if (params.minStakingAmountSat <= 0) {
+  if (params.minStakingAmountSat < params.unbondingFeeSat + MIN_UNBONDING_OUTPUT_VALUE) {
     throw new StakingError(
       StakingErrorCode.INVALID_PARAMS,
-      "Min staking amount must be greater than 0",
+      `Min staking amount must be greater than unbonding fee plus ${MIN_UNBONDING_OUTPUT_VALUE}`,
     );
   }
   if (params.maxStakingTimeBlocks < params.minStakingTimeBlocks) {
