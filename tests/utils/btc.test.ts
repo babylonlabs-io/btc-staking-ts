@@ -1,4 +1,4 @@
-import { isTaproot } from '../../src/utils/btc';
+import { getPublicKeyNoCoord, isTaproot, isValidNoCoordPublicKey } from '../../src/utils/btc';
 import { networks } from 'bitcoinjs-lib';
 import { testingNetworks } from '../helper';
 
@@ -52,4 +52,37 @@ describe('isTaproot', () => {
 
     expect(isTaproot(signetAddresses.taproot.address, networks.bitcoin)).toBe(false);
   });
+});
+
+describe.each(testingNetworks)('public keys', ({ dataGenerator }) => {
+  const { publicKey, publicKeyNoCoord } = dataGenerator.generateRandomKeyPair()
+  describe('isValidNoCoordPublicKey', () => {
+    it('should return true for a valid public key without a coordinate', () => {
+      expect(isValidNoCoordPublicKey(publicKeyNoCoord)).toBe(true);
+    });
+  
+    it('should return false for a public key with a coordinate', () => {
+      expect(isValidNoCoordPublicKey(publicKey)).toBe(false);
+    });
+
+    it('should return false for an invalid public key', () => {
+      const invalidPublicKey = 'invalid_public_key';
+      expect(isValidNoCoordPublicKey(invalidPublicKey)).toBe(false);
+    });
+  });
+
+  describe('getPublicKeyNoCoord', () => {
+    it('should return the public key without the coordinate', () => {
+      expect(getPublicKeyNoCoord(publicKey)).toBe(publicKeyNoCoord);
+    });
+
+    it('should return the same public key without the coordinate', () => {
+      expect(getPublicKeyNoCoord(publicKeyNoCoord)).toBe(publicKeyNoCoord);
+    });
+
+    it('should throw an error for an invalid public key', () => {
+      const invalidPublicKey = 'invalid_public_key';
+      expect(() => getPublicKeyNoCoord(invalidPublicKey)).toThrow('Invalid public key without coordinate');
+    });
+  });  
 });
