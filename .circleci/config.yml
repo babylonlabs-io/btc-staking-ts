@@ -17,7 +17,7 @@ jobs:
       - run:
           name: Run tests
           command: npm run test
-  publish_canary:
+  publish:
     machine:
       image: ubuntu-2204:2024.01.1
     steps:
@@ -31,13 +31,8 @@ jobs:
           name: Authenticate with NPM registry
           command: echo "//registry.npmjs.org/:_authToken=$NPM_TOKEN" > .npmrc
       - run:
-          name: Publish canary package
-          command: |
-            npm publish --tag canary
-            if [ $? -ne 0 ]; then
-              echo "npm publish failed, stopping the job."
-              exit 1
-            fi
+          name: Semantic Release
+          command: npm run semantic-release
   validate_main_version:
     machine:
       image: ubuntu-2204:2024.01.1
@@ -46,7 +41,7 @@ jobs:
       - run:
           name: Validate version
           command: ./bin/ci_validate_version.sh
-  publish:
+  semantic_release:
     machine:
       image: ubuntu-2204:2024.01.1
       resource_class: large
@@ -55,53 +50,43 @@ jobs:
       - node/install:
           node-version: '22.3'
       - run:
-          name: Authenticate with NPM registry
-          command: echo "//registry.npmjs.org/:_authToken=$NPM_TOKEN" > .npmrc
-      - run:
           name: Install requirements
           command: npm ci
       - run:
-          name: Publish package
-          command: npm publish
+          name: Semantic Release
+          command: npm run semantic-release
+
 workflows:
   CI:
     jobs:
-      - build_and_test
-      - require_approval_for_canary:
-          type: approval
-          filters:
-            branches:
-              only:
-                - dev
-      - publish_canary:
-          requires:
-            - build_and_test
-            - require_approval_for_canary
-          filters:
-            branches:
-              only:
-                - dev
-      - validate_main_version:
-          requires:
-            - build_and_test
+      - build_and_test:
           filters:
             branches:
               only:
                 - main
+                - dev
       - require_approval:
           type: approval
+          requires:
+            - build_and_test
           filters:
             branches:
               only:
                 - main
+                - dev
       - publish:
           requires:
             - build_and_test
             - require_approval
-            - validate_main_version
           filters:
-            tags:
-              only: /.*/
+            branches:
+              only:
+                - main
+                - dev
+      - semantic_release:
+          requires:
+            - publish
+          filters:
             branches:
               only:
                 - main

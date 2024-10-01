@@ -15,19 +15,19 @@
 npm i @babylonlabs-io/btc-staking-ts
 ```
 
-## Version Release
+## Versioning
 
-### Stable version
+This project uses [Semantic Versioning](https://semver.org/) and [semantic-release](https://github.com/semantic-release/semantic-release) for version management and package publishing. Versions are automatically determined and released based on commit messages.
 
-Stable release versions are manually released from the main branch.
+### Commit Message Format
 
-### Canary version
+We use the [Conventional Commits](https://www.conventionalcommits.org/) specification for commit messages:
 
-A canary version is a pre-release version. Make sure all changes are added and committed before running the command below:
+- `feat: ...` for new features (minor version bump)
+- `fix: ...` for bug fixes (patch version bump)
+- `BREAKING CHANGE: ...` in the commit body for breaking changes (major version bump)
 
-```console
-npm run version:canary
-```
+Releases are automatically triggered on merges to the `main` and `dev` branches.
 
 ## Usage
 

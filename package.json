@@ -1,6 +1,6 @@
 {
   "name": "@babylonlabs-io/btc-staking-ts",
-  "version": "0.3.0-canary.10",
+  "version": "0.3.0-development",
   "description": "Library exposing methods for the creation and consumption of Bitcoin transactions pertaining to Babylon's Bitcoin Staking protocol.",
   "module": "dist/index.js",
   "main": "dist/index.cjs",
@@ -15,7 +15,7 @@
     "prepare": "husky",
     "prepublishOnly": "npm run build",
     "test": "jest --verbose",
-    "version:canary": "npm version prerelease --preid=canary"
+    "semantic-release": "semantic-release"
   },
   "files": [
     "dist/*"
@@ -47,6 +47,8 @@
   "author": "Babylon Labs Ltd.",
   "license": "SEE LICENSE IN LICENSE",
   "devDependencies": {
+    "@semantic-release/changelog": "^6.0.3",
+    "@semantic-release/git": "^10.0.1",
     "@types/jest": "^29.5.12",
     "@types/node": "^20.11.30",
     "dts-bundle-generator": "^9.3.1",
@@ -59,6 +61,7 @@
     "lint-staged": "^15.2.7",
     "prettier": "^3.2.5",
     "prettier-plugin-organize-imports": "^3.2.4",
+    "semantic-release": "^24.1.2",
     "ts-jest": "^29.1.4",
     "typescript": "^5.4.5",
     "typescript-eslint": "^7.4.0"
