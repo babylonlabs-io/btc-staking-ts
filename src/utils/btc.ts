@@ -3,7 +3,7 @@ import { initEccLib, address, networks } from "bitcoinjs-lib";
 import { NO_COORD_PK_BYTE_LENGTH } from "../constants/keys";
 
 // Initialize elliptic curve library
-export function initBTCCurve() {
+export const initBTCCurve = () => {
   initEccLib(ecc);
 }
 

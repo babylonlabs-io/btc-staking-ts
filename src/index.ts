@@ -1,5 +1,5 @@
-export { initBTCCurve } from "./utils/btc";
-export { StakingScriptData } from "./staking/stakingScript";
+export * from "./utils/btc";
 export * from "./staking";
+export * from "./types";
+export { StakingScriptData } from "./staking/stakingScript";
 export { ObservableStaking } from "./staking/observable";
-export type { PsbtTransactionResult } from "./types/transaction";

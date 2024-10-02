@@ -11,7 +11,7 @@ describe.each(testingNetworks)("ObservableStaking input validations", ({
     params.minStakingAmountSat, params.maxStakingAmountSat,
   );
   const finalityProviderPkNoCoordHex = dataGenerator.generateRandomKeyPair().publicKeyNoCoord;
-  const { stakingTx, stakingTerm} = dataGenerator.generateRandomStakingTransaction(
+  const { stakingTx, timelock} = dataGenerator.generateRandomStakingTransaction(
     keys, feeRate, stakingAmount, "nativeSegwit", params,
   );
   const delegation = {
@@ -23,7 +23,7 @@ describe.each(testingNetworks)("ObservableStaking input validations", ({
     startHeight: dataGenerator.getRandomIntegerBetween(
       params.activationHeight, params.activationHeight + 1000,
     ),
-    timelock: stakingTerm,
+    timelock,
   }
   const stakerInfo = {
     address: dataGenerator.getAddressAndScriptPubKey(keys.publicKey).nativeSegwit.address,

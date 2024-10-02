@@ -15,7 +15,7 @@ describe.each(testingNetworks)("Create staking transaction", ({
   let stakerInfo: { address: string, publicKeyNoCoordHex: string, publicKeyWithCoord: string };
   let finalityProviderPublicKey: string;
   let params: ObservableStakingParams;
-  let stakingTerm: number;
+  let timelock: number;
   let utxos: UTXO[];
   const feeRate = 1;
 
@@ -36,7 +36,7 @@ describe.each(testingNetworks)("Create staking transaction", ({
     };
     finalityProviderPublicKey = dataGenerator.generateRandomKeyPair().publicKeyNoCoord;
     params = dataGenerator.generateRandomObservableStakingParams(true);
-    stakingTerm = dataGenerator.generateRandomStakingTerm(params);
+    timelock = dataGenerator.generateRandomTimelock(params);
     utxos = dataGenerator.generateRandomUTXOs(
       params.maxStakingAmountSat * dataGenerator.getRandomIntegerBetween(1, 100),
       dataGenerator.getRandomIntegerBetween(1, 10),
@@ -71,7 +71,7 @@ describe.each(testingNetworks)("Create staking transaction", ({
     expect(() => observableStaking.createStakingTransaction(
       params,
       params.minStakingAmountSat,
-      stakingTerm,
+      timelock,
       finalityProviderPublicKey,
       utxos,
       feeRate,
@@ -89,7 +89,7 @@ describe.each(testingNetworks)("Create staking transaction", ({
     expect(() => observableStaking.createStakingTransaction(
       params,
       params.minStakingAmountSat,
-      stakingTerm,
+      timelock,
       finalityProviderPublicKey,
       utxos,
       feeRate,
@@ -107,7 +107,7 @@ describe.each(testingNetworks)("Create staking transaction", ({
     expect(() => observableStaking.createStakingTransaction(
       params,
       params.minStakingAmountSat,
-      stakingTerm,
+      timelock,
       finalityProviderPublicKey,
       utxos,
       feeRate,
@@ -124,7 +124,7 @@ describe.each(testingNetworks)("Create staking transaction", ({
     const { psbt, fee} = observableStaking.createStakingTransaction(
       params,
       amount,
-      stakingTerm,
+      timelock,
       finalityProviderPublicKey,
       utxos,
       feeRate,

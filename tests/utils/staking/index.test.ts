@@ -157,7 +157,7 @@ describe.each(testingNetworks)('validateStakingTxInputData', (
     ).toThrow('Invalid staking amount');
   });
 
-  it('should throw an error if staking term is less than the minimum', () => {
+  it('should throw an error if time lock is less than the minimum', () => {
     expect(() =>
       validateStakingTxInputData(
         params.maxStakingAmountSat,
@@ -167,10 +167,10 @@ describe.each(testingNetworks)('validateStakingTxInputData', (
         feeRate,
         finalityProviderPublicKey,
       )
-    ).toThrow('Invalid staking term');
+    ).toThrow('Invalid timelock');
   });
 
-  it('should throw an error if staking term is greater than the maximum', () => {
+  it('should throw an error if time lock is greater than the maximum', () => {
     expect(() =>
       validateStakingTxInputData(
         params.maxStakingAmountSat,
@@ -180,7 +180,7 @@ describe.each(testingNetworks)('validateStakingTxInputData', (
         feeRate,
         finalityProviderPublicKey,
       )
-    ).toThrow('Invalid staking term');
+    ).toThrow('Invalid timelock');
   });
 
   it('should throw an error if no input UTXOs are provided', () => {

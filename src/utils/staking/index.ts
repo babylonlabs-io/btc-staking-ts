@@ -73,7 +73,7 @@ export const buildStakingOutput = (
  * Validate the staking transaction input data.
  *
  * @param {number} stakingAmountSat - The staking amount in satoshis.
- * @param {number} stakingTerm - The staking term in blocks.
+ * @param {number} timelock - The staking time in blocks.
  * @param {Params} params - The staking parameters.
  * @param {UTXO[]} inputUTXOs - The input UTXOs.
  * @param {number} feeRate - The Bitcoin fee rate in sat/vbyte
@@ -81,7 +81,7 @@ export const buildStakingOutput = (
  */
 export const validateStakingTxInputData = (
   stakingAmountSat: number,
-  stakingTerm: number,
+  timelock: number,
   params: Params,
   inputUTXOs: UTXO[],
   feeRate: number,
@@ -97,11 +97,11 @@ export const validateStakingTxInputData = (
   }
 
   if (
-    stakingTerm < params.minStakingTimeBlocks ||
-    stakingTerm > params.maxStakingTimeBlocks
+    timelock < params.minStakingTimeBlocks ||
+    timelock > params.maxStakingTimeBlocks
   ) {
     throw new StakingError(
-      StakingErrorCode.INVALID_INPUT, "Invalid staking term",
+      StakingErrorCode.INVALID_INPUT, "Invalid timelock",
     );
   }
 

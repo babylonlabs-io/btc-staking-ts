@@ -16,7 +16,7 @@ describe.each(testingNetworks)("Create withdrawal transactions", ({
     params.minStakingAmountSat, params.maxStakingAmountSat,
   );
   const finalityProviderPkNoCoordHex = dataGenerator.generateRandomKeyPair().publicKeyNoCoord;
-  const { stakingTx, stakingTerm} = dataGenerator.generateRandomStakingTransaction(
+  const { stakingTx, timelock} = dataGenerator.generateRandomStakingTransaction(
     keys, feeRate, stakingAmount, "nativeSegwit", params,
   );
   const delegation: ObservableDelegation = {
@@ -28,7 +28,7 @@ describe.each(testingNetworks)("Create withdrawal transactions", ({
     startHeight: dataGenerator.getRandomIntegerBetween(
       params.activationHeight, params.activationHeight + 1000,
     ),
-    timelock: stakingTerm,
+    timelock,
   }
   const stakerInfo = {
     address: dataGenerator.getAddressAndScriptPubKey(keys.publicKey).nativeSegwit.address,

@@ -50,9 +50,9 @@ export class DataGenerator {
     };
   };
 
-  // Generate a random staking term (number of blocks to stake)
+  // Generate a random timelock value
   // ranged from 1 to 65535
-  generateRandomStakingTerm = (
+  generateRandomTimelock = (
     params: { minStakingTimeBlocks: number, maxStakingTimeBlocks: number},
   ) => {
     if (params.minStakingTimeBlocks === params.maxStakingTimeBlocks) {
@@ -64,8 +64,8 @@ export class DataGenerator {
     );
   };
 
-  generateRandomUnbondingTime = (stakingTerm: number) => {
-    return Math.floor(Math.random() * stakingTerm) + 1;
+  generateRandomUnbondingTime = (timelock: number) => {
+    return Math.floor(Math.random() * timelock) + 1;
   };
 
   generateRandomFeeRates = () => {
@@ -109,8 +109,8 @@ export class DataGenerator {
     const minStakingAmountSat = this.getRandomIntegerBetween(100000, 1000000000);
     const minStakingTimeBlocks = this.getRandomIntegerBetween(1, 2000);
     const maxStakingTimeBlocks = fixedTerm ? minStakingTimeBlocks : this.getRandomIntegerBetween(minStakingTimeBlocks, minStakingTimeBlocks + 1000);
-    const stakingTerm = this.generateRandomStakingTerm({minStakingTimeBlocks, maxStakingTimeBlocks});
-    const unbondingTime = this.generateRandomUnbondingTime(stakingTerm);
+    const timelock = this.generateRandomTimelock({minStakingTimeBlocks, maxStakingTimeBlocks});
+    const unbondingTime = this.generateRandomUnbondingTime(timelock);
     return {
       covenantNoCoordPks,
       covenantQuorum,
@@ -150,7 +150,7 @@ export class DataGenerator {
       false,
       committeeSize,
     );
-    const stakingTxTimelock = this.generateRandomStakingTerm(globalParams);
+    const stakingTxTimelock = this.generateRandomTimelock(globalParams);
 
     // Convert covenant PKs to buffers
     const covenantPKsBuffer = globalParams.covenantNoCoordPks.map((pk: string) =>
@@ -244,14 +244,14 @@ export class DataGenerator {
     const param = globalParam
       ? globalParam
       : this.generateRandomObservableStakingParams(false, committeeSize);
-    const stakingTerm = this.generateRandomStakingTerm(param);
+    const timelock = this.generateRandomTimelock(param);
     
     const stakingScriptData = new StakingScriptData(
       Buffer.from(stakerPublicKeyNoCoord, "hex"),
       [Buffer.from(fpPkHex, "hex")],
       param.covenantNoCoordPks.map((pk: string) => Buffer.from(pk, "hex")),
       param.covenantQuorum,
-      stakingTerm,
+      timelock,
       param.unbondingTime,
       Buffer.from(param.tag, "hex"),
     );
@@ -284,7 +284,7 @@ export class DataGenerator {
     return {
       stakingTx,
       unsignedPsbt: psbt,
-      stakingTerm
+      timelock
     }
   };
 

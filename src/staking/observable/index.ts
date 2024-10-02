@@ -64,7 +64,7 @@ export class ObservableStaking {
    * 
    * @param {ObservableStakingParams} params - The staking parameters for observable staking.
    * @param {number} stakingAmountSat - The amount to stake in satoshis.
-   * @param {number} stakingTimeBlocks - The time to stake in blocks.
+   * @param {number} timelock - The staking time in blocks.
    * @param {string} finalityProviderPkNoCoord - The finality provider's public key
    * without coordinates.
    * @param {UTXO[]} inputUTXOs - The UTXOs to use as inputs for the staking 
@@ -76,7 +76,7 @@ export class ObservableStaking {
   public createStakingTransaction = (
     params: ObservableStakingParams,
     stakingAmountSat: number,
-    stakingTerm: number,
+    timelock: number,
     finalityProviderPkNoCoord: string,
     inputUTXOs: UTXO[],
     feeRate: number,
@@ -84,7 +84,7 @@ export class ObservableStaking {
     validateParams(params);
     validateStakingTxInputData(
       stakingAmountSat,
-      stakingTerm,
+      timelock,
       params,
       inputUTXOs,
       feeRate,
@@ -94,7 +94,7 @@ export class ObservableStaking {
     const scripts = buildScripts(
       params,
       finalityProviderPkNoCoord,
-      stakingTerm,
+      timelock,
       this.stakerInfo.publicKeyNoCoordHex,
     );
 
@@ -279,6 +279,15 @@ export class ObservableStaking {
   }
 }
 
+/**
+ * Validate the Babylon delegation inputs.
+ * 
+ * @param {ObservableDelegation} delegation - The delegation to validate.
+ * @param {ObservableStakingParams} stakingParams - The staking parameters.
+ * @param {StakerInfo} stakerInfo - The staker information.
+ * 
+ * @throws {StakingError} - If the delegation inputs are invalid.
+ */
 export const validateDelegationInputs = (
   delegation: ObservableDelegation,
   stakingParams: ObservableStakingParams,
@@ -334,7 +343,7 @@ export const validateDelegationInputs = (
 export const buildScripts = (
   params: ObservableStakingParams,
   finalityProviderPkNoCoordHex: string,
-  stakingTerm: number,
+  timelock: number,
   stakerPkNoCoordHex: string,
 ): StakingScripts => {
   // Convert covenant PKs to buffers
@@ -358,7 +367,7 @@ export const buildScripts = (
       [Buffer.from(finalityProviderPkNoCoordHex, "hex")],
       covenantNoCoordPKsBuffer,
       params.covenantQuorum,
-      stakingTerm,
+      timelock,
       params.unbondingTime,
       Buffer.from(params.tag, "hex"),
     );
