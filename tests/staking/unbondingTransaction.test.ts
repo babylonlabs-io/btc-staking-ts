@@ -1,7 +1,7 @@
-import { initBTCCurve, unbondingTransaction } from "../src";
-import { BTC_DUST_SAT } from "../src/constants/dustSat";
-import { NON_RBF_SEQUENCE, TRANSACTION_VERSION } from "../src/constants/psbt";
-import { testingNetworks } from "./helper";
+import { initBTCCurve, unbondingTransaction } from "../../src";
+import { BTC_DUST_SAT } from "../../src/constants/dustSat";
+import { NON_RBF_SEQUENCE, TRANSACTION_VERSION } from "../../src/constants/psbt";
+import { testingNetworks } from "../helper";
 
 describe("Unbonding Transaction - ", () => {
   beforeAll(() => {
@@ -11,7 +11,7 @@ describe("Unbonding Transaction - ", () => {
     const stakerKeyPair = dataGenerator.generateRandomKeyPair();
     const stakingAmount =
       dataGenerator.getRandomIntegerBetween(1000, 100000) + 10000;
-    const stakingTx = dataGenerator.generateRandomStakingTransaction(
+    const { stakingTx} = dataGenerator.generateRandomStakingTransaction(
       stakerKeyPair,
       undefined,
       stakingAmount,

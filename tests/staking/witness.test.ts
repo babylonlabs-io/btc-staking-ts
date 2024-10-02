@@ -1,5 +1,5 @@
 import { Buffer } from "buffer";
-import { createWitness } from "../src";
+import { createWitness } from "../../src";
 
 describe("createWitness", () => {
   it("should return only originalWitness if no matches found", () => {

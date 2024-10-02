@@ -1,5 +1,5 @@
 import { opcodes, script } from "bitcoinjs-lib";
-import { StakingScriptData } from "../../src/utils/stakingScript";
+import { StakingScriptData } from "../../src";
 
 describe("stakingScript", () => {
   const pk1 = Buffer.from(

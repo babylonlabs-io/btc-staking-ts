@@ -3,14 +3,14 @@ import {
   initBTCCurve,
   withdrawEarlyUnbondedTransaction,
   withdrawTimelockUnbondedTransaction,
-} from "../src/index";
-import { StakingScripts } from "../src/types/StakingScripts";
-import { PsbtTransactionResult } from "../src/types/transaction";
-import { testingNetworks } from "./helper";
-import { DEFAULT_TEST_FEE_RATE, KeyPair } from "./helper/dataGenerator";
-import { NetworkConfig } from "./helper/testingNetworks";
-import { BTC_DUST_SAT } from "../src/constants/dustSat";
-import { TRANSACTION_VERSION } from "../src/constants/psbt";
+} from "../../src/index";
+import { PsbtTransactionResult } from "../../src/types/transaction";
+import { testingNetworks } from "../helper";
+import { DEFAULT_TEST_FEE_RATE, KeyPair } from "../helper/dataGenerator";
+import { NetworkConfig } from "../helper/testingNetworks";
+import { BTC_DUST_SAT } from "../../src/constants/dustSat";
+import { TRANSACTION_VERSION } from "../../src/constants/psbt";
+import { StakingScripts } from "../../src/staking/stakingScript";
 
 interface WithdrawTransactionTestData {
   keyPair: KeyPair;
@@ -35,7 +35,7 @@ describe("withdrawTransaction", () => {
     ).nativeSegwit.address;
     const stakingScripts =
       dataGenerator.generateMockStakingScripts(stakerKeyPair);
-    const stakingTx =
+    const { stakingTx} =
       dataGenerator.generateRandomStakingTransaction(stakerKeyPair);
 
     return {
@@ -153,7 +153,7 @@ describe("withdrawTransaction", () => {
       const address = dataGenerator.getAddressAndScriptPubKey(keyPair.publicKey).nativeSegwit.address;
       const stakingScripts = dataGenerator.generateMockStakingScripts(keyPair);
       const amount = dataGenerator.getRandomIntegerBetween(1, 1000);
-      const stakingTx = dataGenerator.generateRandomStakingTransaction(
+      const { stakingTx} = dataGenerator.generateRandomStakingTransaction(
         keyPair,
         DEFAULT_TEST_FEE_RATE,
         amount,
@@ -178,7 +178,7 @@ describe("withdrawTransaction", () => {
       const address = dataGenerator.getAddressAndScriptPubKey(keyPair.publicKey).nativeSegwit.address;
       const stakingScripts = dataGenerator.generateMockStakingScripts(keyPair);
       const amount = 1935 + BTC_DUST_SAT - 1; // 1935 is the manually calculated fee for the transaction
-      const stakingTx = dataGenerator.generateRandomStakingTransaction(
+      const { stakingTx } = dataGenerator.generateRandomStakingTransaction(
         keyPair,
         DEFAULT_TEST_FEE_RATE,
         amount,

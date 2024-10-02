@@ -1,10 +1,16 @@
 import { opcodes, script } from "bitcoinjs-lib";
+import { NO_COORD_PK_BYTE_LENGTH } from "../constants/keys";
 
-import { StakingScripts } from "../types/StakingScripts";
-
-// PK_LENGTH denotes the length of a public key in bytes
-export const PK_LENGTH = 32;
 export const MAGIC_BYTES_LEN = 4;
+
+// Represents the staking scripts used in BTC staking.
+export interface StakingScripts {
+  timelockScript: Buffer;
+  unbondingScript: Buffer;
+  slashingScript: Buffer;
+  unbondingTimelockScript: Buffer;
+  dataEmbedScript: Buffer;
+}
 
 // StakingScriptData is a class that holds the data required for the BTC Staking Script
 // and exposes methods for converting it into useful formats
@@ -74,20 +80,20 @@ export class StakingScriptData {
    */
   validate(): boolean {
     // check that staker key is the correct length
-    if (this.#stakerKey.length != PK_LENGTH) {
+    if (this.#stakerKey.length != NO_COORD_PK_BYTE_LENGTH) {
       return false;
     }
     // check that finalityProvider keys are the correct length
     if (
       this.#finalityProviderKeys.some(
-        (finalityProviderKey) => finalityProviderKey.length != PK_LENGTH,
+        (finalityProviderKey) => finalityProviderKey.length != NO_COORD_PK_BYTE_LENGTH,
       )
     ) {
       return false;
     }
     // check that covenant keys are the correct length
     if (
-      this.#covenantKeys.some((covenantKey) => covenantKey.length != PK_LENGTH)
+      this.#covenantKeys.some((covenantKey) => covenantKey.length != NO_COORD_PK_BYTE_LENGTH)
     ) {
       return false;
     }
@@ -284,7 +290,7 @@ export class StakingScriptData {
    */
   #buildSingleKeyScript(pk: Buffer, withVerify: boolean): Buffer {
     // Check public key length
-    if (pk.length != PK_LENGTH) {
+    if (pk.length != NO_COORD_PK_BYTE_LENGTH) {
       throw new Error("Invalid key length");
     }
     return script.compile([
@@ -315,7 +321,7 @@ export class StakingScriptData {
       throw new Error("No keys provided");
     }
     // Check buffer object have expected lengths like checking pks.length
-    if (pks.some((pk) => pk.length != PK_LENGTH)) {
+    if (pks.some((pk) => pk.length != NO_COORD_PK_BYTE_LENGTH)) {
       throw new Error("Invalid key length");
     }
     // Verify that threshold <= len(pks)
