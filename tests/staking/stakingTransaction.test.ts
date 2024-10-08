@@ -146,7 +146,7 @@ describe("stakingTransaction", () => {
         );
       });
 
-      it(`${networkName} - should throw an error if the utxo scriptPubKey is invalid`, () => {
+      it(`${networkName} - should ignore the invalid utxo if the utxo scriptPubKey is invalid`, () => {
         const utxo = {
           txid: dataGenerator.generateRandomTxId(),
           vout: Math.floor(Math.random() * 10),
@@ -162,7 +162,7 @@ describe("stakingTransaction", () => {
             network,
             1,
           ),
-        ).toThrow("Failed to decompile script when estimating fees for inputs");
+        ).toThrow("Insufficient funds: no valid UTXOs available for staking")
       });
 
       it(`${networkName} - should throw an error if UTXO is empty`, () => {
