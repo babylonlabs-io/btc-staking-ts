@@ -4,7 +4,7 @@ import { getStakingTxInputUTXOsAndFees } from "../../../src/utils/fee";
 import { buildStakingOutput } from "../../../src/utils/staking";
 import { DEFAULT_TEST_FEE_RATE, testingNetworks } from "../../helper";
 
-testingNetworks.forEach(({ networkName, network, dataGenerator }) => {
+testingNetworks.forEach(({ networkName, network, observableStakingDatagen: dataGenerator }) => {
   describe(`${networkName} - getStakingTxInputUTXOsAndFees`, () => {
     const mockScripts = dataGenerator.generateMockStakingScripts();
     const feeRate = DEFAULT_TEST_FEE_RATE;

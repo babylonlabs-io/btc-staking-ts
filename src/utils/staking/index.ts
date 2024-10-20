@@ -2,14 +2,12 @@ import { networks, payments } from "bitcoinjs-lib";
 import { Taptree } from "bitcoinjs-lib/src/types";
 import { internalPubkey } from "../../constants/internalPubkey";
 import { PsbtOutputExtended } from "../../types/psbtOutputs";
-import { Params } from "../../types/params";
 import { StakingError, StakingErrorCode } from "../../error";
 import { UTXO } from "../../types/UTXO";
 import { isValidNoCoordPublicKey } from "../btc";
+import { StakingParams } from "../../types/params";
 
-// minimum unbonding output value to avoid the unbonding output value being
-// less than Bitcoin dust
-const MIN_UNBONDING_OUTPUT_VALUE = 1000;
+
 
 /**
  * Build the staking output for the transaction which contains p2tr output 
@@ -74,7 +72,7 @@ export const buildStakingOutput = (
  *
  * @param {number} stakingAmountSat - The staking amount in satoshis.
  * @param {number} timelock - The staking time in blocks.
- * @param {Params} params - The staking parameters.
+ * @param {StakingParams} params - The staking parameters.
  * @param {UTXO[]} inputUTXOs - The input UTXOs.
  * @param {number} feeRate - The Bitcoin fee rate in sat/vbyte
  * @throws {StakingError} - If the input data is invalid.
@@ -82,7 +80,7 @@ export const buildStakingOutput = (
 export const validateStakingTxInputData = (
   stakingAmountSat: number,
   timelock: number,
-  params: Params,
+  params: StakingParams,
   inputUTXOs: UTXO[],
   feeRate: number,
   finalityProviderPkNoCoord: string,
@@ -122,75 +120,18 @@ export const validateStakingTxInputData = (
   }
 }
 
-/**
- * Validate the parameters for staking.
- * 
- * @param {Params} params - The staking parameters.
- * @throws {StakingError} - If the parameters are invalid.
- */
-export const validateParams = (params: Params) => {
-  // Check covenant public keys
-  if (params.covenantNoCoordPks.length == 0) {
-    throw new StakingError(
-      StakingErrorCode.INVALID_PARAMS,
-      "Could not find any covenant public keys",
+export const pksToBuffers = (pks: string[]): Buffer[] => {
+  // Convert covenant PKs to buffers
+  let buffers;
+  try {
+    buffers = pks.map((pk) =>
+      Buffer.from(pk, "hex")
+    );
+  } catch (error) {
+    throw StakingError.fromUnknown(
+      error, StakingErrorCode.INVALID_INPUT,
+      "Cannot convert no coordinated public keys to buffers",
     );
   }
-  if (params.covenantNoCoordPks.length < params.covenantQuorum) {
-    throw new StakingError(
-      StakingErrorCode.INVALID_PARAMS,
-      "Covenant public keys must be greater than or equal to the quorum",
-    );
-  }
-  params.covenantNoCoordPks.forEach((pk) => {
-    if (!isValidNoCoordPublicKey(pk)) {
-      throw new StakingError(
-        StakingErrorCode.INVALID_PARAMS,
-        "Covenant public key should contains no coordinate",
-      );
-    }
-  });
-  // Check other parameters
-  if (params.unbondingTime <= 0) {
-    throw new StakingError(
-      StakingErrorCode.INVALID_PARAMS,
-      "Unbonding time must be greater than 0",
-    );
-  }
-  if (params.unbondingFeeSat <= 0) {
-    throw new StakingError(
-      StakingErrorCode.INVALID_PARAMS,
-      "Unbonding fee must be greater than 0",
-    );
-  }
-  if (params.maxStakingAmountSat < params.minStakingAmountSat) {
-    throw new StakingError(
-      StakingErrorCode.INVALID_PARAMS,
-      "Max staking amount must be greater or equal to min staking amount",
-    );
-  }
-  if (params.minStakingAmountSat < params.unbondingFeeSat + MIN_UNBONDING_OUTPUT_VALUE) {
-    throw new StakingError(
-      StakingErrorCode.INVALID_PARAMS,
-      `Min staking amount must be greater than unbonding fee plus ${MIN_UNBONDING_OUTPUT_VALUE}`,
-    );
-  }
-  if (params.maxStakingTimeBlocks < params.minStakingTimeBlocks) {
-    throw new StakingError(
-      StakingErrorCode.INVALID_PARAMS,
-      "Max staking time must be greater or equal to min staking time",
-    );
-  }
-  if (params.minStakingTimeBlocks <= 0) {
-    throw new StakingError(
-      StakingErrorCode.INVALID_PARAMS,
-      "Min staking time must be greater than 0",
-    );
-  }
-  if (params.covenantQuorum <= 0) {
-    throw new StakingError(
-      StakingErrorCode.INVALID_PARAMS,
-      "Covenant quorum must be greater than 0",
-    );
-  }
+  return buffers;
 }

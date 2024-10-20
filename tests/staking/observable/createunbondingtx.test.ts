@@ -1,16 +1,16 @@
-import { Transaction } from "bitcoinjs-lib";
 import { ObservableStaking } from "../../../src";
+import * as transaction from "../../../src/staking/base/transactions";
 import { internalPubkey } from "../../../src/constants/internalPubkey";
 import { StakingError, StakingErrorCode } from "../../../src/error";
 import { testingNetworks } from "../../helper";
 import { NON_RBF_SEQUENCE } from "../../../src/constants/psbt";
-import * as stakingScript from "../../../src/staking/stakingScript";
-import * as staking from "../../../src/staking";
+import * as stakingScript from "../../../src/staking/observable/observableStakingScript";
 
 describe.each(testingNetworks)("Create unbonding transaction", ({
-  network, networkName, dataGenerator
+  network, networkName, observableStakingDatagen: dataGenerator
 }) => {
-  const params = dataGenerator.generateRandomObservableStakingParams(true);
+  
+  const params = dataGenerator.generateStakingParams(true);
   const keys = dataGenerator.generateRandomKeyPair();
   const feeRate = 1;
   const stakingAmount = dataGenerator.getRandomIntegerBetween(
@@ -95,7 +95,7 @@ describe.each(testingNetworks)("Create unbonding transaction", ({
 
 
   it(`${networkName} should throw an error if fail to build scripts`, async () => {
-    jest.spyOn(stakingScript, "StakingScriptData").mockImplementation(() => {
+    jest.spyOn(stakingScript, "ObservableStakingScriptData").mockImplementation(() => {
       throw new StakingError(StakingErrorCode.SCRIPT_FAILURE, "build script error");
     });
     const observableStaking = new ObservableStaking(network, stakerInfo);
@@ -107,7 +107,7 @@ describe.each(testingNetworks)("Create unbonding transaction", ({
   });
 
   it(`${networkName} should throw an error if fail to build unbonding tx`, async () => {
-    jest.spyOn(staking, "unbondingTransaction").mockImplementation(() => {
+    jest.spyOn(transaction, "unbondingTransaction").mockImplementation(() => {
       throw new Error("fail to build unbonding tx");
     });
     const observableStaking = new ObservableStaking(network, stakerInfo);

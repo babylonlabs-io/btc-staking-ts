@@ -1,5 +1,7 @@
 export * from "./utils/btc";
-export * from "./staking";
+export * from "./staking/base/transactions";
 export * from "./types";
-export { StakingScriptData } from "./staking/stakingScript";
-export { ObservableStaking } from "./staking/observable";
+export { ObservableStaking, ObservableStakingScriptData } from "./staking/observable";
+export { Staking, StakingScriptData } from "./staking/base";
+export type { StakingScripts } from "./staking/base";
+

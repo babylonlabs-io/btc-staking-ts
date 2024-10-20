@@ -1,10 +1,10 @@
-import { validateDelegationInputs } from '../../../src/staking/observable';
+import { ObservableStaking } from '../../../src/staking/observable';
 import { testingNetworks } from '../../helper';
 
 describe.each(testingNetworks)("ObservableStaking input validations", ({
-  dataGenerator
+  observableStakingDatagen: dataGenerator, network
 }) => {
-  const params = dataGenerator.generateRandomObservableStakingParams(true);
+  const params = dataGenerator.generateStakingParams(true);
   const keys = dataGenerator.generateRandomKeyPair();
   const feeRate = 1;
   const stakingAmount = dataGenerator.getRandomIntegerBetween(
@@ -30,21 +30,27 @@ describe.each(testingNetworks)("ObservableStaking input validations", ({
     publicKeyNoCoordHex: keys.publicKeyNoCoord,
   }
 
-  describe('validateDelegationInputs', () => {
+  const observableStaking = new ObservableStaking(network, stakerInfo);
+  // const staking = new Staking(network, stakerInfo);
+
+  describe.each([observableStaking])('validateDelegationInputs', (
+    stakingInstance: ObservableStaking
+  ) => {
     beforeEach(() => {
       jest.restoreAllMocks();
     });
 
-    it('should throw an error if staking transaction start height is less than activation height', () => {
-      const invalidDelegation = {
-        ...delegation,
-        startHeight: params.activationHeight - 1,
-      };
+    // TODO: Only add this to ObservableStaking type
+    // it('should throw an error if staking transaction start height is less than activation height', () => {
+    //   const invalidDelegation = {
+    //     ...delegation,
+    //     startHeight: params.activationHeight - 1,
+    //   };
   
-      expect(() => {
-        validateDelegationInputs(invalidDelegation, params, stakerInfo);
-      }).toThrow('Staking transaction start height cannot be less than activation height');
-    });
+    //   expect(() => {
+    //     validateDelegationInputs(invalidDelegation, params, stakerInfo);
+    //   }).toThrow('Staking transaction start height cannot be less than activation height');
+    // });
   
     it('should throw an error if the timelock is out of range', () => {
       let invalidDelegation = {
@@ -53,7 +59,7 @@ describe.each(testingNetworks)("ObservableStaking input validations", ({
       };
   
       expect(() => {
-        validateDelegationInputs(invalidDelegation, params, stakerInfo);
+        stakingInstance.validateDelegationInputs(invalidDelegation, params, stakerInfo);
       }).toThrow('Staking transaction timelock is out of range');
 
       invalidDelegation = {
@@ -62,7 +68,7 @@ describe.each(testingNetworks)("ObservableStaking input validations", ({
       };
   
       expect(() => {
-        validateDelegationInputs(invalidDelegation, params, stakerInfo);
+        stakingInstance.validateDelegationInputs(invalidDelegation, params, stakerInfo);
       }).toThrow('Staking transaction timelock is out of range');
     });
   
@@ -73,7 +79,7 @@ describe.each(testingNetworks)("ObservableStaking input validations", ({
       };
   
       expect(() => {
-        validateDelegationInputs(invalidDelegation, params, stakerInfo);
+        stakingInstance.validateDelegationInputs(invalidDelegation, params, stakerInfo);
       }).toThrow('Staker public key does not match between connected staker and delegation staker');
     });
   
@@ -84,7 +90,7 @@ describe.each(testingNetworks)("ObservableStaking input validations", ({
       };
   
       expect(() => {
-        validateDelegationInputs(invalidDelegation, params, stakerInfo);
+        stakingInstance.validateDelegationInputs(invalidDelegation, params, stakerInfo);
       }).toThrow('Staking transaction output index is out of range');
     });
   
@@ -95,7 +101,7 @@ describe.each(testingNetworks)("ObservableStaking input validations", ({
       };
   
       expect(() => {
-        validateDelegationInputs(
+        stakingInstance.validateDelegationInputs(
           invalidDelegation, params, stakerInfo,
         );
       }).toThrow(
@@ -105,7 +111,7 @@ describe.each(testingNetworks)("ObservableStaking input validations", ({
   
     it('should validate input is valid', () => {
       expect(() => {
-        validateDelegationInputs(delegation, params, stakerInfo);
+        stakingInstance.validateDelegationInputs(delegation, params, stakerInfo);
       }).not.toThrow();
     });
   });

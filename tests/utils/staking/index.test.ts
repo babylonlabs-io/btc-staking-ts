@@ -1,19 +1,34 @@
-import { validateParams, validateStakingTxInputData } from "../../../src/utils/staking";
+import { ObservableStaking } from "../../../src";
+import { validateStakingTxInputData } from "../../../src/utils/staking";
 import { testingNetworks } from "../../helper";
 
 describe.each(testingNetworks)('validateParams', (
-  { dataGenerator }
+  { network, observableStakingDatagen: dataGenerator }
 ) => {
-  const validParams = dataGenerator.generateRandomObservableStakingParams();
+  const { publicKey, publicKeyNoCoord} = dataGenerator.generateRandomKeyPair();
+  const { address } = dataGenerator.getAddressAndScriptPubKey(
+    publicKey,
+  ).taproot;
+  
+  const stakerInfo = {
+    address,
+    publicKeyNoCoordHex: publicKeyNoCoord,
+    publicKeyWithCoord: publicKey,
+  };
+  const observable = new ObservableStaking(
+    network,
+    stakerInfo,
+  );
+  const validParams = dataGenerator.generateStakingParams();
 
   it('should pass with valid parameters', () => {
-    expect(() => validateParams(validParams)).not.toThrow();
+    expect(() => observable.validateParams(validParams)).not.toThrow();
   });
 
   it('should throw an error if covenant public keys are empty', () => {
     const params = { ...validParams, covenantNoCoordPks: [] };
 
-    expect(() => validateParams(params)).toThrow(
+    expect(() => observable.validateParams(params)).toThrow(
       'Could not find any covenant public keys'
     );
   });
@@ -24,7 +39,7 @@ describe.each(testingNetworks)('validateParams', (
       covenantNoCoordPks: validParams.covenantNoCoordPks.map(pk => '02' + pk )
     };
 
-    expect(() => validateParams(params)).toThrow(
+    expect(() => observable.validateParams(params)).toThrow(
       'Covenant public key should contains no coordinate'
     );
   });
@@ -32,7 +47,7 @@ describe.each(testingNetworks)('validateParams', (
   it('should throw an error if covenant public keys are less than the quorum', () => {
     const params = { ...validParams, covenantQuorum: validParams.covenantNoCoordPks.length + 1 };
 
-    expect(() => validateParams(params)).toThrow(
+    expect(() => observable.validateParams(params)).toThrow(
       'Covenant public keys must be greater than or equal to the quorum'
     );
   });
@@ -40,7 +55,7 @@ describe.each(testingNetworks)('validateParams', (
   it('should throw an error if unbonding time is less than or equal to 0', () => {
     const params = { ...validParams, unbondingTime: 0 };
 
-    expect(() => validateParams(params)).toThrow(
+    expect(() => observable.validateParams(params)).toThrow(
       'Unbonding time must be greater than 0'
     );
   });
@@ -48,7 +63,7 @@ describe.each(testingNetworks)('validateParams', (
   it('should throw an error if unbonding fee is less than or equal to 0', () => {
     const params = { ...validParams, unbondingFeeSat: 0 };
 
-    expect(() => validateParams(params)).toThrow(
+    expect(() => observable.validateParams(params)).toThrow(
       'Unbonding fee must be greater than 0'
     );
   });
@@ -56,7 +71,7 @@ describe.each(testingNetworks)('validateParams', (
   it('should throw an error if max staking amount is less than min staking amount', () => {
     const params = { ...validParams, maxStakingAmountSat: 500 };
 
-    expect(() => validateParams(params)).toThrow(
+    expect(() => observable.validateParams(params)).toThrow(
       'Max staking amount must be greater or equal to min staking amount'
     );
   });
@@ -64,13 +79,13 @@ describe.each(testingNetworks)('validateParams', (
   it('should throw an error if min staking amount is less than 1', () => {
     const paramsMinutes = { ...validParams, minStakingAmountSat: -1 };
 
-    expect(() => validateParams(paramsMinutes)).toThrow(
+    expect(() => observable.validateParams(paramsMinutes)).toThrow(
       'Min staking amount must be greater than unbonding fee plus 1000'
     );
 
     const params0 = { ...validParams, minStakingAmountSat: 0 };
 
-    expect(() => validateParams(params0)).toThrow(
+    expect(() => observable.validateParams(params0)).toThrow(
       'Min staking amount must be greater than unbonding fee plus 1000'
     );
   });
@@ -78,7 +93,7 @@ describe.each(testingNetworks)('validateParams', (
   it('should throw an error if max staking time is less than min staking time', () => {
     const params = { ...validParams, maxStakingTimeBlocks: validParams.minStakingTimeBlocks - 1 };
 
-    expect(() => validateParams(params)).toThrow(
+    expect(() => observable.validateParams(params)).toThrow(
       'Max staking time must be greater or equal to min staking time'
     );
   });
@@ -86,13 +101,13 @@ describe.each(testingNetworks)('validateParams', (
   it('should throw an error if min staking time is less than 1', () => {
     const paramsMinutes = { ...validParams, minStakingTimeBlocks: -1 };
 
-    expect(() => validateParams(paramsMinutes)).toThrow(
+    expect(() => observable.validateParams(paramsMinutes)).toThrow(
       'Min staking time must be greater than 0'
     );
 
     const params0 = { ...validParams, minStakingTimeBlocks: 0 };
 
-    expect(() => validateParams(params0)).toThrow(
+    expect(() => observable.validateParams(params0)).toThrow(
       'Min staking time must be greater than 0'
     );
   });
@@ -100,16 +115,16 @@ describe.each(testingNetworks)('validateParams', (
   it('should throw an error if covenant quorum is less than or equal to 0', () => {
     const params = { ...validParams, covenantQuorum: 0 };
 
-    expect(() => validateParams(params)).toThrow(
+    expect(() => observable.validateParams(params)).toThrow(
       'Covenant quorum must be greater than 0'
     );
   });
 });
 
 describe.each(testingNetworks)('validateStakingTxInputData', (
-  { dataGenerator }
+  { network, observableStakingDatagen: dataGenerator }
 ) => {
-  const params = dataGenerator.generateRandomObservableStakingParams();
+  const params = dataGenerator.generateStakingParams();
   const balance = dataGenerator.getRandomIntegerBetween(
     params.maxStakingAmountSat, params.maxStakingAmountSat + 100000000,
   );

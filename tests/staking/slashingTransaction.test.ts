@@ -9,8 +9,10 @@ import { internalPubkey } from "../../src/constants/internalPubkey";
 import { DEFAULT_TEST_FEE_RATE, testingNetworks } from "../helper";
 import { NON_RBF_SEQUENCE, TRANSACTION_VERSION } from "../../src/constants/psbt";
 
-describe("slashingTransaction - ", () => {
-  testingNetworks.map(({ network, networkName, dataGenerator }) => {
+describe.each(testingNetworks)("slashingTransaction - ", (
+  {network, networkName, observableStakingDatagen}
+) => {
+  [observableStakingDatagen].map((dataGenerator) => {
     const stakerKeyPair = dataGenerator.generateRandomKeyPair();
     const slashingAddress = dataGenerator.getAddressAndScriptPubKey(
       stakerKeyPair.publicKey,

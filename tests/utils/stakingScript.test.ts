@@ -1,5 +1,5 @@
 import { opcodes, script } from "bitcoinjs-lib";
-import { StakingScriptData } from "../../src";
+import { ObservableStakingScriptData } from "../../src";
 
 describe("stakingScript", () => {
   const pk1 = Buffer.from(
@@ -38,7 +38,7 @@ describe("stakingScript", () => {
     it("should fail if the staker key is not 32 bytes", () => {
       expect(
         () =>
-          new StakingScriptData(
+          new ObservableStakingScriptData(
             invalidPk, // Staker Pk
             [pk2], // Finality Provider Pks
             [pk3, pk4, pk5], // covenant Pks
@@ -51,7 +51,7 @@ describe("stakingScript", () => {
     });
     it("should fail if a finality provider key is not 32 bytes", () => {
       expect(() =>
-        new StakingScriptData(
+        new ObservableStakingScriptData(
           pk1, // Staker Pk
           [pk2, invalidPk], // Finality Provider Pks
           [pk3, pk4, pk5], // covenant Pks
@@ -64,7 +64,7 @@ describe("stakingScript", () => {
     });
 
     it("should throw if more than one finality providers when building data embed script", () => {
-      const script = new StakingScriptData(
+      const script = new ObservableStakingScriptData(
         pk1, // Staker Pk
         [pk2, pk6], // More than one FP Pks
         [pk3, pk4, pk5], // covenant Pks
@@ -80,7 +80,7 @@ describe("stakingScript", () => {
 
     it("should fail if a covenant emulator key is not 32 bytes", () => {
       expect(() =>
-        new StakingScriptData(
+        new ObservableStakingScriptData(
           pk1, // Staker Pk
           [pk2, pk3], // Finality Provider Pks
           [pk4, invalidPk, pk5], // covenant Pks
@@ -94,7 +94,7 @@ describe("stakingScript", () => {
     it("should fail if the covenant emulators threshold is 0", () => {
       expect(
         () =>
-          new StakingScriptData(
+          new ObservableStakingScriptData(
             pk1, // Staker Pk
             [pk2], // Finality Provider Pks
             [pk3, pk4, pk5], // covenant Pks
@@ -108,7 +108,7 @@ describe("stakingScript", () => {
     it("should fail if the covenant emulators threshold is larger than the covenant emulators", () => {
       expect(
         () =>
-          new StakingScriptData(
+          new ObservableStakingScriptData(
             pk1, // Staker Pk
             [pk2], // Finality Provider Pks
             [pk3, pk4, pk5], // covenant Pks
@@ -122,7 +122,7 @@ describe("stakingScript", () => {
     it("should fail if the staking timelock is 0", () => {
       expect(
         () =>
-          new StakingScriptData(
+          new ObservableStakingScriptData(
             pk1, // Staker Pk
             [pk2], // Finality Provider Pks
             [pk3, pk4, pk5], // covenant Pks
@@ -136,7 +136,7 @@ describe("stakingScript", () => {
     it("should fail if the staking timelock is above the maximum", () => {
       expect(
         () =>
-          new StakingScriptData(
+          new ObservableStakingScriptData(
             pk1, // Staker Pk
             [pk2], // Finality Provider Pks
             [pk3, pk4, pk5], // covenant Pks
@@ -150,7 +150,7 @@ describe("stakingScript", () => {
     it("should fail if the unbonding timelock is 0", () => {
       expect(
         () =>
-          new StakingScriptData(
+          new ObservableStakingScriptData(
             pk1, // Staker Pk
             [pk2], // Finality Provider Pks
             [pk3, pk4, pk5], // covenant Pks
@@ -164,7 +164,7 @@ describe("stakingScript", () => {
     it("should fail if the unbonding timelock is above the maximum", () => {
       expect(
         () =>
-          new StakingScriptData(
+          new ObservableStakingScriptData(
             pk1, // Staker Pk
             [pk2], // Finality Provider Pks
             [pk3, pk4, pk5], // covenant Pks
@@ -178,7 +178,7 @@ describe("stakingScript", () => {
     it("should fail if the staker pk is in the finality providers list", () => {
       expect(
         () =>
-          new StakingScriptData(
+          new ObservableStakingScriptData(
             pk1, // Staker Pk
             [pk2, pk1], // Finality Provider Pks
             [pk3, pk4, pk5], // covenant Pks
@@ -192,7 +192,7 @@ describe("stakingScript", () => {
     it("should fail if the staker pk is in the covenants list", () => {
       expect(
         () =>
-          new StakingScriptData(
+          new ObservableStakingScriptData(
             pk1, // Staker Pk
             [pk2], // Finality Provider Pks
             [pk3, pk1, pk4, pk5], // covenant Pks
@@ -206,7 +206,7 @@ describe("stakingScript", () => {
     it("should fail if a finality provider pk is in the covenants list", () => {
       expect(
         () =>
-          new StakingScriptData(
+          new ObservableStakingScriptData(
             pk1, // Staker Pk
             [pk2], // Finality Provider Pks
             [pk2, pk3, pk4, pk5], // covenant Pks
@@ -220,7 +220,7 @@ describe("stakingScript", () => {
     it("should fail if the magic bytes are below 4 in length", () => {
       expect(
         () =>
-          new StakingScriptData(
+          new ObservableStakingScriptData(
             pk1, // Staker Pk
             [pk2], // Finality Provider Pks
             [pk3, pk4, pk5], // covenant Pks
@@ -234,7 +234,7 @@ describe("stakingScript", () => {
     it("should fail if the magic bytes are above 4 in length", () => {
       expect(
         () =>
-          new StakingScriptData(
+          new ObservableStakingScriptData(
             pk1, // Staker Pk
             [pk2], // Finality Provider Pks
             [pk3, pk4, pk5], // covenant Pks
@@ -249,7 +249,7 @@ describe("stakingScript", () => {
 
   describe("Happy path", () => {
     it("should succeed with valid input data", () => {
-      const stakingScriptData = new StakingScriptData(
+      const scriptData = new ObservableStakingScriptData(
         pk1, // Staker Pk
         [pk2], // Finality Provider Pks
         [pk3, pk4, pk5], // covenant Pks
@@ -258,11 +258,11 @@ describe("stakingScript", () => {
         unbondingTimeLock,
         magicBytes,
       );
-      expect(stakingScriptData).toBeInstanceOf(StakingScriptData);
+      expect(scriptData).toBeInstanceOf(ObservableStakingScriptData);
     });
 
     it("should build valid staking timelock script", () => {
-      const stakingScriptData = new StakingScriptData(
+      const scriptData = new ObservableStakingScriptData(
         pk1, // Staker Pk
         [pk2], // Finality Provider Pks
         [pk3, pk4, pk5], // covenant Pks
@@ -271,7 +271,7 @@ describe("stakingScript", () => {
         unbondingTimeLock,
         magicBytes,
       );
-      const timelockScript = stakingScriptData.buildStakingTimelockScript();
+      const timelockScript = scriptData.buildStakingTimelockScript();
       const decompiled = script.decompile(timelockScript);
       expect(decompiled).toEqual([
         pk1,
@@ -282,7 +282,7 @@ describe("stakingScript", () => {
     });
 
     it("should build valid unbonding timelock script", () => {
-      const stakingScriptData = new StakingScriptData(
+      const scriptData = new ObservableStakingScriptData(
         pk1, // Staker Pk
         [pk2], // Finality Provider Pks
         [pk3, pk4, pk5], // covenant Pks
@@ -292,7 +292,7 @@ describe("stakingScript", () => {
         magicBytes,
       );
       const unbondingTimelockScript =
-        stakingScriptData.buildUnbondingTimelockScript();
+      scriptData.buildUnbondingTimelockScript();
       const decompiled = script.decompile(unbondingTimelockScript);
       expect(decompiled).toEqual([
         pk1,
@@ -304,7 +304,7 @@ describe("stakingScript", () => {
 
     it("should build valid unbonding script", () => {
       const pks = [pk3, pk4, pk5];
-      const stakingScriptData = new StakingScriptData(
+      const scriptData = new ObservableStakingScriptData(
         pk1, // Staker Pk
         [pk2], // Finality Provider Pks
         pks, // covenant Pks
@@ -316,7 +316,7 @@ describe("stakingScript", () => {
 
       const sortedPks = [...pks].sort(Buffer.compare);
 
-      const unbondingScript = stakingScriptData.buildUnbondingScript();
+      const unbondingScript = scriptData.buildUnbondingScript();
       const decompiled = script.decompile(unbondingScript);
 
       const expectedScript = script.decompile(
@@ -340,7 +340,7 @@ describe("stakingScript", () => {
 
     it("should build valid slashing script", () => {
       const pks = [pk3, pk4, pk5];
-      const stakingScriptData = new StakingScriptData(
+      const scriptData = new ObservableStakingScriptData(
         pk1, // Staker Pk
         [pk2], // Finality Provider Pks
         pks, // covenant Pks
@@ -352,7 +352,7 @@ describe("stakingScript", () => {
 
       const sortedPks = [...pks].sort(Buffer.compare);
 
-      const slashingScript = stakingScriptData.buildSlashingScript();
+      const slashingScript = scriptData.buildSlashingScript();
       const decompiled = script.decompile(slashingScript);
 
       const expectedScript = script.decompile(
@@ -376,7 +376,7 @@ describe("stakingScript", () => {
     });
 
     it("should build valid data embed script", () => {
-      const stakingScriptData = new StakingScriptData(
+      const scriptData = new ObservableStakingScriptData(
         pk1, // Staker Pk
         [pk2], // Finality Provider Pks
         [pk3, pk4, pk5], // covenant Pks
@@ -385,7 +385,7 @@ describe("stakingScript", () => {
         unbondingTimeLock,
         magicBytes,
       );
-      const dataEmbedScript = stakingScriptData.buildDataEmbedScript();
+      const dataEmbedScript = scriptData.buildDataEmbedScript();
       const decompiled = script.decompile(dataEmbedScript);
       expect(decompiled).toEqual([
         opcodes.OP_RETURN,
@@ -400,7 +400,7 @@ describe("stakingScript", () => {
     });
 
     it("should build valid staking scripts", () => {
-      const stakingScriptData = new StakingScriptData(
+      const scriptData = new ObservableStakingScriptData(
         pk1, // Staker Pk
         [pk2], // Finality Provider Pks
         [pk3, pk4, pk5], // covenant Pks
@@ -409,7 +409,7 @@ describe("stakingScript", () => {
         unbondingTimeLock,
         magicBytes,
       );
-      const scripts = stakingScriptData.buildScripts();
+      const scripts = scriptData.buildScripts();
       expect(scripts).toHaveProperty("timelockScript");
       expect(scripts).toHaveProperty("unbondingScript");
       expect(scripts).toHaveProperty("slashingScript");
@@ -418,7 +418,7 @@ describe("stakingScript", () => {
     });
 
     it("should validate correctly with valid input data", () => {
-      const stakingScriptData = new StakingScriptData(
+      const scriptData = new ObservableStakingScriptData(
         pk1, // Staker Pk
         [pk2], // Finality Provider Pks
         [pk3, pk4, pk5], // covenant Pks
@@ -427,11 +427,11 @@ describe("stakingScript", () => {
         unbondingTimeLock,
         magicBytes,
       );
-      expect(stakingScriptData.validate()).toBe(true);
+      expect(scriptData.validate()).toBe(true);
     });
 
     it("should validate correctly with minimum valid staking and unbonding timelock", () => {
-      const stakingScriptData = new StakingScriptData(
+      const scriptData = new ObservableStakingScriptData(
         pk1,
         [pk2],
         [pk3, pk4, pk5],
@@ -440,11 +440,11 @@ describe("stakingScript", () => {
         1, // Minimum valid unbonding timelock
         magicBytes,
       );
-      expect(stakingScriptData.validate()).toBe(true);
+      expect(scriptData.validate()).toBe(true);
     });
 
     it("should validate correctly with unique keys", () => {
-      const stakingScriptData = new StakingScriptData(
+      const scriptData = new ObservableStakingScriptData(
         pk1,
         [pk2],
         [pk3, pk4, pk5],
@@ -453,11 +453,11 @@ describe("stakingScript", () => {
         unbondingTimeLock,
         magicBytes,
       );
-      expect(stakingScriptData.validate()).toBe(true);
+      expect(scriptData.validate()).toBe(true);
     });
 
     it("should handle maximum valid staking and unbonding timelock", () => {
-      const stakingScriptData = new StakingScriptData(
+      const scriptData = new ObservableStakingScriptData(
         pk1,
         [pk2],
         [pk3, pk4, pk5],
@@ -466,7 +466,7 @@ describe("stakingScript", () => {
         65535, // Maximum valid unbonding timelock
         magicBytes,
       );
-      expect(stakingScriptData.validate()).toBe(true);
+      expect(scriptData.validate()).toBe(true);
     });
   });
 });
