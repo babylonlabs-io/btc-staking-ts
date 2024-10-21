@@ -39,27 +39,27 @@ describe('isTaproot', () => {
       signetDatagen.generateRandomKeyPair().publicKey
     );
 
-    it('should return false for a signet non-Taproot address', () => {
-      expect(isTaproot(signetAddresses.nativeSegwit.address, networks.testnet)).toBe(false);
+  it('should return false for a signet non-Taproot address', () => {
+    expect(isTaproot(signetAddresses.nativeSegwit.address, networks.testnet)).toBe(false);
 
-      const legacyAddress = 'n2eq5iP3UsdfmGsJyEEMXyRGNx5ysUXLXb';
-      expect(isTaproot(legacyAddress, networks.testnet)).toBe(false);
+    const legacyAddress = 'n2eq5iP3UsdfmGsJyEEMXyRGNx5ysUXLXb';
+    expect(isTaproot(legacyAddress, networks.testnet)).toBe(false);
 
-      const nestedSegWidth = '2NChmRbq92M6geBmwCXcFF8dCfmGr38FmX2';
-      expect(isTaproot(nestedSegWidth, networks.testnet)).toBe(false);
-    });
+    const nestedSegWidth = '2NChmRbq92M6geBmwCXcFF8dCfmGr38FmX2';
+    expect(isTaproot(nestedSegWidth, networks.testnet)).toBe(false);
+  });
 
-    it('should return false for an invalid address format', () => {
-      const invalidAddress = 'invalid_address';
-      expect(isTaproot(invalidAddress, networks.bitcoin)).toBe(false);
-    });
+  it('should return false for an invalid address format', () => {
+    const invalidAddress = 'invalid_address';
+    expect(isTaproot(invalidAddress, networks.bitcoin)).toBe(false);
+  });
 
-    it('should return false for an incorrect network', () => {
-      expect(isTaproot(mainnetAddresses.taproot.address, networks.testnet)).toBe(false);
-      expect(isTaproot(mainnetAddresses.taproot.address, networks.regtest)).toBe(false);
+  it('should return false for an incorrect network', () => {
+    expect(isTaproot(mainnetAddresses.taproot.address, networks.testnet)).toBe(false);
+    expect(isTaproot(mainnetAddresses.taproot.address, networks.regtest)).toBe(false);
 
-      expect(isTaproot(signetAddresses.taproot.address, networks.bitcoin)).toBe(false);
-    });
+    expect(isTaproot(signetAddresses.taproot.address, networks.bitcoin)).toBe(false);
+  });
   });
 });
 

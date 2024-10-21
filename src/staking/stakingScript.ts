@@ -43,7 +43,6 @@ export class StakingScriptData {
     // Babylon system.
     unbondingTimelock: number,
   ) {
-    // // Check that required input values are not missing when creating an instance of the StakingScriptData class
     if (
       !stakerKey ||
       !finalityProviderKeys ||

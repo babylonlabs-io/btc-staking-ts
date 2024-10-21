@@ -583,7 +583,6 @@ function slashingTransaction(
     throw new Error("User funds are less than dust limit");
   }
  
-
   const psbt = new Psbt({ network });
   psbt.setVersion(TRANSACTION_VERSION);
 
@@ -599,7 +598,6 @@ function slashingTransaction(
     // not RBF-able
     sequence: NON_RBF_SEQUENCE,
   });
-
 
   // Add the slashing output
   psbt.addOutput({

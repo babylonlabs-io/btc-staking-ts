@@ -98,7 +98,6 @@ describe.each(testingNetworks)("Staking input validations", ({
     });
   });
 
-
   describe('validateParams', () => {
     const { publicKey, publicKeyNoCoord} = dataGenerator.generateRandomKeyPair();
     const { address } = dataGenerator.getAddressAndScriptPubKey(

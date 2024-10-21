@@ -11,6 +11,8 @@ export interface ObservableStakingScripts extends StakingScripts {
 }
 
 export class ObservableStakingScriptData extends StakingScriptData {
+  // The magic bytes used to identify the staking transaction on Babylon
+  // through the data return script
   magicBytes: Buffer;
   constructor(
     stakerKey: Buffer,
@@ -34,14 +36,13 @@ export class ObservableStakingScriptData extends StakingScriptData {
     ) {
       throw new Error("Missing required input values");
     }
-    // validate magicBytes
+    // check that the magic bytes are 4 in length
     if (magicBytes.length != MAGIC_BYTES_LEN) {
       throw new Error("Invalid script data provided");
     }
 
     this.magicBytes = magicBytes;
   }
-
 
   /**
    * Builds a data embed script for staking in the form:

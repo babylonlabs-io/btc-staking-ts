@@ -128,9 +128,8 @@ export const validateStakingTxInputData = (
  * @throws {StakingError} - If the values cannot be converted to buffers.
  */
 export const toBuffers = (inputs: string[]): Buffer[] => {
-  let buffers;
   try {
-    buffers = inputs.map((i) =>
+    return inputs.map((i) =>
       Buffer.from(i, "hex")
     );
   } catch (error) {
@@ -139,5 +138,4 @@ export const toBuffers = (inputs: string[]): Buffer[] => {
       "Cannot convert values to buffers",
     );
   }
-  return buffers;
 }
