@@ -3,16 +3,18 @@ import {
   slashEarlyUnbondedTransaction,
   slashTimelockUnbondedTransaction,
   unbondingTransaction,
-} from "../../src";
-import { BTC_DUST_SAT } from "../../src/constants/dustSat";
-import { internalPubkey } from "../../src/constants/internalPubkey";
-import { DEFAULT_TEST_FEE_RATE, testingNetworks } from "../helper";
-import { NON_RBF_SEQUENCE, TRANSACTION_VERSION } from "../../src/constants/psbt";
+} from "../../../src";
+import { BTC_DUST_SAT } from "../../../src/constants/dustSat";
+import { internalPubkey } from "../../../src/constants/internalPubkey";
+import { DEFAULT_TEST_FEE_RATE, testingNetworks } from "../../helper";
+import { NON_RBF_SEQUENCE, TRANSACTION_VERSION } from "../../../src/constants/psbt";
 
-describe.each(testingNetworks)("slashingTransaction - ", (
-  {network, networkName, observableStakingDatagen}
+describe.each(testingNetworks)("Transactions - ", (
+  {network, networkName, datagen}
 ) => {
-  [observableStakingDatagen].map((dataGenerator) => {
+  describe.each(Object.values(datagen))("slashingTransaction - ", (
+    dataGenerator
+  ) => {
     const stakerKeyPair = dataGenerator.generateRandomKeyPair();
     const slashingAddress = dataGenerator.getAddressAndScriptPubKey(
       stakerKeyPair.publicKey,
@@ -361,5 +363,5 @@ describe.each(testingNetworks)("slashingTransaction - ", (
         });
       });
     });
-  });
+  });  
 });

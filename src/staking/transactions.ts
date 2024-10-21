@@ -1,16 +1,16 @@
 import { Psbt, Transaction, networks, payments, script } from "bitcoinjs-lib";
 import { Taptree } from "bitcoinjs-lib/src/types";
 
-import { BTC_DUST_SAT } from "../../constants/dustSat";
-import { internalPubkey } from "../../constants/internalPubkey";
-import { UTXO } from "../../types/UTXO";
-import { PsbtTransactionResult } from "../../types/transaction";
-import { isValidBitcoinAddress } from "../../utils/btc";
-import { getStakingTxInputUTXOsAndFees, getWithdrawTxFee } from "../../utils/fee";
-import { inputValueSum } from "../../utils/fee/utils";
-import { buildStakingOutput } from "../../utils/staking";
-import { NON_RBF_SEQUENCE, TRANSACTION_VERSION, RBF_SEQUENCE } from "../../constants/psbt";
-import { NO_COORD_PK_BYTE_LENGTH } from "../../constants/keys";
+import { BTC_DUST_SAT } from "../constants/dustSat";
+import { internalPubkey } from "../constants/internalPubkey";
+import { UTXO } from "../types/UTXO";
+import { PsbtTransactionResult } from "../types/transaction";
+import { isValidBitcoinAddress } from "../utils/btc";
+import { getStakingTxInputUTXOsAndFees, getWithdrawTxFee } from "../utils/fee";
+import { inputValueSum } from "../utils/fee/utils";
+import { buildStakingOutput } from "../utils/staking";
+import { NON_RBF_SEQUENCE, TRANSACTION_VERSION, RBF_SEQUENCE } from "../constants/psbt";
+import { NO_COORD_PK_BYTE_LENGTH } from "../constants/keys";
 
 // https://bips.xyz/370
 const BTC_LOCKTIME_HEIGHT_TIME_CUTOFF = 500000000;

@@ -1,12 +1,11 @@
-import { ObservableStaking } from "../../../src";
-import * as observableStakingScriptData from "../../../src/staking/observable/observableStakingScript";
-import { testingNetworks } from "../../helper";
-import * as transaction from "../../../src/staking/base/transactions";
-import { getWithdrawTxFee } from "../../../src/utils/fee";
-import { Delegation } from "../../../src/staking/base";
+import * as stakingScript from "../../src/staking/stakingScript";
+import { testingNetworks } from "../helper";
+import * as transaction from "../../src/staking/transactions";
+import { getWithdrawTxFee } from "../../src/utils/fee";
+import { Delegation, Staking } from "../../src/staking";
 
 describe.each(testingNetworks)("Create withdrawal transactions", ({
-  network, networkName, observableStakingDatagen: dataGenerator
+  network, networkName, datagen: { stakingDatagen: dataGenerator }
 }) => {
   const params = dataGenerator.generateStakingParams(true);
   const keys = dataGenerator.generateRandomKeyPair();
@@ -25,7 +24,7 @@ describe.each(testingNetworks)("Create withdrawal transactions", ({
     stakingTx,
     stakingOutputIndex: 0,
     startHeight: dataGenerator.getRandomIntegerBetween(
-      params.activationHeight, params.activationHeight + 1000,
+      700000, 800000,
     ),
     timelock,
   }
@@ -34,8 +33,8 @@ describe.each(testingNetworks)("Create withdrawal transactions", ({
     publicKeyNoCoordHex: keys.publicKeyNoCoord,
     publicKeyWithCoord: keys.publicKey,
   }
-  const observableStaking = new ObservableStaking(network, stakerInfo);
-  const unbondingTx = observableStaking.createUnbondingTransaction(
+  const staking = new Staking(network, stakerInfo);
+  const unbondingTx = staking.createUnbondingTransaction(
     params,
     delegation,
   ).psbt.signAllInputs(keys.keyPair).finalizeAllInputs().extractTransaction();
@@ -49,28 +48,20 @@ describe.each(testingNetworks)("Create withdrawal transactions", ({
 
   describe("Create withdraw early unbonded transaction", () => {
     it(`${networkName} should throw an error if delegation input is invalid`, () => {
-      // Staking tx height is less than activation height
-      const invalidStakingTxHeight = dataGenerator.getRandomIntegerBetween(0, params.activationHeight);
-      const invalidDelegation = {
-        ...delegation,
-        startHeight: invalidStakingTxHeight,
-      }
-      const staking = new ObservableStaking(network, stakerInfo);
       jest.spyOn(staking, "validateDelegationInputs").mockImplementationOnce(() => {
         throw new Error("Fail to validate delegation inputs");
       });
       expect(() => staking.createWithdrawEarlyUnbondedTransaction(
-        params, invalidDelegation, unbondingTx, feeRate,
+        params, delegation, unbondingTx, feeRate,
       )).toThrow("Fail to validate delegation inputs");
     });
 
     it(`${networkName} should throw an error if fail to build scripts`, () => {
-      jest.spyOn(observableStakingScriptData, "ObservableStakingScriptData").mockImplementation(() => {
+      jest.spyOn(stakingScript, "StakingScriptData").mockImplementation(() => {
         throw new Error("withdraw early unbonded delegation build script error");
       });
       
-      const observableStaking = new ObservableStaking(network, stakerInfo);
-      expect(() => observableStaking.createWithdrawEarlyUnbondedTransaction(
+      expect(() => staking.createWithdrawEarlyUnbondedTransaction(
         params,
         delegation,
         unbondingTx,
@@ -82,9 +73,7 @@ describe.each(testingNetworks)("Create withdrawal transactions", ({
       jest.spyOn(transaction, "withdrawEarlyUnbondedTransaction").mockImplementation(() => {
         throw new Error("fail to build withdraw tx");
       });
-      const observableStaking = new ObservableStaking(network, stakerInfo);
-
-      expect(() => observableStaking.createWithdrawEarlyUnbondedTransaction(
+      expect(() => staking.createWithdrawEarlyUnbondedTransaction(
         params,
         delegation,
         unbondingTx,
@@ -93,7 +82,7 @@ describe.each(testingNetworks)("Create withdrawal transactions", ({
     });
 
     it(`${networkName} should create withdraw early unbonded transaction`, () => {
-      const withdrawTx = observableStaking.createWithdrawEarlyUnbondedTransaction(
+      const withdrawTx = staking.createWithdrawEarlyUnbondedTransaction(
         params,
         delegation,
         unbondingTx,
@@ -116,28 +105,21 @@ describe.each(testingNetworks)("Create withdrawal transactions", ({
 
   describe("Create timelock unbonded transaction", () => {
     it(`${networkName} should throw an error if delegation input is invalid`, async () => {
-      // Staking tx height is less than activation height
-      const invalidStakingTxHeight = dataGenerator.getRandomIntegerBetween(0, params.activationHeight);
-      const invalidDelegation = {
-        ...delegation,
-        startHeight: invalidStakingTxHeight,
-      }
-      const staking = new ObservableStaking(network, stakerInfo);
       jest.spyOn(staking, "validateDelegationInputs").mockImplementationOnce(() => {
         throw new Error("Fail to validate delegation inputs");
       });
       expect(() => staking.createWithdrawTimelockUnbondedTransaction(
-        params, invalidDelegation, feeRate,
+        params, delegation, feeRate,
       )).toThrow("Fail to validate delegation inputs");
     });
 
     it(`${networkName} should throw an error if fail to build scripts`, async () => {
-      jest.spyOn(observableStakingScriptData, "ObservableStakingScriptData").mockImplementation(() => {
+      jest.spyOn(stakingScript, "StakingScriptData").mockImplementation(() => {
         throw new Error("withdraw timelock unbonded delegation build script error");
       });
-      const observableStaking = new ObservableStaking(network, stakerInfo);
+      const staking = new Staking(network, stakerInfo);
 
-      expect(() => observableStaking.createWithdrawTimelockUnbondedTransaction(
+      expect(() => staking.createWithdrawTimelockUnbondedTransaction(
         params,
         delegation,
         feeRate,
@@ -149,9 +131,7 @@ describe.each(testingNetworks)("Create withdrawal transactions", ({
         throw new Error("fail to build withdraw tx");
       });
 
-      const observableStaking = new ObservableStaking(network, stakerInfo);
-
-      expect(() => observableStaking.createWithdrawTimelockUnbondedTransaction(
+      expect(() => staking.createWithdrawTimelockUnbondedTransaction(
         params,
         delegation,
         feeRate,
@@ -159,7 +139,7 @@ describe.each(testingNetworks)("Create withdrawal transactions", ({
     });
 
     it(`${networkName} should create withdraw timelock unbonded transaction`, async () => {
-      const withdrawTx = observableStaking.createWithdrawTimelockUnbondedTransaction(
+      const withdrawTx = staking.createWithdrawTimelockUnbondedTransaction(
         params,
         delegation,
         feeRate,

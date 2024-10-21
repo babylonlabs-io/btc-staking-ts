@@ -42,9 +42,11 @@ describe("is OP_RETURN", () => {
 
 describe.each(testingNetworks)("scriptUtils", ({
   networkName,
-  observableStakingDatagen: dataGenerator,
+  datagen,
 }) => {
-  describe(`${networkName} - getInputSizeByScript`, () => {
+  describe.each(Object.values(datagen))(`${networkName} - getInputSizeByScript`, (
+    dataGenerator
+  ) => {
     it("should return P2WPKH_INPUT_SIZE for a valid P2WPKH script", () => {
       const pk = dataGenerator.generateRandomKeyPair().publicKey;
       const { output } = payments.p2wpkh({ pubkey: Buffer.from(pk, "hex") });

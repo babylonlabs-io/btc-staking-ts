@@ -3,7 +3,7 @@ import {
   MAGIC_BYTES_LEN,
   StakingScriptData,
   StakingScripts
-} from "../base/stakingScript";
+} from "../stakingScript";
 
 // Extending StakingScripts to add an extra field
 export interface ObservableStakingScripts extends StakingScripts {

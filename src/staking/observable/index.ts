@@ -1,12 +1,12 @@
 import { ObservableStakingParams } from "../../types/params";
 import { UTXO } from "../../types/UTXO";
 import { StakingError, StakingErrorCode } from "../../error";
-import { stakingTransaction } from "../base/transactions";
+import { stakingTransaction } from "../transactions";
 import { isTaproot } from "../../utils/btc";
-import { pksToBuffers, validateStakingTxInputData } from "../../utils/staking";
+import { toBuffers, validateStakingTxInputData } from "../../utils/staking";
 import { PsbtTransactionResult } from "../../types/transaction";
 import { ObservableStakingScriptData, ObservableStakingScripts } from "./observableStakingScript";
-import { Delegation, StakerInfo, Staking } from "../base";
+import { Delegation, StakerInfo, Staking } from "..";
 export * from "./observableStakingScript";
 
 /**
@@ -28,10 +28,16 @@ export class ObservableStaking extends Staking {
    */
   validateParams(params: ObservableStakingParams): void {
     super.validateParams(params);
-    if (!params.tag || !params.activationHeight) {
+    if (!params.tag) {
       throw new StakingError(
         StakingErrorCode.INVALID_INPUT, 
-        "Observable staking parameters must include tag and activation height",
+        "Observable staking parameters must include tag",
+      );
+    }
+    if (!params.activationHeight) {
+      throw new StakingError(
+        StakingErrorCode.INVALID_INPUT,
+        "Observable staking parameters must include a positive activation height",
       );
     }
   }
@@ -87,7 +93,7 @@ export class ObservableStaking extends Staking {
       stakingScriptData = new ObservableStakingScriptData(
         Buffer.from(stakerPkNoCoordHex, "hex"),
         [Buffer.from(finalityProviderPkNoCoordHex, "hex")],
-        pksToBuffers(params.covenantNoCoordPks),
+        toBuffers(params.covenantNoCoordPks),
         params.covenantQuorum,
         timelock,
         params.unbondingTime,

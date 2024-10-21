@@ -1,118 +1,87 @@
 import { ObservableStaking } from '../../../src/staking/observable';
 import { testingNetworks } from '../../helper';
 
+
 describe.each(testingNetworks)("ObservableStaking input validations", ({
-  observableStakingDatagen: dataGenerator, network
+  network, datagen: { observableStakingDatagen: dataGenerator }
 }) => {
-  const params = dataGenerator.generateStakingParams(true);
-  const keys = dataGenerator.generateRandomKeyPair();
-  const feeRate = 1;
-  const stakingAmount = dataGenerator.getRandomIntegerBetween(
-    params.minStakingAmountSat, params.maxStakingAmountSat,
-  );
-  const finalityProviderPkNoCoordHex = dataGenerator.generateRandomKeyPair().publicKeyNoCoord;
-  const { stakingTx, timelock} = dataGenerator.generateRandomStakingTransaction(
-    keys, feeRate, stakingAmount, "nativeSegwit", params,
-  );
-  const delegation = {
-    stakingTxHashHex: stakingTx.getId(),
-    stakerPkNoCoordHex: keys.publicKeyNoCoord,
-    finalityProviderPkNoCoordHex,
-    stakingTx,
-    stakingOutputIndex: 0,
-    startHeight: dataGenerator.getRandomIntegerBetween(
-      params.activationHeight, params.activationHeight + 1000,
-    ),
-    timelock,
-  }
-  const stakerInfo = {
-    address: dataGenerator.getAddressAndScriptPubKey(keys.publicKey).nativeSegwit.address,
-    publicKeyNoCoordHex: keys.publicKeyNoCoord,
-  }
+  describe('validateDelegationInputs', () => {
+    const params = dataGenerator.generateStakingParams(true);
+    const keys = dataGenerator.generateRandomKeyPair();
+    const feeRate = 1;
+    const stakingAmount = dataGenerator.getRandomIntegerBetween(
+      params.minStakingAmountSat, params.maxStakingAmountSat,
+    );
+    const finalityProviderPkNoCoordHex = dataGenerator.generateRandomKeyPair().publicKeyNoCoord;
+    const { stakingTx, timelock} = dataGenerator.generateRandomStakingTransaction(
+      keys, feeRate, stakingAmount, "nativeSegwit", params,
+    );
+    const delegation = {
+      stakingTxHashHex: stakingTx.getId(),
+      stakerPkNoCoordHex: keys.publicKeyNoCoord,
+      finalityProviderPkNoCoordHex,
+      stakingTx,
+      stakingOutputIndex: 0,
+      startHeight: dataGenerator.getRandomIntegerBetween(700000, 800000),
+      timelock,
+    }
+    const stakerInfo = {
+      address: dataGenerator.getAddressAndScriptPubKey(keys.publicKey).nativeSegwit.address,
+      publicKeyNoCoordHex: keys.publicKeyNoCoord,
+    }
 
-  const observableStaking = new ObservableStaking(network, stakerInfo);
-  // const staking = new Staking(network, stakerInfo);
-
-  describe.each([observableStaking])('validateDelegationInputs', (
-    stakingInstance: ObservableStaking
-  ) => {
+    const stakingInstance = new ObservableStaking(network, stakerInfo);
     beforeEach(() => {
       jest.restoreAllMocks();
     });
 
-    // TODO: Only add this to ObservableStaking type
-    // it('should throw an error if staking transaction start height is less than activation height', () => {
-    //   const invalidDelegation = {
-    //     ...delegation,
-    //     startHeight: params.activationHeight - 1,
-    //   };
-  
-    //   expect(() => {
-    //     validateDelegationInputs(invalidDelegation, params, stakerInfo);
-    //   }).toThrow('Staking transaction start height cannot be less than activation height');
-    // });
-  
-    it('should throw an error if the timelock is out of range', () => {
-      let invalidDelegation = {
+    it('should throw an error if staking transaction start height is less than activation height', () => {
+      const invalidDelegation = {
         ...delegation,
-        timelock: params.minStakingTimeBlocks - 1,
+        startHeight: params.activationHeight - 1,
       };
   
       expect(() => {
         stakingInstance.validateDelegationInputs(invalidDelegation, params, stakerInfo);
-      }).toThrow('Staking transaction timelock is out of range');
+      }).toThrow('Staking transaction start height cannot be less than activation height');
+    });
+  });
 
-      invalidDelegation = {
-        ...delegation,
-        timelock: params.maxStakingTimeBlocks + 1,
-      };
-  
-      expect(() => {
-        stakingInstance.validateDelegationInputs(invalidDelegation, params, stakerInfo);
-      }).toThrow('Staking transaction timelock is out of range');
+  describe('Observable - validateParams', () => {
+    const { publicKey, publicKeyNoCoord} = dataGenerator.generateRandomKeyPair();
+    const { address } = dataGenerator.getAddressAndScriptPubKey(
+      publicKey,
+    ).taproot;
+    
+    const stakerInfo = {
+      address,
+      publicKeyNoCoordHex: publicKeyNoCoord,
+      publicKeyWithCoord: publicKey,
+    };
+    const observable = new ObservableStaking(
+      network,
+      stakerInfo,
+    );
+    const validParams = dataGenerator.generateStakingParams();
+
+    it('should pass with valid parameters', () => {
+      expect(() => observable.validateParams(validParams)).not.toThrow();
     });
-  
-    it('should throw an error if the staker public key does not match', () => {
-      const invalidDelegation = {
-        ...delegation,
-        stakerPkNoCoordHex: dataGenerator.generateRandomKeyPair().publicKey
-      };
-  
-      expect(() => {
-        stakingInstance.validateDelegationInputs(invalidDelegation, params, stakerInfo);
-      }).toThrow('Staker public key does not match between connected staker and delegation staker');
-    });
-  
-    it('should throw an error if the output index is out of range', () => {
-      const invalidDelegation = {
-        ...delegation,
-        stakingOutputIndex: delegation.stakingTx.outs.length,
-      };
-  
-      expect(() => {
-        stakingInstance.validateDelegationInputs(invalidDelegation, params, stakerInfo);
-      }).toThrow('Staking transaction output index is out of range');
-    });
-  
-    it('should throw an error if the transaction hash does not match', () => {
-      const invalidDelegation = {
-        ...delegation,
-        stakingTxHashHex: dataGenerator.generateRandomTxId(),
-      };
-  
-      expect(() => {
-        stakingInstance.validateDelegationInputs(
-          invalidDelegation, params, stakerInfo,
-        );
-      }).toThrow(
-        'Staking transaction hash does not match between the btc transaction and the provided staking hash',
+
+    it('should throw an error if no tag', () => {
+      const params = { ...validParams, tag: "" };
+
+      expect(() => observable.validateParams(params)).toThrow(
+        "Observable staking parameters must include tag" 
       );
     });
-  
-    it('should validate input is valid', () => {
-      expect(() => {
-        stakingInstance.validateDelegationInputs(delegation, params, stakerInfo);
-      }).not.toThrow();
+
+    it('should throw an error if no activationHeight', () => {
+      const params = { ...validParams, activationHeight: 0 };
+
+      expect(() => observable.validateParams(params)).toThrow(
+        "Observable staking parameters must include a positive activation height" 
+      );
     });
   });
 });

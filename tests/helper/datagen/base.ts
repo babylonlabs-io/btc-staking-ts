@@ -27,7 +27,7 @@ export class StakingDataGenerator {
   }
 
   generateStakingParams(
-    fixedTerm: boolean, committeeSize?: number
+    fixedTerm: boolean = false, committeeSize?: number
   ): StakingParams {
     if (!committeeSize) {
       committeeSize = this.getRandomIntegerBetween(5, 50);
@@ -53,7 +53,6 @@ export class StakingDataGenerator {
       ),
       minStakingTimeBlocks,
       maxStakingTimeBlocks,
-      // TODO: Add slashing
     };
   }
 
@@ -259,6 +258,10 @@ export class StakingDataGenerator {
       unsignedPsbt: psbt,
       timelock
     }
+  };
+
+  randomBoolean(): boolean {
+    return Math.random() >= 0.5;
   };
 
   private getTaprootAddress = (publicKeyWithCoord: string) => {

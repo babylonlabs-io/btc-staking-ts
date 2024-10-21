@@ -1,21 +1,21 @@
 import { networks, Transaction } from "bitcoinjs-lib";
-import { StakingParams } from "../../types/params";
-import { UTXO } from "../../types/UTXO";
-import { StakingScriptData, StakingScripts } from "../base/stakingScript";
-import { StakingError, StakingErrorCode } from "../../error";
+import { StakingParams } from "../types/params";
+import { UTXO } from "../types/UTXO";
+import { StakingScriptData, StakingScripts } from "./stakingScript";
+import { StakingError, StakingErrorCode } from "../error";
 import { 
   stakingTransaction, unbondingTransaction,
   withdrawEarlyUnbondedTransaction,
   withdrawTimelockUnbondedTransaction
-} from "../base/transactions";
+} from "./transactions";
 import { 
   isTaproot,
   isValidBitcoinAddress, isValidNoCoordPublicKey
-} from "../../utils/btc";
-import { validateStakingTxInputData } from "../../utils/staking";
-import { PsbtTransactionResult } from "../../types/transaction";
-import { pksToBuffers } from "../../utils/staking";
-export * from "../base/stakingScript";
+} from "../utils/btc";
+import { validateStakingTxInputData } from "../utils/staking";
+import { PsbtTransactionResult } from "../types/transaction";
+import { toBuffers } from "../utils/staking";
+export * from "./stakingScript";
 
 // minimum unbonding output value to avoid the unbonding output value being
 // less than Bitcoin dust
@@ -79,7 +79,7 @@ export class Staking {
       stakingScriptData = new StakingScriptData(
         Buffer.from(stakerPkNoCoordHex, "hex"),
         [Buffer.from(finalityProviderPkNoCoordHex, "hex")],
-        pksToBuffers(params.covenantNoCoordPks),
+        toBuffers(params.covenantNoCoordPks),
         params.covenantQuorum,
         timelock,
         params.unbondingTime
@@ -338,7 +338,6 @@ export class Staking {
       );
     }
   }
-
 
   /**
    * Create a withdrawal transaction that spends an unbonding transaction for observable staking.  

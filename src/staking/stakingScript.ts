@@ -1,5 +1,5 @@
 import { opcodes, script } from "bitcoinjs-lib";
-import { NO_COORD_PK_BYTE_LENGTH } from "../../constants/keys";
+import { NO_COORD_PK_BYTE_LENGTH } from "../constants/keys";
 
 export const MAGIC_BYTES_LEN = 4;
 

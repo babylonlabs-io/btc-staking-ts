@@ -5,8 +5,10 @@ import { StakingDataGenerator } from "./datagen/base";
 export interface NetworkConfig {
   networkName: string;
   network: bitcoin.Network;
-  observableStakingDatagen: ObservableStakingDatagen;
-  stakingDatagen: StakingDataGenerator;
+  datagen: {
+    observableStakingDatagen: ObservableStakingDatagen;
+    stakingDatagen: StakingDataGenerator;
+  }
 }
 
 const createNetworkConfig = (
@@ -15,8 +17,10 @@ const createNetworkConfig = (
 ): NetworkConfig => ({
   networkName,
   network,
-  observableStakingDatagen: new ObservableStakingDatagen(network),
-  stakingDatagen: new StakingDataGenerator(network),
+  datagen: {
+    observableStakingDatagen: new ObservableStakingDatagen(network),
+    stakingDatagen: new StakingDataGenerator(network),
+  },
 });
 
 const testingNetworks: NetworkConfig[] = [

@@ -120,17 +120,23 @@ export const validateStakingTxInputData = (
   }
 }
 
-export const pksToBuffers = (pks: string[]): Buffer[] => {
-  // Convert covenant PKs to buffers
+/**
+ * toBuffers converts an array of strings to an array of buffers.
+ * 
+ * @param {string[]} inputs - The input strings.
+ * @returns {Buffer[]} - The buffers.
+ * @throws {StakingError} - If the values cannot be converted to buffers.
+ */
+export const toBuffers = (inputs: string[]): Buffer[] => {
   let buffers;
   try {
-    buffers = pks.map((pk) =>
-      Buffer.from(pk, "hex")
+    buffers = inputs.map((i) =>
+      Buffer.from(i, "hex")
     );
   } catch (error) {
     throw StakingError.fromUnknown(
       error, StakingErrorCode.INVALID_INPUT,
-      "Cannot convert no coordinated public keys to buffers",
+      "Cannot convert values to buffers",
     );
   }
   return buffers;
