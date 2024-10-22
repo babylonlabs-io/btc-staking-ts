@@ -1,17 +1,26 @@
-import { BTC_DUST_SAT } from "../../src/constants/dustSat";
-import { RBF_SEQUENCE } from "../../src/constants/psbt";
-import { stakingTransaction } from "../../src/index";
-import { StakingScripts } from "../../src/staking/stakingScript";
-import { PsbtTransactionResult } from "../../src/types/transaction";
-import { getStakingTxInputUTXOsAndFees } from "../../src/utils/fee";
-import { buildStakingOutput } from "../../src/utils/staking";
-import { DEFAULT_TEST_FEE_RATE, testingNetworks } from "../helper";
+import { BTC_DUST_SAT } from "../../../src/constants/dustSat";
+import { RBF_SEQUENCE } from "../../../src/constants/psbt";
+import { ObservableStaking, StakingScripts, stakingTransaction } from "../../../src/index";
+import { ObservableStakingScripts } from "../../../src/staking/observable";
+import { PsbtTransactionResult } from "../../../src/types/transaction";
+import { getStakingTxInputUTXOsAndFees } from "../../../src/utils/fee";
+import { buildStakingOutput } from "../../../src/utils/staking";
+import { DEFAULT_TEST_FEE_RATE, testingNetworks } from "../../helper";
 
-describe("stakingTransaction", () => {
-  describe("Cross env error", () => {
-    const [mainnet, testnet] = testingNetworks;
-    const mainnetDataGenerator = mainnet.dataGenerator;
-    const testnetDataGenerator = testnet.dataGenerator;
+describe("StakingTransaction - Cross env error", () => {
+  const [mainnet, testnet] = testingNetworks;
+  const envPairs = [
+    {
+      mainnetDataGenerator: mainnet.datagen.observableStakingDatagen,
+      testnetDataGenerator: testnet.datagen.observableStakingDatagen,
+    },
+    {
+      mainnetDataGenerator: mainnet.datagen.stakingDatagen,
+      testnetDataGenerator: testnet.datagen.stakingDatagen,
+    },
+  ];
+
+  envPairs.map(({ mainnetDataGenerator, testnetDataGenerator }) => {
     const randomAmount = Math.floor(Math.random() * 100000000) + 1000;
 
     it("should throw an error if the testnet inputs are used on mainnet", () => {
@@ -64,8 +73,14 @@ describe("stakingTransaction", () => {
       ).toThrow("Invalid change address");
     });
   });
+});
 
-  testingNetworks.map(({ networkName, network, dataGenerator }) => {
+describe.each(testingNetworks)("Transactions - ", (
+  {network, networkName, datagen}
+) => {
+  describe.each(Object.values(datagen))("stakingTransaction", (
+    dataGenerator
+  ) => {
     const mockScripts = dataGenerator.generateMockStakingScripts();
     const feeRate = DEFAULT_TEST_FEE_RATE;
     const randomAmount = Math.floor(Math.random() * 100000000) + 1000;
@@ -346,57 +361,59 @@ describe("stakingTransaction", () => {
       });
     });
   });
-});
 
-const validateCommonFields = (
-  psbtResult: PsbtTransactionResult,
-  randomAmount: number,
-  estimatedFee: number,
-  changeAddress: string,
-  mockScripts: StakingScripts,
-) => {
-  expect(psbtResult).toBeDefined();
-  // expect the estimated fee and the actual fee is the same
-  expect(psbtResult.fee).toBe(estimatedFee);
-  // make sure the input amount is greater than the output amount
-  const { psbt, fee } = psbtResult;
-  const inputAmount = psbt.data.inputs.reduce(
-    (sum, input) => sum + input.witnessUtxo!.value,
-    0,
-  );
-  const outputAmount = psbt.txOutputs.reduce(
-    (sum, output) => sum + output.value,
-    0,
-  );
-  expect(inputAmount).toBeGreaterThan(outputAmount);
-  expect(inputAmount - outputAmount - fee).toBeLessThan(BTC_DUST_SAT);
-  // check the change amount is correct and send to the correct address
-  if (inputAmount - (randomAmount + fee) > BTC_DUST_SAT) {
-    const expectedChangeAmount = inputAmount - (randomAmount + fee);
-    const changeOutput = psbt.txOutputs.find(
-      (output) => output.value === expectedChangeAmount,
+  const validateCommonFields = (
+    psbtResult: PsbtTransactionResult,
+    randomAmount: number,
+    estimatedFee: number,
+    changeAddress: string,
+    mockScripts: StakingScripts | ObservableStakingScripts,
+  ) => {
+    expect(psbtResult).toBeDefined();
+    // expect the estimated fee and the actual fee is the same
+    expect(psbtResult.fee).toBe(estimatedFee);
+    // make sure the input amount is greater than the output amount
+    const { psbt, fee } = psbtResult;
+    const inputAmount = psbt.data.inputs.reduce(
+      (sum, input) => sum + input.witnessUtxo!.value,
+      0,
     );
-    expect(changeOutput).toBeDefined();
-    // also make sure the change address is correct by look up the `address`
+    const outputAmount = psbt.txOutputs.reduce(
+      (sum, output) => sum + output.value,
+      0,
+    );
+    expect(inputAmount).toBeGreaterThan(outputAmount);
+    expect(inputAmount - outputAmount - fee).toBeLessThan(BTC_DUST_SAT);
+    // check the change amount is correct and send to the correct address
+    if (inputAmount - (randomAmount + fee) > BTC_DUST_SAT) {
+      const expectedChangeAmount = inputAmount - (randomAmount + fee);
+      const changeOutput = psbt.txOutputs.find(
+        (output) => output.value === expectedChangeAmount,
+      );
+      expect(changeOutput).toBeDefined();
+      // also make sure the change address is correct by look up the `address`
+      expect(
+        psbt.txOutputs.find((output) => output.address === changeAddress),
+      ).toBeDefined();
+    }
+
+    // check data embed output added to the transaction if the dataEmbedScript is provided
+    if ((mockScripts as any).dataEmbedScript) {
+      expect(
+        psbt.txOutputs.find((output) =>
+          output.script.equals((mockScripts as any).dataEmbedScript),
+        ),
+      ).toBeDefined();
+    }
+    // Check the staking amount is correct
     expect(
-      psbt.txOutputs.find((output) => output.address === changeAddress),
+      psbt.txOutputs.find((output) => output.value === randomAmount),
     ).toBeDefined();
-  }
 
-  // check data embed output added to the transaction
-  expect(
-    psbt.txOutputs.find((output) =>
-      output.script.equals(mockScripts.dataEmbedScript),
-    ),
-  ).toBeDefined();
+    psbt.txInputs.map((input) => {
+      expect(input.sequence).toBe(RBF_SEQUENCE);
+    });
+    expect(psbt.version).toBe(2);
+  };
 
-  // Check the staking amount is correct
-  expect(
-    psbt.txOutputs.find((output) => output.value === randomAmount),
-  ).toBeDefined();
-
-  psbt.txInputs.map((input) => {
-    expect(input.sequence).toBe(RBF_SEQUENCE);
-  });
-  expect(psbt.version).toBe(2);
-};
+});

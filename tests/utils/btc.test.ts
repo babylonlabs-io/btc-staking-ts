@@ -3,7 +3,8 @@ import { networks } from 'bitcoinjs-lib';
 import { testingNetworks } from '../helper';
 
 describe('isTaproot', () => {
-  describe.each(testingNetworks)('should return true for a valid Taproot address', ({ network, dataGenerator }) => {
+  describe.each(testingNetworks)('should return true for a valid Taproot address', 
+  ({ network, datagen: {stakingDatagen: dataGenerator} }) => {
     const addresses = dataGenerator.getAddressAndScriptPubKey(
       dataGenerator.generateRandomKeyPair().publicKey
     );
@@ -22,14 +23,21 @@ describe('isTaproot', () => {
     });
   });
 
-  const mainnetDatagen = testingNetworks[0]
-  const signetDatagen = testingNetworks[1]
-  const mainnetAddresses = mainnetDatagen.dataGenerator.getAddressAndScriptPubKey(
-    mainnetDatagen.dataGenerator.generateRandomKeyPair().publicKey
-  );
-  const signetAddresses = signetDatagen.dataGenerator.getAddressAndScriptPubKey(
-    signetDatagen.dataGenerator.generateRandomKeyPair().publicKey
-  );
+  const [mainnetDatagen, signetDatagen] = testingNetworks;
+  const envNetworks = [
+    {
+      mainnetDatagen: mainnetDatagen.datagen.stakingDatagen,
+      signetDatagen: signetDatagen.datagen.stakingDatagen,
+    },
+  ];
+
+  envNetworks.forEach(({ mainnetDatagen, signetDatagen }) => {
+    const mainnetAddresses = mainnetDatagen.getAddressAndScriptPubKey(
+      mainnetDatagen.generateRandomKeyPair().publicKey
+    );
+    const signetAddresses = signetDatagen.getAddressAndScriptPubKey(
+      signetDatagen.generateRandomKeyPair().publicKey
+    );
 
   it('should return false for a signet non-Taproot address', () => {
     expect(isTaproot(signetAddresses.nativeSegwit.address, networks.testnet)).toBe(false);
@@ -52,9 +60,12 @@ describe('isTaproot', () => {
 
     expect(isTaproot(signetAddresses.taproot.address, networks.bitcoin)).toBe(false);
   });
+  });
 });
 
-describe.each(testingNetworks)('public keys', ({ dataGenerator }) => {
+describe.each(testingNetworks)('public keys', ({ datagen: {
+  stakingDatagen: dataGenerator
+} }) => {
   const { publicKey, publicKeyNoCoord } = dataGenerator.generateRandomKeyPair()
   describe('isValidNoCoordPublicKey', () => {
     it('should return true for a valid public key without a coordinate', () => {

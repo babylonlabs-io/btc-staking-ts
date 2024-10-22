@@ -1,16 +1,15 @@
-import { Transaction } from "bitcoinjs-lib";
-import { ObservableStaking } from "../../../src";
-import { internalPubkey } from "../../../src/constants/internalPubkey";
-import { StakingError, StakingErrorCode } from "../../../src/error";
-import { testingNetworks } from "../../helper";
-import { NON_RBF_SEQUENCE } from "../../../src/constants/psbt";
-import * as stakingScript from "../../../src/staking/stakingScript";
-import * as staking from "../../../src/staking";
+import { Staking } from "../../src";
+import * as transaction from "../../src/staking/transactions";
+import { internalPubkey } from "../../src/constants/internalPubkey";
+import { StakingError, StakingErrorCode } from "../../src/error";
+import { testingNetworks } from "../helper";
+import { NON_RBF_SEQUENCE } from "../../src/constants/psbt";
+import * as stakingScript from "../../src/staking/stakingScript";
 
 describe.each(testingNetworks)("Create unbonding transaction", ({
-  network, networkName, dataGenerator
+  network, networkName, datagen: { stakingDatagen : dataGenerator }
 }) => {
-  const params = dataGenerator.generateRandomObservableStakingParams(true);
+  const params = dataGenerator.generateStakingParams(true);
   const keys = dataGenerator.generateRandomKeyPair();
   const feeRate = 1;
   const stakingAmount = dataGenerator.getRandomIntegerBetween(
@@ -27,7 +26,7 @@ describe.each(testingNetworks)("Create unbonding transaction", ({
     stakingTx,
     stakingOutputIndex: 0,
     startHeight: dataGenerator.getRandomIntegerBetween(
-      params.activationHeight, params.activationHeight + 1000,
+      700000, 800000,
     ),
     timelock,
   }
@@ -44,16 +43,8 @@ describe.each(testingNetworks)("Create unbonding transaction", ({
   });
 
   it(`${networkName} should throw an error if delegation input is invalid`, async () => {
-    // Staking tx height is less than activation height
-    const invalidStakingTxHeight = dataGenerator.getRandomIntegerBetween(0, params.activationHeight);
-    const invalidDelegation = {
-      ...delegation,
-      startHeight: invalidStakingTxHeight,
-    }
-    const staking = new ObservableStaking(network, stakerInfo);
-    expect(() => staking.createUnbondingTransaction(params, invalidDelegation))
-      .toThrow("Staking transaction start height cannot be less than activation height");
-
+    const staking = new Staking(network, stakerInfo);
+    
     // Staking tx timelock is out of range
     const invalidStakingTxTimelock = dataGenerator.getRandomIntegerBetween(
       params.minStakingTimeBlocks - 100, params.minStakingTimeBlocks - 1,
@@ -98,29 +89,29 @@ describe.each(testingNetworks)("Create unbonding transaction", ({
     jest.spyOn(stakingScript, "StakingScriptData").mockImplementation(() => {
       throw new StakingError(StakingErrorCode.SCRIPT_FAILURE, "build script error");
     });
-    const observableStaking = new ObservableStaking(network, stakerInfo);
+    const staking = new Staking(network, stakerInfo);
 
-    expect(() => observableStaking.createUnbondingTransaction(
+    expect(() => staking.createUnbondingTransaction(
       params,
       delegation,
     )).toThrow("build script error");
   });
 
   it(`${networkName} should throw an error if fail to build unbonding tx`, async () => {
-    jest.spyOn(staking, "unbondingTransaction").mockImplementation(() => {
+    jest.spyOn(transaction, "unbondingTransaction").mockImplementation(() => {
       throw new Error("fail to build unbonding tx");
     });
-    const observableStaking = new ObservableStaking(network, stakerInfo);
+    const staking = new Staking(network, stakerInfo);
 
-    expect(() => observableStaking.createUnbondingTransaction(
+    expect(() => staking.createUnbondingTransaction(
       params,
       delegation,
     )).toThrow("fail to build unbonding tx");
   });
 
   it(`${networkName} should successfully create an unbonding transaction`, async () => {
-    const observableStaking = new ObservableStaking(network, stakerInfo);
-    const { psbt } = observableStaking.createUnbondingTransaction(
+    const staking = new Staking(network, stakerInfo);
+    const { psbt } = staking.createUnbondingTransaction(
       params,
       delegation,
     );
@@ -146,5 +137,4 @@ describe.each(testingNetworks)("Create unbonding transaction", ({
     expect(psbt.locktime).toBe(0);
     expect(psbt.version).toBe(2);
   });
-
 });
