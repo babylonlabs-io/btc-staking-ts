@@ -43,12 +43,6 @@ export class StakingDataGenerator {
     const timelock = this.generateRandomTimelock({minStakingTimeBlocks, maxStakingTimeBlocks});
     const unbondingTime = this.generateRandomUnbondingTime(timelock);
     const slashingRate = this.generateRandomSlashingRate();
-    // Generate a random public key script for slashing
-    const pubKeyBuf = Buffer.from(this.generateRandomKeyPair().publicKey, "hex");
-    const p2pkh = bitcoin.payments.p2pkh({ pubkey: pubKeyBuf });
-    const p2sh = bitcoin.payments.p2sh({ redeem: bitcoin.payments.p2wpkh({ pubkey: pubKeyBuf }) });
-    const p2wpkh = bitcoin.payments.p2wpkh({ pubkey: pubKeyBuf });
-
     const minSlashingTxFeeSat = this.getRandomIntegerBetween(1000, 100000);
     return {
       covenantNoCoordPks,

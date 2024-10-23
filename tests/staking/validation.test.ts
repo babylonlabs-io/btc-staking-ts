@@ -221,9 +221,8 @@ describe.each(testingNetworks)("Staking input validations", ({
 
     it('should throw an error if slashing rate is not within the range', () => {
       const params0 = { ...validParams, slashing: {
-        slashingPkScript: dataGenerator.generateRandomKeyPair().publicKeyNoCoord,
+        ...validParams.slashing!,
         slashingRate: 0,
-        minSlashingTxFeeSat: 1000,
       } };
 
       expect(() => stakingInstance.validateParams(params0)).toThrow(
@@ -231,9 +230,8 @@ describe.each(testingNetworks)("Staking input validations", ({
       );
 
       const params1 = { ...validParams, slashing: {
-        slashingPkScript: dataGenerator.generateRandomKeyPair().publicKeyNoCoord,
+        ...validParams.slashing!,
         slashingRate: 1.1,
-        minSlashingTxFeeSat: 1000,
       } };
 
       expect(() => stakingInstance.validateParams(params1)).toThrow(
@@ -243,13 +241,23 @@ describe.each(testingNetworks)("Staking input validations", ({
 
     it('should throw an error if slashing public key scrit is empty', () => {
       const params = { ...validParams, slashing: {
+        ...validParams.slashing!,
         slashingPkScript: "",
-        slashingRate: 0.1,
-        minSlashingTxFeeSat: 1000,
       } };
 
       expect(() => stakingInstance.validateParams(params)).toThrow(
         'Slashing public key script is missing'
+      );
+    });
+
+    it('should throw an error if minSlashingTxFeeSat is not positive number', () => {
+      const params = { ...validParams, slashing: {
+        ...validParams.slashing!,
+        minSlashingTxFeeSat: 0,
+      } };
+
+      expect(() => stakingInstance.validateParams(params)).toThrow(
+        'Minimum slashing transaction fee must be greater than 0'
       );
     });
   });

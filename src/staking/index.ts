@@ -198,6 +198,12 @@ export class Staking {
           "Slashing public key script is missing",
         );
       }
+      if (params.slashing.minSlashingTxFeeSat <= 0) {
+        throw new StakingError(
+          StakingErrorCode.INVALID_PARAMS,
+          "Minimum slashing transaction fee must be greater than 0",
+        );
+      }
     }
   }
 
