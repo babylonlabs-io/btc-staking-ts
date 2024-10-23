@@ -4,11 +4,14 @@ import { UTXO } from "../types/UTXO";
 import { StakingScriptData, StakingScripts } from "./stakingScript";
 import { StakingError, StakingErrorCode } from "../error";
 import { 
+  slashEarlyUnbondedTransaction,
+  slashTimelockUnbondedTransaction,
   stakingTransaction, unbondingTransaction,
   withdrawEarlyUnbondedTransaction,
   withdrawTimelockUnbondedTransaction
 } from "./transactions";
 import { 
+  deriveAddressFromPkScript,
   isTaproot,
   isValidBitcoinAddress, isValidNoCoordPublicKey
 } from "../utils/btc";
@@ -176,6 +179,26 @@ export class Staking {
         "Covenant quorum must be greater than 0",
       );
     }
+    if (params.slashing) {
+      if (params.slashing.slashingRate <= 0) {
+        throw new StakingError(
+          StakingErrorCode.INVALID_PARAMS,
+          "Slashing rate must be greater than 0",
+        );
+      }
+      if (params.slashing.slashingRate > 1) {
+        throw new StakingError(
+          StakingErrorCode.INVALID_PARAMS,
+          "Slashing rate must be less or equal to 1",
+        );
+      }
+      if (params.slashing.slashingPkScript.length == 0) {
+        throw new StakingError(
+          StakingErrorCode.INVALID_PARAMS,
+          "Slashing public key script is missing",
+        );
+      }
+    }
   }
 
   /**
@@ -246,7 +269,7 @@ export class Staking {
    * 
    * @returns {PsbtTransactionResult} - An object containing the unsigned psbt and fee
    */
-  public createStakingTransaction (
+  public createStakingTransaction(
     params: StakingParams,
     stakingAmountSat: number,
     timelock: number,
@@ -290,19 +313,19 @@ export class Staking {
   };
 
   /**
-   * Create an unbonding transaction for observable staking.
+   * Create an unbonding transaction for staking.
    * 
-   * @param {ObservableStakingParams} stakingParams - The staking parameters for observable staking.
+   * @param {ObservableStakingParams} stakingParams - The staking parameters for staking.
    * @param {Delegation} delegation - The delegation to unbond.
    * 
    * @returns {Psbt} - The unsigned unbonding transaction
    * 
    * @throws {StakingError} - If the delegation is invalid or the transaction cannot be built
    */
-  public createUnbondingTransaction = (
+  public createUnbondingTransaction(
     stakingParams: StakingParams,
     delegation: Delegation,
-  ) : PsbtTransactionResult => {
+  ) : PsbtTransactionResult {
     this.validateParams(stakingParams);
     this.validateDelegationInputs(
       delegation, stakingParams, this.stakerInfo,
@@ -351,12 +374,12 @@ export class Staking {
    * 
    * @throws {StakingError} - If the delegation is invalid or the transaction cannot be built
    */
-  public createWithdrawEarlyUnbondedTransaction = (
+  public createWithdrawEarlyUnbondedTransaction (
     stakingParams: StakingParams,
     delegation: Delegation,
     unbondingTx: Transaction,
     feeRate: number,
-  ): PsbtTransactionResult => {
+  ): PsbtTransactionResult {
     this.validateParams(stakingParams);
     this.validateDelegationInputs(
       delegation, stakingParams, this.stakerInfo,
@@ -402,11 +425,11 @@ export class Staking {
    * 
    * @throws {StakingError} - If the delegation is invalid or the transaction cannot be built
    */
-  public createWithdrawTimelockUnbondedTransaction = (
+  public createWithdrawTimelockUnbondedTransaction(
     stakingParams: StakingParams,
     delegation: Delegation,
     feeRate: number,
-  ): PsbtTransactionResult => {
+  ): PsbtTransactionResult {
     this.validateParams(stakingParams);
     this.validateDelegationInputs(
       delegation, stakingParams, this.stakerInfo,
@@ -441,6 +464,130 @@ export class Staking {
       throw StakingError.fromUnknown(
         error, StakingErrorCode.BUILD_TRANSACTION_FAILURE,
         "Cannot build unsigned timelock unbonded transaction",
+      );
+    }
+  }
+
+  /**
+   * Create a slash timelock unbonded transaction for staking.
+   * 
+   * @param {StakingParams} stakingParams - The staking parameters for staking.
+   * @param {Delegation} delegation - The delegation to slash.
+   * 
+   * @returns {PsbtTransactionResult} - An object containing the unsigned psbt and fee
+   * 
+   * @throws {StakingError} - If the delegation is invalid or the transaction cannot be built
+   */
+  public createSlashTimelockUnbondedTransaction(
+    stakingParams: StakingParams,
+    delegation: Delegation,
+  ) : PsbtTransactionResult {
+    this.validateParams(stakingParams);
+    if (!stakingParams.slashing) {
+      throw new StakingError(
+        StakingErrorCode.INVALID_PARAMS,
+        "Slashing parameters are missing",
+      );
+    }
+    this.validateDelegationInputs(
+      delegation, stakingParams, this.stakerInfo,
+    );
+    const slashingAddress = deriveAddressFromPkScript(
+      stakingParams.slashing.slashingPkScript, this.network,
+    );
+    const { 
+      stakingTx,
+      timelock,
+      finalityProviderPkNoCoordHex,
+      stakerPkNoCoordHex,
+    } = delegation;
+
+    // Build scripts
+    const scripts = this.buildScripts(
+      stakingParams,
+      finalityProviderPkNoCoordHex,
+      timelock,
+      stakerPkNoCoordHex,
+    );
+
+    // create the slash timelock unbonded transaction
+    try {
+      const { psbt } = slashTimelockUnbondedTransaction(
+        scripts,
+        stakingTx,
+        slashingAddress,
+        stakingParams.slashing.slashingRate,
+        stakingParams.slashing.minSlashingTxFeeSat,
+        this.network,
+      );
+      return { psbt, fee: stakingParams.slashing.minSlashingTxFeeSat };
+    } catch (error) {
+      throw StakingError.fromUnknown(
+        error, StakingErrorCode.BUILD_TRANSACTION_FAILURE,
+        "Cannot build the slash timelock unbonded transaction",
+      );
+    }
+  }
+
+  /**
+   * Create a slash early unbonded transaction for staking.
+   * 
+   * @param {StakingParams} stakingParams - The staking parameters for staking.
+   * @param {Delegation} delegation - The delegation to slash.
+   * @param {Transaction} unbondingTx - The unbonding transaction to slash.
+   * 
+   * @returns {PsbtTransactionResult} - An object containing the unsigned psbt and fee
+   * 
+   * @throws {StakingError} - If the delegation is invalid or the transaction cannot be built
+   */
+  public createSlashEarlyUnbondedTransaction(
+    stakingParams: StakingParams,
+    delegation: Delegation,
+    unbondingTx: Transaction,
+  ): PsbtTransactionResult {
+    this.validateParams(stakingParams);
+    if (!stakingParams.slashing) {
+      throw new StakingError(
+        StakingErrorCode.INVALID_PARAMS,
+        "Slashing parameters are missing",
+      );
+    }
+    this.validateDelegationInputs(
+      delegation, stakingParams, this.stakerInfo,
+    );
+    const slashingAddress = deriveAddressFromPkScript(
+      stakingParams.slashing.slashingPkScript, this.network,
+    );
+
+    const {
+      timelock,
+      finalityProviderPkNoCoordHex,
+      stakerPkNoCoordHex,
+    } = delegation;
+
+    // Build scripts
+    const scripts = this.buildScripts(
+      stakingParams,
+      finalityProviderPkNoCoordHex,
+      timelock,
+      stakerPkNoCoordHex,
+    );
+
+    // create the slash timelock unbonded transaction
+    try {
+      const { psbt } = slashEarlyUnbondedTransaction(
+        scripts,
+        unbondingTx,
+        slashingAddress,
+        stakingParams.slashing.slashingRate,
+        stakingParams.slashing.minSlashingTxFeeSat,
+        this.network,
+      );
+      return { psbt, fee: stakingParams.slashing.minSlashingTxFeeSat };
+    } catch (error) {
+      throw StakingError.fromUnknown(
+        error, StakingErrorCode.BUILD_TRANSACTION_FAILURE,
+        "Cannot build the slash early unbonded transaction",
       );
     }
   }

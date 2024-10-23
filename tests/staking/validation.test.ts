@@ -119,6 +119,11 @@ describe.each(testingNetworks)("Staking input validations", ({
       expect(() => stakingInstance.validateParams(validParams)).not.toThrow();
     });
 
+    it('should pass with valid parameters without slashing', () => {
+      const paramsWithoutSlashing = { ...validParams, slashing: undefined };
+      expect(() => stakingInstance.validateParams(paramsWithoutSlashing)).not.toThrow();
+    });
+
     it('should throw an error if covenant public keys are empty', () => {
       const params = { ...validParams, covenantNoCoordPks: [] };
 
@@ -211,6 +216,40 @@ describe.each(testingNetworks)("Staking input validations", ({
 
       expect(() => stakingInstance.validateParams(params)).toThrow(
         'Covenant quorum must be greater than 0'
+      );
+    });
+
+    it('should throw an error if slashing rate is not within the range', () => {
+      const params0 = { ...validParams, slashing: {
+        slashingPkScript: dataGenerator.generateRandomKeyPair().publicKeyNoCoord,
+        slashingRate: 0,
+        minSlashingTxFeeSat: 1000,
+      } };
+
+      expect(() => stakingInstance.validateParams(params0)).toThrow(
+        'Slashing rate must be greater than 0'
+      );
+
+      const params1 = { ...validParams, slashing: {
+        slashingPkScript: dataGenerator.generateRandomKeyPair().publicKeyNoCoord,
+        slashingRate: 1.1,
+        minSlashingTxFeeSat: 1000,
+      } };
+
+      expect(() => stakingInstance.validateParams(params1)).toThrow(
+        'Slashing rate must be less or equal to 1'
+      );
+    });
+
+    it('should throw an error if slashing public key scrit is empty', () => {
+      const params = { ...validParams, slashing: {
+        slashingPkScript: "",
+        slashingRate: 0.1,
+        minSlashingTxFeeSat: 1000,
+      } };
+
+      expect(() => stakingInstance.validateParams(params)).toThrow(
+        'Slashing public key script is missing'
       );
     });
   });
