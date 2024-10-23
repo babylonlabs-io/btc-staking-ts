@@ -137,7 +137,7 @@ export class ObservableStaking extends Staking {
    * 
    * @returns {PsbtTransactionResult} - An object containing the unsigned psbt and fee
    */
-  public createStakingTransaction (
+  public createStakingTransaction(
     params: ObservableStakingParams,
     stakingAmountSat: number,
     timelock: number,

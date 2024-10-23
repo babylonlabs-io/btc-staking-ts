@@ -119,6 +119,11 @@ describe.each(testingNetworks)("Staking input validations", ({
       expect(() => stakingInstance.validateParams(validParams)).not.toThrow();
     });
 
+    it('should pass with valid parameters without slashing', () => {
+      const paramsWithoutSlashing = { ...validParams, slashing: undefined };
+      expect(() => stakingInstance.validateParams(paramsWithoutSlashing)).not.toThrow();
+    });
+
     it('should throw an error if covenant public keys are empty', () => {
       const params = { ...validParams, covenantNoCoordPks: [] };
 
@@ -211,6 +216,48 @@ describe.each(testingNetworks)("Staking input validations", ({
 
       expect(() => stakingInstance.validateParams(params)).toThrow(
         'Covenant quorum must be greater than 0'
+      );
+    });
+
+    it('should throw an error if slashing rate is not within the range', () => {
+      const params0 = { ...validParams, slashing: {
+        ...validParams.slashing!,
+        slashingRate: 0,
+      } };
+
+      expect(() => stakingInstance.validateParams(params0)).toThrow(
+        'Slashing rate must be greater than 0'
+      );
+
+      const params1 = { ...validParams, slashing: {
+        ...validParams.slashing!,
+        slashingRate: 1.1,
+      } };
+
+      expect(() => stakingInstance.validateParams(params1)).toThrow(
+        'Slashing rate must be less or equal to 1'
+      );
+    });
+
+    it('should throw an error if slashing public key scrit is empty', () => {
+      const params = { ...validParams, slashing: {
+        ...validParams.slashing!,
+        slashingPkScript: "",
+      } };
+
+      expect(() => stakingInstance.validateParams(params)).toThrow(
+        'Slashing public key script is missing'
+      );
+    });
+
+    it('should throw an error if minSlashingTxFeeSat is not positive number', () => {
+      const params = { ...validParams, slashing: {
+        ...validParams.slashing!,
+        minSlashingTxFeeSat: 0,
+      } };
+
+      expect(() => stakingInstance.validateParams(params)).toThrow(
+        'Minimum slashing transaction fee must be greater than 0'
       );
     });
   });
