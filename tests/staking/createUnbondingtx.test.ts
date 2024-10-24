@@ -19,81 +19,42 @@ describe.each(testingNetworks)("Create unbonding transaction", ({
   const { stakingTx, timelock} = dataGenerator.generateRandomStakingTransaction(
     keys, feeRate, stakingAmount, "nativeSegwit", params,
   );
-  const delegation = {
-    stakingTxHashHex: stakingTx.getId(),
-    stakerPkNoCoordHex: keys.publicKeyNoCoord,
-    finalityProviderPkNoCoordHex,
-    stakingTx,
-    stakingOutputIndex: 0,
-    startHeight: dataGenerator.getRandomIntegerBetween(
-      700000, 800000,
-    ),
-    timelock,
-  }
+  const stakingOutputIndex = 0;
+  // const delegation = {
+  //   stakingTxHashHex: stakingTx.getId(),
+  //   stakerPkNoCoordHex: keys.publicKeyNoCoord,
+  //   finalityProviderPkNoCoordHex,
+  //   stakingTx,
+  //   stakingOutputIndex: 0,
+  //   startHeight: dataGenerator.getRandomIntegerBetween(
+  //     700000, 800000,
+  //   ),
+  //   timelock,
+  // }
   const stakerInfo = {
     address: dataGenerator.getAddressAndScriptPubKey(keys.publicKey).nativeSegwit.address,
     publicKeyNoCoordHex: keys.publicKeyNoCoord,
     publicKeyWithCoord: keys.publicKey,
   }
+  let staking: Staking;
 
   beforeEach(() => {
     jest.clearAllMocks();
     jest.resetAllMocks();
     jest.restoreAllMocks();
-  });
-
-  it(`${networkName} should throw an error if delegation input is invalid`, async () => {
-    const staking = new Staking(network, stakerInfo);
-    
-    // Staking tx timelock is out of range
-    const invalidStakingTxTimelock = dataGenerator.getRandomIntegerBetween(
-      params.minStakingTimeBlocks - 100, params.minStakingTimeBlocks - 1,
+    staking = new Staking(
+      network, stakerInfo,
+      params, finalityProviderPkNoCoordHex, timelock,
     );
-    const invalidDelegation2 = {
-      ...delegation,
-      timelock: invalidStakingTxTimelock,
-    }
-    expect(() => staking.createUnbondingTransaction(params, invalidDelegation2))
-      .toThrow("Staking transaction timelock is out of range");
-
-    // Staker public key does not match
-    const invalidStakerPk = dataGenerator.generateRandomKeyPair().publicKeyNoCoord;
-    const invalidDelegation3 = {
-      ...delegation,
-      stakerPkNoCoordHex: invalidStakerPk,
-    }
-    expect(() => staking.createUnbondingTransaction(params, invalidDelegation3))
-      .toThrow("Staker public key does not match between connected staker and delegation staker");
-
-    // Transaction output index is out of range
-    const invalidDelegation5 = {
-      ...delegation,
-      stakingOutputIndex: dataGenerator.getRandomIntegerBetween(100, 1000),
-    }
-    expect(() => staking.createUnbondingTransaction(params, invalidDelegation5))
-      .toThrow("Staking transaction output index is out of range");
-
-    // StakingTxHashHex does not match from the staking transaction
-    const anotherTx = dataGenerator.generateRandomStakingTransaction(dataGenerator.generateRandomKeyPair())
-    const invalidStakingTxHashHex = anotherTx.stakingTx.getHash().toString("hex");
-    const invalidDelegation6 = {
-      ...delegation,
-      stakingTxHashHex: invalidStakingTxHashHex,
-    }
-    expect(() => staking.createUnbondingTransaction(params, invalidDelegation6))
-      .toThrow("Staking transaction hash does not match between the btc transaction and the provided staking hash");
   });
-
 
   it(`${networkName} should throw an error if fail to build scripts`, async () => {
     jest.spyOn(stakingScript, "StakingScriptData").mockImplementation(() => {
       throw new StakingError(StakingErrorCode.SCRIPT_FAILURE, "build script error");
     });
-    const staking = new Staking(network, stakerInfo);
 
     expect(() => staking.createUnbondingTransaction(
-      params,
-      delegation,
+      stakingTx, stakingOutputIndex,
     )).toThrow("build script error");
   });
 
@@ -101,19 +62,14 @@ describe.each(testingNetworks)("Create unbonding transaction", ({
     jest.spyOn(transaction, "unbondingTransaction").mockImplementation(() => {
       throw new Error("fail to build unbonding tx");
     });
-    const staking = new Staking(network, stakerInfo);
-
     expect(() => staking.createUnbondingTransaction(
-      params,
-      delegation,
+      stakingTx, stakingOutputIndex,
     )).toThrow("fail to build unbonding tx");
   });
 
   it(`${networkName} should successfully create an unbonding transaction`, async () => {
-    const staking = new Staking(network, stakerInfo);
     const { psbt } = staking.createUnbondingTransaction(
-      params,
-      delegation,
+      stakingTx, stakingOutputIndex,
     );
     expect(psbt).toBeDefined();
 
@@ -124,10 +80,10 @@ describe.each(testingNetworks)("Create unbonding transaction", ({
     expect(psbt.data.inputs[0].tapLeafScript?.length).toBe(1);
     expect(psbt.data.inputs[0].witnessUtxo?.value).toEqual(stakingAmount);
     expect(psbt.data.inputs[0].witnessUtxo?.script).toEqual(
-      delegation.stakingTx.outs[delegation.stakingOutputIndex].script,
+      stakingTx.outs[stakingOutputIndex].script,
     );
     expect(psbt.txInputs[0].sequence).toEqual(NON_RBF_SEQUENCE);
-    expect(psbt.txInputs[0].index).toEqual(delegation.stakingOutputIndex);
+    expect(psbt.txInputs[0].index).toEqual(stakingOutputIndex);
 
     // Check the psbt outputs
     expect(psbt.txOutputs.length).toBe(1);

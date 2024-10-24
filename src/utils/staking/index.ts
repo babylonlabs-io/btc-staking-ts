@@ -1,4 +1,4 @@
-import { networks, payments } from "bitcoinjs-lib";
+import { networks, payments, Transaction } from "bitcoinjs-lib";
 import { Taptree } from "bitcoinjs-lib/src/types";
 import { internalPubkey } from "../../constants/internalPubkey";
 import { PsbtOutputExtended } from "../../types/psbtOutputs";
@@ -6,6 +6,7 @@ import { StakingError, StakingErrorCode } from "../../error";
 import { UTXO } from "../../types/UTXO";
 import { isValidNoCoordPublicKey } from "../btc";
 import { StakingParams } from "../../types/params";
+import { MIN_UNBONDING_OUTPUT_VALUE } from "../../constants/unbonding";
 
 
 
@@ -83,7 +84,6 @@ export const validateStakingTxInputData = (
   params: StakingParams,
   inputUTXOs: UTXO[],
   feeRate: number,
-  finalityProviderPkNoCoord: string,
 ) => {
   if (
     stakingAmountSat < params.minStakingAmountSat ||
@@ -113,12 +113,149 @@ export const validateStakingTxInputData = (
       StakingErrorCode.INVALID_INPUT, "Invalid fee rate",
     );
   }
-  if (!isValidNoCoordPublicKey(finalityProviderPkNoCoord)) {
+}
+
+
+/**
+ * Validate the staking parameters.
+ * Extend this method to add additional validation for staking parameters based
+ * on the staking type.
+ * @param {StakingParams} params - The staking parameters.
+ * @throws {StakingError} - If the parameters are invalid.
+ */
+export const validateParams = (params: StakingParams) => {
+  // Check covenant public keys
+  if (params.covenantNoCoordPks.length == 0) {
     throw new StakingError(
-      StakingErrorCode.INVALID_INPUT, "Finality provider public key should contains no coordinate",
+      StakingErrorCode.INVALID_PARAMS,
+      "Could not find any covenant public keys",
     );
   }
+  if (params.covenantNoCoordPks.length < params.covenantQuorum) {
+    throw new StakingError(
+      StakingErrorCode.INVALID_PARAMS,
+      "Covenant public keys must be greater than or equal to the quorum",
+    );
+  }
+  params.covenantNoCoordPks.forEach((pk) => {
+    if (!isValidNoCoordPublicKey(pk)) {
+      throw new StakingError(
+        StakingErrorCode.INVALID_PARAMS,
+        "Covenant public key should contains no coordinate",
+      );
+    }
+  });
+  // Check other parameters
+  if (params.unbondingTime <= 0) {
+    throw new StakingError(
+      StakingErrorCode.INVALID_PARAMS,
+      "Unbonding time must be greater than 0",
+    );
+  }
+  if (params.unbondingFeeSat <= 0) {
+    throw new StakingError(
+      StakingErrorCode.INVALID_PARAMS,
+      "Unbonding fee must be greater than 0",
+    );
+  }
+  if (params.maxStakingAmountSat < params.minStakingAmountSat) {
+    throw new StakingError(
+      StakingErrorCode.INVALID_PARAMS,
+      "Max staking amount must be greater or equal to min staking amount",
+    );
+  }
+  if (params.minStakingAmountSat < params.unbondingFeeSat + MIN_UNBONDING_OUTPUT_VALUE) {
+    throw new StakingError(
+      StakingErrorCode.INVALID_PARAMS,
+      `Min staking amount must be greater than unbonding fee plus ${MIN_UNBONDING_OUTPUT_VALUE}`,
+    );
+  }
+  if (params.maxStakingTimeBlocks < params.minStakingTimeBlocks) {
+    throw new StakingError(
+      StakingErrorCode.INVALID_PARAMS,
+      "Max staking time must be greater or equal to min staking time",
+    );
+  }
+  if (params.minStakingTimeBlocks <= 0) {
+    throw new StakingError(
+      StakingErrorCode.INVALID_PARAMS,
+      "Min staking time must be greater than 0",
+    );
+  }
+  if (params.covenantQuorum <= 0) {
+    throw new StakingError(
+      StakingErrorCode.INVALID_PARAMS,
+      "Covenant quorum must be greater than 0",
+    );
+  }
+  if (params.slashing) {
+    if (params.slashing.slashingRate <= 0) {
+      throw new StakingError(
+        StakingErrorCode.INVALID_PARAMS,
+        "Slashing rate must be greater than 0",
+      );
+    }
+    if (params.slashing.slashingRate > 1) {
+      throw new StakingError(
+        StakingErrorCode.INVALID_PARAMS,
+        "Slashing rate must be less or equal to 1",
+      );
+    }
+    if (params.slashing.slashingPkScript.length == 0) {
+      throw new StakingError(
+        StakingErrorCode.INVALID_PARAMS,
+        "Slashing public key script is missing",
+      );
+    }
+    if (params.slashing.minSlashingTxFeeSat <= 0) {
+      throw new StakingError(
+        StakingErrorCode.INVALID_PARAMS,
+        "Minimum slashing transaction fee must be greater than 0",
+      );
+    }
+  }
 }
+
+/**
+ * Validate the staking timelock.
+ * 
+ * @param {number} stakingTimelock - The staking timelock.
+ * @param {StakingParams} params - The staking parameters.
+ * 
+ * @throws {StakingError} - If the staking timelock is invalid.
+ */
+export const validateStakingTimelock = (
+  stakingTimelock: number, params: StakingParams,
+) => {
+  if (
+    stakingTimelock < params.minStakingTimeBlocks ||
+    stakingTimelock > params.maxStakingTimeBlocks
+  ) {
+    throw new StakingError(
+      StakingErrorCode.INVALID_INPUT,
+      "Staking transaction timelock is out of range",
+    );
+  }
+};
+
+/**
+ * Validate the staking transaction output index.
+ * 
+ * @param {Transaction} stakingTx - The staking transaction.
+ * @param {number} stakingOutputIndex - The staking transaction output index.
+ * 
+ * @throws {StakingError} - If the output index is invalid.
+ */
+export const validateStakingTxOutputIndex = (
+  stakingTx: Transaction, stakingOutputIndex: number,
+) => {
+  if (!stakingTx.outs[stakingOutputIndex]) {
+    throw new StakingError(
+      StakingErrorCode.INVALID_INPUT,
+      "Staking transaction output index is out of range",
+    );
+  }
+};
 
 /**
  * toBuffers converts an array of strings to an array of buffers.

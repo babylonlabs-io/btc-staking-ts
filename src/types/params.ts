@@ -10,6 +10,7 @@ export interface StakingParams {
   slashing?: {
     slashingPkScript: string;
     slashingRate: number;
+    minSlashingTxFeeSat: number;
   }
 }
 
