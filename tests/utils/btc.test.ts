@@ -1,10 +1,11 @@
-import { getPublicKeyNoCoord, isTaproot, isValidNoCoordPublicKey } from '../../src/utils/btc';
+import { deriveAddressFromPkScript, getPublicKeyNoCoord, isTaproot, isValidBitcoinAddress, isValidNoCoordPublicKey } from '../../src/utils/btc';
 import { networks } from 'bitcoinjs-lib';
 import { testingNetworks } from '../helper';
+import exp from 'constants';
 
 describe('isTaproot', () => {
   describe.each(testingNetworks)('should return true for a valid Taproot address', 
-  ({ network, datagen: {stakingDatagen: dataGenerator} }) => {
+  ({ network, datagen: { stakingDatagen: dataGenerator } }) => {
     const addresses = dataGenerator.getAddressAndScriptPubKey(
       dataGenerator.generateRandomKeyPair().publicKey
     );
@@ -65,7 +66,7 @@ describe('isTaproot', () => {
 
 describe.each(testingNetworks)('public keys', ({ datagen: {
   stakingDatagen: dataGenerator
-} }) => {
+}}) => {
   const { publicKey, publicKeyNoCoord } = dataGenerator.generateRandomKeyPair()
   describe('isValidNoCoordPublicKey', () => {
     it('should return true for a valid public key without a coordinate', () => {
@@ -96,4 +97,25 @@ describe.each(testingNetworks)('public keys', ({ datagen: {
       expect(() => getPublicKeyNoCoord(invalidPublicKey)).toThrow('Invalid public key without coordinate');
     });
   });  
+});
+
+describe.each(testingNetworks)('Derive address from pkScript', ({
+  network,
+  datagen: {
+    stakingDatagen: dataGenerator
+  }
+}) => {
+  const params = dataGenerator.generateStakingParams();
+  describe("should derive the address from the pkScript", () => {
+    const slashingAddress = deriveAddressFromPkScript(
+      params.slashing!.slashingPkScript, network,
+    );
+    expect(isValidBitcoinAddress(slashingAddress, network)).toBe(true);
+  });
+
+  it("should throw an error for an invalid pkScript", () => {
+    const invalidPkScript = "invalid_pk_script";
+    expect(() => deriveAddressFromPkScript(invalidPkScript, network))
+      .toThrow("Failed to derive address from public key script: Error:  has no matching Address");
+  });
 });
