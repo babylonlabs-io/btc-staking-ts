@@ -1,7 +1,7 @@
 import * as stakingScript from "../../src/staking/stakingScript";
 import { testingNetworks } from "../helper";
 import * as transaction from "../../src/staking/transactions";
-import { Delegation, Staking } from "../../src/staking";
+import { Staking } from "../../src/staking";
 import { deriveAddressFromPkScript } from "../../src";
 import { opcodes, payments, script } from "bitcoinjs-lib";
 import { internalPubkey } from "../../src/constants/internalPubkey";
@@ -19,26 +19,20 @@ describe.each(testingNetworks)("Create slashing transactions", ({
   const { stakingTx, timelock} = dataGenerator.generateRandomStakingTransaction(
     keys, feeRate, stakingAmount, "nativeSegwit", params,
   );
-  const delegation: Delegation = {
-    stakingTxHashHex: stakingTx.getId(),
-    stakerPkNoCoordHex: keys.publicKeyNoCoord,
-    finalityProviderPkNoCoordHex,
-    stakingTx,
-    stakingOutputIndex: 0,
-    startHeight: dataGenerator.getRandomIntegerBetween(
-      700000, 800000,
-    ),
-    timelock,
-  }
+  const stakingOutputIndex = 0;
+  const stakerPkNoCoordHex = keys.publicKeyNoCoord;
   const stakerInfo = {
     address: dataGenerator.getAddressAndScriptPubKey(keys.publicKey).nativeSegwit.address,
     publicKeyNoCoordHex: keys.publicKeyNoCoord,
     publicKeyWithCoord: keys.publicKey,
   }
-  const staking = new Staking(network, stakerInfo);
+  const staking = new Staking(
+    network, stakerInfo,
+    params, finalityProviderPkNoCoordHex, timelock,
+
+  );
   const unbondingTx = staking.createUnbondingTransaction(
-    params,
-    delegation,
+    stakingTx, stakingOutputIndex,
   ).psbt.signAllInputs(keys.keyPair).finalizeAllInputs().extractTransaction();
 
 
@@ -49,23 +43,12 @@ describe.each(testingNetworks)("Create slashing transactions", ({
   });
 
   describe("Create slash early unbonded transaction", () => {
-    it(`${networkName} should throw an error if delegation input is invalid`, () => {
-      jest.spyOn(staking, "validateDelegationInputs").mockImplementationOnce(() => {
-        throw new Error("Fail to validate delegation inputs");
-      });
-      expect(() => staking.createSlashEarlyUnbondedTransaction(
-        params, delegation, unbondingTx,
-      )).toThrow("Fail to validate delegation inputs");
-    });
-
     it(`${networkName} should throw an error if fail to build scripts`, () => {
       jest.spyOn(stakingScript, "StakingScriptData").mockImplementation(() => {
         throw new Error("slash early unbonded delegation build script error");
       });
       
       expect(() => staking.createSlashEarlyUnbondedTransaction(
-        params,
-        delegation,
         unbondingTx,
       )).toThrow("slash early unbonded delegation build script error");
     });
@@ -75,16 +58,12 @@ describe.each(testingNetworks)("Create slashing transactions", ({
         throw new Error("fail to build slash tx");
       });
       expect(() => staking.createSlashEarlyUnbondedTransaction(
-        params,
-        delegation,
         unbondingTx,
       )).toThrow("fail to build slash tx");
     });
 
     it(`${networkName} should create slash early unbonded transaction`, () => {
       const slashTx = staking.createSlashEarlyUnbondedTransaction(
-        params,
-        delegation,
         unbondingTx,
       );
       expect(slashTx.psbt.txInputs.length).toBe(1)
@@ -105,7 +84,7 @@ describe.each(testingNetworks)("Create slashing transactions", ({
       expect(slashTx.psbt.txOutputs[0].address).toBe(slashingAddress);
       // change output
       const unbondingTimelockScript = script.compile([
-        Buffer.from(delegation.stakerPkNoCoordHex, "hex"),
+        Buffer.from(stakerPkNoCoordHex, "hex"),
         opcodes.OP_CHECKSIGVERIFY,
         script.number.encode(params.unbondingTime),
         opcodes.OP_CHECKSEQUENCEVERIFY,
@@ -124,24 +103,17 @@ describe.each(testingNetworks)("Create slashing transactions", ({
   });
 
   describe("Create slash timelock unbonded transaction", () => {
-    it(`${networkName} should throw an error if delegation input is invalid`, async () => {
-      jest.spyOn(staking, "validateDelegationInputs").mockImplementationOnce(() => {
-        throw new Error("Fail to validate delegation inputs");
-      });
-      expect(() => staking.createSlashTimelockUnbondedTransaction(
-        params, delegation,
-      )).toThrow("Fail to validate delegation inputs");
-    });
-
     it(`${networkName} should throw an error if fail to build scripts`, async () => {
       jest.spyOn(stakingScript, "StakingScriptData").mockImplementation(() => {
         throw new Error("slash timelock unbonded delegation build script error");
       });
-      const staking = new Staking(network, stakerInfo);
+      const staking = new Staking(
+        network, stakerInfo,
+        params, finalityProviderPkNoCoordHex, timelock,
+      );
 
       expect(() => staking.createSlashTimelockUnbondedTransaction(
-        params,
-        delegation,
+        stakingTx,
       )).toThrow("slash timelock unbonded delegation build script error");
     });
 
@@ -151,15 +123,13 @@ describe.each(testingNetworks)("Create slashing transactions", ({
       });
 
       expect(() => staking.createSlashTimelockUnbondedTransaction(
-        params,
-        delegation,
+        stakingTx,
       )).toThrow("fail to build slash tx");
     });
 
     it(`${networkName} should create slash timelock unbonded transaction`, async () => {
       const slashTx = staking.createSlashTimelockUnbondedTransaction(
-        params,
-        delegation,
+        stakingTx,
       );
       expect(slashTx.psbt.txInputs.length).toBe(1)
       expect(slashTx.psbt.txInputs[0].hash.toString("hex")).
@@ -178,7 +148,7 @@ describe.each(testingNetworks)("Create slashing transactions", ({
       expect(slashTx.psbt.txOutputs[0].address).toBe(slashingAddress);
       // change output
       const unbondingTimelockScript = script.compile([
-        Buffer.from(delegation.stakerPkNoCoordHex, "hex"),
+        Buffer.from(stakerPkNoCoordHex, "hex"),
         opcodes.OP_CHECKSIGVERIFY,
         script.number.encode(params.unbondingTime),
         opcodes.OP_CHECKSEQUENCEVERIFY,

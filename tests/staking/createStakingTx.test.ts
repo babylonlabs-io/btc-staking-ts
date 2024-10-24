@@ -49,7 +49,10 @@ describe.each(testingNetworks)("Create staking transaction", ({
       address: stakerInfo.address,
       publicKeyNoCoordHex: stakerInfo.publicKeyWithCoord,
     };
-    expect(() => new Staking(network, stakerInfoWithCoordPk)).toThrow(
+    expect(() => new Staking(
+      network, stakerInfoWithCoordPk,
+      params, finalityProviderPublicKey, timelock,
+    )).toThrow(
       "Invalid staker public key"
     );
 
@@ -57,7 +60,10 @@ describe.each(testingNetworks)("Create staking transaction", ({
       address: "abc",
       publicKeyNoCoordHex: stakerInfo.publicKeyNoCoordHex,
     };
-    expect(() => new Staking(network, stakerInfoWithInvalidAddress)).toThrow(
+    expect(() => new Staking(
+      network, stakerInfoWithInvalidAddress,
+      params, finalityProviderPublicKey, timelock,
+    )).toThrow(
       "Invalid staker bitcoin address"
     );
   });
@@ -66,13 +72,13 @@ describe.each(testingNetworks)("Create staking transaction", ({
     jest.spyOn(stakingUtils, "validateStakingTxInputData").mockImplementation(() => {
       throw new StakingError(StakingErrorCode.INVALID_INPUT, "some error");
     });
-    const staking = new Staking(network, stakerInfo);
+    const staking = new Staking(
+      network, stakerInfo,
+      params, finalityProviderPublicKey, timelock,
+    );
 
     expect(() => staking.createStakingTransaction(
-      params,
       params.minStakingAmountSat,
-      timelock,
-      finalityProviderPublicKey,
       utxos,
       feeRate,
     )).toThrow(
@@ -84,13 +90,13 @@ describe.each(testingNetworks)("Create staking transaction", ({
     jest.spyOn(stakingScript, "StakingScriptData").mockImplementation(() => {
       throw new StakingError(StakingErrorCode.SCRIPT_FAILURE, "some error");
     });
-    const staking = new Staking(network, stakerInfo);
+    const staking = new Staking(
+      network, stakerInfo,
+      params, finalityProviderPublicKey, timelock,
+    );
 
     expect(() => staking.createStakingTransaction(
-      params,
       params.minStakingAmountSat,
-      timelock,
-      finalityProviderPublicKey,
       utxos,
       feeRate,
     )).toThrow(
@@ -102,13 +108,13 @@ describe.each(testingNetworks)("Create staking transaction", ({
     jest.spyOn(stakingTx, "stakingTransaction").mockImplementation(() => {
       throw new Error("fail to build staking tx");
     });
-    const staking = new Staking(network, stakerInfo);
+    const staking = new Staking(
+      network, stakerInfo,
+      params, finalityProviderPublicKey, timelock,
+    );
 
     expect(() => staking.createStakingTransaction(
-      params,
       params.minStakingAmountSat,
-      timelock,
-      finalityProviderPublicKey,
       utxos,
       feeRate,
     )).toThrow(
@@ -117,15 +123,15 @@ describe.each(testingNetworks)("Create staking transaction", ({
   });
 
   it(`${networkName} should successfully create a staking transaction`, async () => {
-    const staking = new Staking(network, stakerInfo);
+    const staking = new Staking(
+      network, stakerInfo,
+      params, finalityProviderPublicKey, timelock,
+    );
     const amount = dataGenerator.getRandomIntegerBetween(
       params.minStakingAmountSat, params.maxStakingAmountSat,
     );
     const { psbt, fee} = staking.createStakingTransaction(
-      params,
       amount,
-      timelock,
-      finalityProviderPublicKey,
       utxos,
       feeRate,
     );

@@ -25,7 +25,6 @@ describe.each(testingNetworks)('validateStakingTxInputData', (
           params,
           validInputUTXOs,
           feeRate,
-          finalityProviderPublicKey,
         )
       ).not.toThrow();
     });
@@ -38,7 +37,6 @@ describe.each(testingNetworks)('validateStakingTxInputData', (
           params,
           validInputUTXOs,
           feeRate,
-          finalityProviderPublicKey,
         )
       ).toThrow('Invalid staking amount');
     });
@@ -51,7 +49,6 @@ describe.each(testingNetworks)('validateStakingTxInputData', (
           params,
           validInputUTXOs,
           feeRate,
-          finalityProviderPublicKey,
         )
       ).toThrow('Invalid staking amount');
     });
@@ -64,7 +61,6 @@ describe.each(testingNetworks)('validateStakingTxInputData', (
           params,
           validInputUTXOs,
           feeRate,
-          finalityProviderPublicKey,
         )
       ).toThrow('Invalid timelock');
     });
@@ -77,7 +73,6 @@ describe.each(testingNetworks)('validateStakingTxInputData', (
           params,
           validInputUTXOs,
           feeRate,
-          finalityProviderPublicKey,
         )
       ).toThrow('Invalid timelock');
     });
@@ -90,7 +85,6 @@ describe.each(testingNetworks)('validateStakingTxInputData', (
           params,
           [],
           feeRate,
-          finalityProviderPublicKey,
         )
       ).toThrow('No input UTXOs provided');
     });
@@ -103,24 +97,8 @@ describe.each(testingNetworks)('validateStakingTxInputData', (
           params,
           validInputUTXOs,
           0,
-          finalityProviderPublicKey,
         )
       ).toThrow('Invalid fee rate');
-    });
-
-    it('should throw an error if finality provider public key contains coordinates', () => {
-      const invalidFinalityProviderPublicKey = '02' + finalityProviderPublicKey;
-
-      expect(() =>
-        validateStakingTxInputData(
-          params.maxStakingAmountSat,
-          params.maxStakingTimeBlocks,
-          params,
-          validInputUTXOs,
-          feeRate,
-          invalidFinalityProviderPublicKey,
-        )
-      ).toThrow('Finality provider public key should contains no coordinate');
     });
   });
 });

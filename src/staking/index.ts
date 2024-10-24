@@ -15,35 +15,31 @@ import {
   isTaproot,
   isValidBitcoinAddress, isValidNoCoordPublicKey
 } from "../utils/btc";
-import { validateStakingTxInputData } from "../utils/staking";
+import { validateParams, validateStakingTimelock, validateStakingTxInputData, validateStakingTxOutputIndex } from "../utils/staking";
 import { PsbtTransactionResult } from "../types/transaction";
 import { toBuffers } from "../utils/staking";
 export * from "./stakingScript";
-
-// minimum unbonding output value to avoid the unbonding output value being
-// less than Bitcoin dust
-const MIN_UNBONDING_OUTPUT_VALUE = 1000;
 
 export interface StakerInfo {
   address: string;
   publicKeyNoCoordHex: string;
 }
 
-export interface Delegation {
-  stakingTxHashHex: string;
-  stakerPkNoCoordHex: string;
-  finalityProviderPkNoCoordHex: string;
-  stakingTx: Transaction;
-  stakingOutputIndex: number;
-  startHeight: number;
-  timelock: number;
-}
-
 export class Staking {
   network: networks.Network;
   stakerInfo: StakerInfo;
-
-  constructor(network: networks.Network, stakerInfo: StakerInfo) {
+  params: StakingParams;
+  finalityProviderPkNoCoordHex: string;
+  stakingTimelock: number;
+  
+  constructor(
+    network: networks.Network,
+    stakerInfo: StakerInfo,
+    params: StakingParams,
+    finalityProviderPkNoCoordHex: string,
+    stakingTimelock: number,
+  ) {
+    // Perform validations
     if (!isValidBitcoinAddress(stakerInfo.address, network)) {
       throw new StakingError(
         StakingErrorCode.INVALID_INPUT, "Invalid staker bitcoin address",
@@ -54,38 +50,40 @@ export class Staking {
         StakingErrorCode.INVALID_INPUT, "Invalid staker public key",
       );
     }
+    if (!isValidNoCoordPublicKey(finalityProviderPkNoCoordHex)) {
+      throw new StakingError(
+        StakingErrorCode.INVALID_INPUT, "Invalid finality provider public key",
+      );
+    }
+    validateParams(params);
+    validateStakingTimelock(stakingTimelock, params);
+
     this.network = network;
     this.stakerInfo = stakerInfo;
+    this.params = params;
+    this.finalityProviderPkNoCoordHex = finalityProviderPkNoCoordHex;
+    this.stakingTimelock = stakingTimelock;
   }
 
   /**
    * buildScripts builds the staking scripts for the staking transaction.
    * Note: different staking types may have different scripts.
    * e.g the observable staking script has a data embed script.
-   * @param {StakingParams} params - The staking parameters.
-   * @param {string} finalityProviderPkNoCoordHex - The finality provider's public key
-   * without coordinates.
-   * @param {number} timelock - The staking time in blocks.
-   * @param {string} stakerPkNoCoordHex - The staker's public key without coordinates.
    * 
    * @returns {StakingScripts} - The staking scripts.
    */
-  buildScripts(
-    params: StakingParams,
-    finalityProviderPkNoCoordHex: string,
-    timelock: number,
-    stakerPkNoCoordHex: string
-  ): StakingScripts {
+  buildScripts(): StakingScripts {
+    const { covenantQuorum, covenantNoCoordPks, unbondingTime } = this.params;
     // Create staking script data
     let stakingScriptData;
     try {
       stakingScriptData = new StakingScriptData(
-        Buffer.from(stakerPkNoCoordHex, "hex"),
-        [Buffer.from(finalityProviderPkNoCoordHex, "hex")],
-        toBuffers(params.covenantNoCoordPks),
-        params.covenantQuorum,
-        timelock,
-        params.unbondingTime
+        Buffer.from(this.stakerInfo.publicKeyNoCoordHex, "hex"),
+        [Buffer.from(this.finalityProviderPkNoCoordHex, "hex")],
+        toBuffers(covenantNoCoordPks),
+        covenantQuorum,
+        this.stakingTimelock,
+        unbondingTime
       );
     } catch (error: unknown) {
       throw StakingError.fromUnknown(
@@ -108,165 +106,9 @@ export class Staking {
   }
 
   /**
-   * Validate the staking parameters.
-   * Extend this method to add additional validation for staking parameters based
-   * on the staking type.
-   * @param {StakingParams} params - The staking parameters.
-   * @throws {StakingError} - If the parameters are invalid.
-   */
-  validateParams(params: StakingParams) {
-    // Check covenant public keys
-    if (params.covenantNoCoordPks.length == 0) {
-      throw new StakingError(
-        StakingErrorCode.INVALID_PARAMS,
-        "Could not find any covenant public keys",
-      );
-    }
-    if (params.covenantNoCoordPks.length < params.covenantQuorum) {
-      throw new StakingError(
-        StakingErrorCode.INVALID_PARAMS,
-        "Covenant public keys must be greater than or equal to the quorum",
-      );
-    }
-    params.covenantNoCoordPks.forEach((pk) => {
-      if (!isValidNoCoordPublicKey(pk)) {
-        throw new StakingError(
-          StakingErrorCode.INVALID_PARAMS,
-          "Covenant public key should contains no coordinate",
-        );
-      }
-    });
-    // Check other parameters
-    if (params.unbondingTime <= 0) {
-      throw new StakingError(
-        StakingErrorCode.INVALID_PARAMS,
-        "Unbonding time must be greater than 0",
-      );
-    }
-    if (params.unbondingFeeSat <= 0) {
-      throw new StakingError(
-        StakingErrorCode.INVALID_PARAMS,
-        "Unbonding fee must be greater than 0",
-      );
-    }
-    if (params.maxStakingAmountSat < params.minStakingAmountSat) {
-      throw new StakingError(
-        StakingErrorCode.INVALID_PARAMS,
-        "Max staking amount must be greater or equal to min staking amount",
-      );
-    }
-    if (params.minStakingAmountSat < params.unbondingFeeSat + MIN_UNBONDING_OUTPUT_VALUE) {
-      throw new StakingError(
-        StakingErrorCode.INVALID_PARAMS,
-        `Min staking amount must be greater than unbonding fee plus ${MIN_UNBONDING_OUTPUT_VALUE}`,
-      );
-    }
-    if (params.maxStakingTimeBlocks < params.minStakingTimeBlocks) {
-      throw new StakingError(
-        StakingErrorCode.INVALID_PARAMS,
-        "Max staking time must be greater or equal to min staking time",
-      );
-    }
-    if (params.minStakingTimeBlocks <= 0) {
-      throw new StakingError(
-        StakingErrorCode.INVALID_PARAMS,
-        "Min staking time must be greater than 0",
-      );
-    }
-    if (params.covenantQuorum <= 0) {
-      throw new StakingError(
-        StakingErrorCode.INVALID_PARAMS,
-        "Covenant quorum must be greater than 0",
-      );
-    }
-    if (params.slashing) {
-      if (params.slashing.slashingRate <= 0) {
-        throw new StakingError(
-          StakingErrorCode.INVALID_PARAMS,
-          "Slashing rate must be greater than 0",
-        );
-      }
-      if (params.slashing.slashingRate > 1) {
-        throw new StakingError(
-          StakingErrorCode.INVALID_PARAMS,
-          "Slashing rate must be less or equal to 1",
-        );
-      }
-      if (params.slashing.slashingPkScript.length == 0) {
-        throw new StakingError(
-          StakingErrorCode.INVALID_PARAMS,
-          "Slashing public key script is missing",
-        );
-      }
-      if (params.slashing.minSlashingTxFeeSat <= 0) {
-        throw new StakingError(
-          StakingErrorCode.INVALID_PARAMS,
-          "Minimum slashing transaction fee must be greater than 0",
-        );
-      }
-    }
-  }
-
-  /**
-   * Validate the Babylon delegation inputs.
-   * 
-   * @param {Delegation} delegation - The delegation to validate.
-   * @param {StakingParams} stakingParams - The staking parameters.
-   * @param {StakerInfo} stakerInfo - The staker information.
-   * 
-   * @throws {StakingError} - If the delegation inputs are invalid.
-   */
-  validateDelegationInputs(
-    delegation: Delegation,
-    stakingParams: StakingParams,
-    stakerInfo: StakerInfo,
-  ) {
-    const { stakingTx, timelock, stakingOutputIndex } = delegation;
-    if (
-      timelock < stakingParams.minStakingTimeBlocks ||
-      timelock > stakingParams.maxStakingTimeBlocks
-    ) {
-      throw new StakingError(
-        StakingErrorCode.INVALID_INPUT,
-        "Staking transaction timelock is out of range",
-      );
-    }
-
-    if (delegation.stakerPkNoCoordHex !== stakerInfo.publicKeyNoCoordHex) {
-      throw new StakingError(
-        StakingErrorCode.INVALID_INPUT,
-        "Staker public key does not match between connected staker and delegation staker",
-      );
-    }
-
-    if (!isValidNoCoordPublicKey(delegation.finalityProviderPkNoCoordHex)) {
-      throw new StakingError(
-        StakingErrorCode.INVALID_INPUT,
-        "Finality provider public key should not have a coordinate",
-      );
-    }
-
-    if (!stakingTx.outs[stakingOutputIndex]) {
-      throw new StakingError(
-        StakingErrorCode.INVALID_INPUT,
-        "Staking transaction output index is out of range",
-      );
-    }
-
-    if (stakingTx.getId() !== delegation.stakingTxHashHex) {
-      throw new StakingError(
-        StakingErrorCode.INVALID_INPUT,
-        "Staking transaction hash does not match between the btc transaction and the provided staking hash",
-      );
-    }
-  }
-
-  /**
    * Create a staking transaction for staking.
    * 
-   * @param {Params} params - The staking parameters for staking.
    * @param {number} stakingAmountSat - The amount to stake in satoshis.
-   * @param {number} timelock - The staking time in blocks.
    * @param {string} finalityProviderPkNoCoord - The finality provider's public key
    * without coordinates.
    * @param {UTXO[]} inputUTXOs - The UTXOs to use as inputs for the staking 
@@ -276,29 +118,19 @@ export class Staking {
    * @returns {PsbtTransactionResult} - An object containing the unsigned psbt and fee
    */
   public createStakingTransaction(
-    params: StakingParams,
     stakingAmountSat: number,
-    timelock: number,
-    finalityProviderPkNoCoord: string,
     inputUTXOs: UTXO[],
     feeRate: number,
   ): PsbtTransactionResult {
-    this.validateParams(params);
     validateStakingTxInputData(
       stakingAmountSat,
-      timelock,
-      params,
+      this.stakingTimelock,
+      this.params,
       inputUTXOs,
       feeRate,
-      finalityProviderPkNoCoord,
     );
 
-    const scripts = this.buildScripts(
-      params,
-      finalityProviderPkNoCoord,
-      timelock,
-      this.stakerInfo.publicKeyNoCoordHex,
-    );
+    const scripts = this.buildScripts();
 
     try {
       return stakingTransaction(
@@ -321,45 +153,30 @@ export class Staking {
   /**
    * Create an unbonding transaction for staking.
    * 
-   * @param {ObservableStakingParams} stakingParams - The staking parameters for staking.
-   * @param {Delegation} delegation - The delegation to unbond.
+   * @param {Transaction} stakingTx - The staking transaction to unbond.
+   * @param {number} stakingOutputIndex - The output index of the staking transaction.
    * 
-   * @returns {Psbt} - The unsigned unbonding transaction
+   * @returns {PsbtTransactionResult} - An object containing the unsigned psbt and fee
    * 
-   * @throws {StakingError} - If the delegation is invalid or the transaction cannot be built
+   * @throws {StakingError} - If the transaction cannot be built
    */
   public createUnbondingTransaction(
-    stakingParams: StakingParams,
-    delegation: Delegation,
+    stakingTx: Transaction,
+    stakingOutputIndex: number,
   ) : PsbtTransactionResult {
-    this.validateParams(stakingParams);
-    this.validateDelegationInputs(
-      delegation, stakingParams, this.stakerInfo,
-    );
-    const { 
-      stakingTx,
-      stakingOutputIndex,
-      timelock,
-      finalityProviderPkNoCoordHex,
-      stakerPkNoCoordHex
-    } = delegation;
+    validateStakingTxOutputIndex(stakingTx, stakingOutputIndex);
     // Build scripts
-    const scripts = this.buildScripts(
-      stakingParams,
-      finalityProviderPkNoCoordHex,
-      timelock,
-      stakerPkNoCoordHex,
-    );
+    const scripts = this.buildScripts();
     // Create the unbonding transaction
     try {
       const { psbt } = unbondingTransaction(
         scripts,
         stakingTx,
-        stakingParams.unbondingFeeSat,
+        this.params.unbondingFeeSat,
         this.network,
         stakingOutputIndex,
       );
-      return { psbt, fee: stakingParams.unbondingFeeSat };
+      return { psbt, fee: this.params.unbondingFeeSat };
     } catch (error) {
       throw StakingError.fromUnknown(
         error, StakingErrorCode.BUILD_TRANSACTION_FAILURE,
@@ -371,8 +188,6 @@ export class Staking {
   /**
    * Create a withdrawal transaction that spends an unbonding transaction for observable staking.  
    * 
-   * @param {P} stakingParams - The staking parameters for observable staking.
-   * @param {Delegation} delegation - The delegation that has been on-demand unbonded.
    * @param {Transaction} unbondingTx - The unbonding transaction to withdraw from.
    * @param {number} feeRate - The fee rate for the transaction in satoshis per byte.
    * 
@@ -381,27 +196,11 @@ export class Staking {
    * @throws {StakingError} - If the delegation is invalid or the transaction cannot be built
    */
   public createWithdrawEarlyUnbondedTransaction (
-    stakingParams: StakingParams,
-    delegation: Delegation,
     unbondingTx: Transaction,
     feeRate: number,
   ): PsbtTransactionResult {
-    this.validateParams(stakingParams);
-    this.validateDelegationInputs(
-      delegation, stakingParams, this.stakerInfo,
-    );
-    const {
-      timelock,
-      finalityProviderPkNoCoordHex,
-      stakerPkNoCoordHex
-    } = delegation;
     // Build scripts
-    const scripts = this.buildScripts(
-      stakingParams,
-      finalityProviderPkNoCoordHex,
-      timelock,
-      stakerPkNoCoordHex,
-    );
+    const scripts = this.buildScripts();
 
     // Create the withdraw early unbonded transaction
     try {
@@ -423,8 +222,6 @@ export class Staking {
   /**
    * Create a withdrawal transaction that spends a naturally expired staking transaction for observable staking.
    * 
-   * @param {P} stakingParams - The staking parameters for observable staking.
-   * @param {Delegation} delegation - The delegation to withdraw from.
    * @param {number} feeRate - The fee rate for the transaction in satoshis per byte.
    * 
    * @returns {PsbtTransactionResult} - An object containing the unsigned psbt and fee
@@ -432,29 +229,13 @@ export class Staking {
    * @throws {StakingError} - If the delegation is invalid or the transaction cannot be built
    */
   public createWithdrawTimelockUnbondedTransaction(
-    stakingParams: StakingParams,
-    delegation: Delegation,
+    stakingTx: Transaction,
+    stakingOutputIndex: number,
     feeRate: number,
   ): PsbtTransactionResult {
-    this.validateParams(stakingParams);
-    this.validateDelegationInputs(
-      delegation, stakingParams, this.stakerInfo,
-    );
-    const { 
-      stakingTx,
-      stakingOutputIndex,
-      timelock,
-      finalityProviderPkNoCoordHex,
-      stakerPkNoCoordHex,
-    } = delegation;
-
+    validateStakingTxOutputIndex(stakingTx, stakingOutputIndex);
     // Build scripts
-    const scripts = this.buildScripts(
-      stakingParams,
-      finalityProviderPkNoCoordHex,
-      timelock,
-      stakerPkNoCoordHex,
-    );
+    const scripts = this.buildScripts();
 
     // Create the timelock unbonded transaction
     try {
@@ -477,44 +258,28 @@ export class Staking {
   /**
    * Create a slash timelock unbonded transaction for staking.
    * 
-   * @param {StakingParams} stakingParams - The staking parameters for staking.
-   * @param {Delegation} delegation - The delegation to slash.
+   * @param {Transaction} stakingTx - The staking transaction to slash.
+   * without coordinates.
    * 
    * @returns {PsbtTransactionResult} - An object containing the unsigned psbt and fee
    * 
    * @throws {StakingError} - If the delegation is invalid or the transaction cannot be built
    */
   public createSlashTimelockUnbondedTransaction(
-    stakingParams: StakingParams,
-    delegation: Delegation,
+    stakingTx: Transaction,
   ) : PsbtTransactionResult {
-    this.validateParams(stakingParams);
-    if (!stakingParams.slashing) {
+    if (!this.params.slashing) {
       throw new StakingError(
         StakingErrorCode.INVALID_PARAMS,
         "Slashing parameters are missing",
       );
     }
-    this.validateDelegationInputs(
-      delegation, stakingParams, this.stakerInfo,
-    );
     const slashingAddress = deriveAddressFromPkScript(
-      stakingParams.slashing.slashingPkScript, this.network,
+      this.params.slashing.slashingPkScript, this.network,
     );
-    const { 
-      stakingTx,
-      timelock,
-      finalityProviderPkNoCoordHex,
-      stakerPkNoCoordHex,
-    } = delegation;
-
+    
     // Build scripts
-    const scripts = this.buildScripts(
-      stakingParams,
-      finalityProviderPkNoCoordHex,
-      timelock,
-      stakerPkNoCoordHex,
-    );
+    const scripts = this.buildScripts();
 
     // create the slash timelock unbonded transaction
     try {
@@ -522,11 +287,11 @@ export class Staking {
         scripts,
         stakingTx,
         slashingAddress,
-        stakingParams.slashing.slashingRate,
-        stakingParams.slashing.minSlashingTxFeeSat,
+        this.params.slashing.slashingRate,
+        this.params.slashing.minSlashingTxFeeSat,
         this.network,
       );
-      return { psbt, fee: stakingParams.slashing.minSlashingTxFeeSat };
+      return { psbt, fee: this.params.slashing.minSlashingTxFeeSat };
     } catch (error) {
       throw StakingError.fromUnknown(
         error, StakingErrorCode.BUILD_TRANSACTION_FAILURE,
@@ -538,8 +303,6 @@ export class Staking {
   /**
    * Create a slash early unbonded transaction for staking.
    * 
-   * @param {StakingParams} stakingParams - The staking parameters for staking.
-   * @param {Delegation} delegation - The delegation to slash.
    * @param {Transaction} unbondingTx - The unbonding transaction to slash.
    * 
    * @returns {PsbtTransactionResult} - An object containing the unsigned psbt and fee
@@ -547,37 +310,20 @@ export class Staking {
    * @throws {StakingError} - If the delegation is invalid or the transaction cannot be built
    */
   public createSlashEarlyUnbondedTransaction(
-    stakingParams: StakingParams,
-    delegation: Delegation,
     unbondingTx: Transaction,
   ): PsbtTransactionResult {
-    this.validateParams(stakingParams);
-    if (!stakingParams.slashing) {
+    if (!this.params.slashing) {
       throw new StakingError(
         StakingErrorCode.INVALID_PARAMS,
         "Slashing parameters are missing",
       );
     }
-    this.validateDelegationInputs(
-      delegation, stakingParams, this.stakerInfo,
-    );
     const slashingAddress = deriveAddressFromPkScript(
-      stakingParams.slashing.slashingPkScript, this.network,
+      this.params.slashing.slashingPkScript, this.network,
     );
-
-    const {
-      timelock,
-      finalityProviderPkNoCoordHex,
-      stakerPkNoCoordHex,
-    } = delegation;
 
     // Build scripts
-    const scripts = this.buildScripts(
-      stakingParams,
-      finalityProviderPkNoCoordHex,
-      timelock,
-      stakerPkNoCoordHex,
-    );
+    const scripts = this.buildScripts();
 
     // create the slash timelock unbonded transaction
     try {
@@ -585,11 +331,11 @@ export class Staking {
         scripts,
         unbondingTx,
         slashingAddress,
-        stakingParams.slashing.slashingRate,
-        stakingParams.slashing.minSlashingTxFeeSat,
+        this.params.slashing.slashingRate,
+        this.params.slashing.minSlashingTxFeeSat,
         this.network,
       );
-      return { psbt, fee: stakingParams.slashing.minSlashingTxFeeSat };
+      return { psbt, fee: this.params.slashing.minSlashingTxFeeSat };
     } catch (error) {
       throw StakingError.fromUnknown(
         error, StakingErrorCode.BUILD_TRANSACTION_FAILURE,
