@@ -1,16 +1,16 @@
 import { Transaction, script } from "bitcoinjs-lib";
 import {
   initBTCCurve,
+  StakingScripts,
   withdrawEarlyUnbondedTransaction,
   withdrawTimelockUnbondedTransaction,
-} from "../src/index";
-import { StakingScripts } from "../src/types/StakingScripts";
-import { PsbtTransactionResult } from "../src/types/transaction";
-import { testingNetworks } from "./helper";
-import { DEFAULT_TEST_FEE_RATE, KeyPair } from "./helper/dataGenerator";
-import { NetworkConfig } from "./helper/testingNetworks";
-import { BTC_DUST_SAT } from "../src/constants/dustSat";
-import { TRANSACTION_VERSION } from "../src/constants/psbt";
+} from "../../../src/index";
+import { PsbtTransactionResult } from "../../../src/types/transaction";
+import { DEFAULT_TEST_FEE_RATE, testingNetworks } from "../../helper";
+import { BTC_DUST_SAT } from "../../../src/constants/dustSat";
+import { TRANSACTION_VERSION } from "../../../src/constants/psbt";
+import { KeyPair, StakingDataGenerator } from "../../helper/datagen/base";
+import { ObservableStakingDatagen } from "../../helper/datagen/observable";
 
 interface WithdrawTransactionTestData {
   keyPair: KeyPair;
@@ -19,39 +19,41 @@ interface WithdrawTransactionTestData {
   stakingTx: Transaction;
 }
 
-describe("withdrawTransaction", () => {
-  beforeAll(() => {
-    initBTCCurve();
-  });
+const setupTestData = (
+  dataGenerator: ObservableStakingDatagen | StakingDataGenerator,
+): WithdrawTransactionTestData => {
+  const stakerKeyPair = dataGenerator.generateRandomKeyPair();
 
-  const setupTestData = (
-    network: NetworkConfig,
-  ): WithdrawTransactionTestData => {
-    const dataGenerator = network.dataGenerator;
-    const stakerKeyPair = dataGenerator.generateRandomKeyPair();
+  const address = dataGenerator.getAddressAndScriptPubKey(
+    stakerKeyPair.publicKey,
+  ).nativeSegwit.address;
+  const stakingScripts =
+    dataGenerator.generateMockStakingScripts(stakerKeyPair);
+  const { stakingTx} =
+    dataGenerator.generateRandomStakingTransaction(stakerKeyPair);
 
-    const address = dataGenerator.getAddressAndScriptPubKey(
-      stakerKeyPair.publicKey,
-    ).nativeSegwit.address;
-    const stakingScripts =
-      dataGenerator.generateMockStakingScripts(stakerKeyPair);
-    const stakingTx =
-      dataGenerator.generateRandomStakingTransaction(stakerKeyPair);
-
-    return {
-      keyPair: stakerKeyPair,
-      address,
-      stakingScripts,
-      stakingTx,
-    };
+  return {
+    keyPair: stakerKeyPair,
+    address,
+    stakingScripts,
+    stakingTx,
   };
+};
 
-  testingNetworks.map(({ networkName, network, dataGenerator }) => {
+describe.each(testingNetworks)("withdrawTransaction", (
+  { networkName, network, datagen }
+) => {
+  describe.each(Object.values(datagen))("withdrawTransaction", (
+    dataGenerator
+  ) => {
+    beforeAll(() => {
+      initBTCCurve();
+    });
     let testData: WithdrawTransactionTestData;
 
     beforeEach(() => {
       jest.restoreAllMocks();
-      testData = setupTestData({ networkName, network, dataGenerator });
+      testData = setupTestData(dataGenerator);
     });
 
     it(`${networkName} - should throw an error if the fee rate is less than or equal to 0`, () => {
@@ -153,7 +155,7 @@ describe("withdrawTransaction", () => {
       const address = dataGenerator.getAddressAndScriptPubKey(keyPair.publicKey).nativeSegwit.address;
       const stakingScripts = dataGenerator.generateMockStakingScripts(keyPair);
       const amount = dataGenerator.getRandomIntegerBetween(1, 1000);
-      const stakingTx = dataGenerator.generateRandomStakingTransaction(
+      const { stakingTx} = dataGenerator.generateRandomStakingTransaction(
         keyPair,
         DEFAULT_TEST_FEE_RATE,
         amount,
@@ -178,7 +180,7 @@ describe("withdrawTransaction", () => {
       const address = dataGenerator.getAddressAndScriptPubKey(keyPair.publicKey).nativeSegwit.address;
       const stakingScripts = dataGenerator.generateMockStakingScripts(keyPair);
       const amount = 1935 + BTC_DUST_SAT - 1; // 1935 is the manually calculated fee for the transaction
-      const stakingTx = dataGenerator.generateRandomStakingTransaction(
+      const { stakingTx } = dataGenerator.generateRandomStakingTransaction(
         keyPair,
         DEFAULT_TEST_FEE_RATE,
         amount,

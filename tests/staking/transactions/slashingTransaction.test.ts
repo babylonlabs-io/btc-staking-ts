@@ -3,14 +3,18 @@ import {
   slashEarlyUnbondedTransaction,
   slashTimelockUnbondedTransaction,
   unbondingTransaction,
-} from "../src";
-import { BTC_DUST_SAT } from "../src/constants/dustSat";
-import { internalPubkey } from "../src/constants/internalPubkey";
-import { DEFAULT_TEST_FEE_RATE, testingNetworks } from "./helper";
-import { NON_RBF_SEQUENCE, TRANSACTION_VERSION } from "../src/constants/psbt";
+} from "../../../src";
+import { BTC_DUST_SAT } from "../../../src/constants/dustSat";
+import { internalPubkey } from "../../../src/constants/internalPubkey";
+import { DEFAULT_TEST_FEE_RATE, testingNetworks } from "../../helper";
+import { NON_RBF_SEQUENCE, TRANSACTION_VERSION } from "../../../src/constants/psbt";
 
-describe("slashingTransaction - ", () => {
-  testingNetworks.map(({ network, networkName, dataGenerator }) => {
+describe.each(testingNetworks)("Transactions - ", (
+  {network, networkName, datagen}
+) => {
+  describe.each(Object.values(datagen))("slashingTransaction - ", (
+    dataGenerator
+  ) => {
     const stakerKeyPair = dataGenerator.generateRandomKeyPair();
     const slashingAddress = dataGenerator.getAddressAndScriptPubKey(
       stakerKeyPair.publicKey,
@@ -19,7 +23,7 @@ describe("slashingTransaction - ", () => {
       dataGenerator.generateMockStakingScripts(stakerKeyPair);
     const stakingAmount =
       dataGenerator.getRandomIntegerBetween(1000, 100000) + 1000000;
-    const stakingTx = dataGenerator.generateRandomStakingTransaction(
+    const { stakingTx} = dataGenerator.generateRandomStakingTransaction(
       stakerKeyPair,
       DEFAULT_TEST_FEE_RATE,
       stakingAmount,
@@ -359,5 +363,5 @@ describe("slashingTransaction - ", () => {
         });
       });
     });
-  });
+  });  
 });

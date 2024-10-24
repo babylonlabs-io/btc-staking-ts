@@ -51,12 +51,22 @@ export const getStakingTxInputUTXOsAndFees = (
   if (availableUTXOs.length === 0) {
     throw new Error("Insufficient funds");
   }
+
+  const validUTXOs = availableUTXOs.filter((utxo) => {
+    const script = Buffer.from(utxo.scriptPubKey, "hex");
+    return !!bitcoinScript.decompile(script);
+  });
+
+  if (validUTXOs.length === 0) {
+    throw new Error("Insufficient funds: no valid UTXOs available for staking");
+  }
+
   // Sort available UTXOs from highest to lowest value
-  const sortedUTXOs = [...availableUTXOs].sort((a, b) => b.value - a.value);
+  const sortedUTXOs = validUTXOs.sort((a, b) => b.value - a.value);
 
   const selectedUTXOs: UTXO[] = [];
   let accumulatedValue = 0;
-  let estimatedFee;
+  let estimatedFee = 0;
 
   for (const utxo of sortedUTXOs) {
     selectedUTXOs.push(utxo);
@@ -73,9 +83,6 @@ export const getStakingTxInputUTXOsAndFees = (
     if (accumulatedValue >= stakingAmount + estimatedFee) {
       break;
     }
-  }
-  if (!estimatedFee) {
-    throw new Error("Unable to calculate fee");
   }
 
   if (accumulatedValue < stakingAmount + estimatedFee) {
@@ -135,9 +142,8 @@ const getEstimatedSize = (
     const script = Buffer.from(u.scriptPubKey, "hex");
     const decompiledScript = bitcoinScript.decompile(script);
     if (!decompiledScript) {
-      throw new Error(
-        "Failed to decompile script when estimating fees for inputs",
-      );
+      // Skip UTXOs with scripts that cannot be decompiled
+      return acc;
     }
     return acc + getInputSizeByScript(script);
   }, 0);
