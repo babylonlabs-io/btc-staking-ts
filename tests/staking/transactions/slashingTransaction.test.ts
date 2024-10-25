@@ -8,6 +8,7 @@ import { BTC_DUST_SAT } from "../../../src/constants/dustSat";
 import { internalPubkey } from "../../../src/constants/internalPubkey";
 import { DEFAULT_TEST_FEE_RATE, testingNetworks } from "../../helper";
 import { NON_RBF_SEQUENCE, TRANSACTION_VERSION } from "../../../src/constants/psbt";
+import { getRandomPaymentScriptHex } from "../../helper/datagen/base";
 
 describe.each(testingNetworks)("Transactions - ", (
   {network, networkName, datagen}
@@ -16,9 +17,6 @@ describe.each(testingNetworks)("Transactions - ", (
     dataGenerator
   ) => {
     const stakerKeyPair = dataGenerator.generateRandomKeyPair();
-    const slashingAddress = dataGenerator.getAddressAndScriptPubKey(
-      stakerKeyPair.publicKey,
-    ).nativeSegwit.address;
     const stakingScripts =
       dataGenerator.generateMockStakingScripts(stakerKeyPair);
     const stakingAmount =
@@ -35,6 +33,9 @@ describe.each(testingNetworks)("Transactions - ", (
       stakingAmount - slashingAmount - BTC_DUST_SAT - 1,
     );
     const defaultOutputIndex = 0;
+    const slashingPkScriptHex = getRandomPaymentScriptHex(
+      dataGenerator.generateRandomKeyPair().publicKey,
+    );
 
     describe(`${networkName} - slashTimelockUnbondedTransaction`, () => {
       it("should throw an error if the slashing rate is not between 0 and 1", () => {
@@ -42,7 +43,7 @@ describe.each(testingNetworks)("Transactions - ", (
           slashTimelockUnbondedTransaction(
             stakingScripts,
             stakingTx,
-            slashingAddress,
+            slashingPkScriptHex,
             0,
             minSlashingFee,
             network,
@@ -54,7 +55,7 @@ describe.each(testingNetworks)("Transactions - ", (
           slashTimelockUnbondedTransaction(
             stakingScripts,
             stakingTx,
-            slashingAddress,
+            slashingPkScriptHex,
             -0.1,
             minSlashingFee,
             network,
@@ -66,7 +67,7 @@ describe.each(testingNetworks)("Transactions - ", (
           slashTimelockUnbondedTransaction(
             stakingScripts,
             stakingTx,
-            slashingAddress,
+            slashingPkScriptHex,
             1,
             minSlashingFee,
             network,
@@ -78,7 +79,7 @@ describe.each(testingNetworks)("Transactions - ", (
           slashTimelockUnbondedTransaction(
             stakingScripts,
             stakingTx,
-            slashingAddress,
+            slashingPkScriptHex,
             1.1,
             minSlashingFee,
             network,
@@ -92,7 +93,7 @@ describe.each(testingNetworks)("Transactions - ", (
           slashTimelockUnbondedTransaction(
             stakingScripts,
             stakingTx,
-            slashingAddress,
+            slashingPkScriptHex,
             slashingRate,
             0,
             network,
@@ -106,7 +107,7 @@ describe.each(testingNetworks)("Transactions - ", (
           slashTimelockUnbondedTransaction(
             stakingScripts,
             stakingTx,
-            slashingAddress,
+            slashingPkScriptHex,
             slashingRate,
             1.2,
             network,
@@ -120,7 +121,7 @@ describe.each(testingNetworks)("Transactions - ", (
           slashTimelockUnbondedTransaction(
             stakingScripts,
             stakingTx,
-            slashingAddress,
+            slashingPkScriptHex,
             slashingRate,
             minSlashingFee,
             network,
@@ -134,7 +135,7 @@ describe.each(testingNetworks)("Transactions - ", (
           slashTimelockUnbondedTransaction(
             stakingScripts,
             stakingTx,
-            slashingAddress,
+            slashingPkScriptHex,
             slashingRate,
             minSlashingFee,
             network,
@@ -146,7 +147,7 @@ describe.each(testingNetworks)("Transactions - ", (
           slashTimelockUnbondedTransaction(
             stakingScripts,
             stakingTx,
-            slashingAddress,
+            slashingPkScriptHex,
             slashingRate,
             minSlashingFee,
             network,
@@ -160,7 +161,7 @@ describe.each(testingNetworks)("Transactions - ", (
           slashTimelockUnbondedTransaction(
             stakingScripts,
             stakingTx,
-            slashingAddress,
+            slashingPkScriptHex,
             slashingRate,
             minSlashingFee,
             network,
@@ -174,7 +175,7 @@ describe.each(testingNetworks)("Transactions - ", (
           slashTimelockUnbondedTransaction(
             stakingScripts,
             stakingTx,
-            slashingAddress,
+            slashingPkScriptHex,
             slashingRate,
             Math.ceil(stakingAmount * (1 - slashingRate) + 1),
             network,
@@ -187,7 +188,7 @@ describe.each(testingNetworks)("Transactions - ", (
         const { psbt } = slashTimelockUnbondedTransaction(
           stakingScripts,
           stakingTx,
-          slashingAddress,
+          slashingPkScriptHex,
           slashingRate,
           minSlashingFee,
           network,
@@ -196,8 +197,8 @@ describe.each(testingNetworks)("Transactions - ", (
 
         expect(psbt).toBeDefined();
         expect(psbt.txOutputs.length).toBe(2);
-        // first output shall send slashed amount to the slashing address
-        expect(psbt.txOutputs[0].address).toBe(slashingAddress);
+        // first output shall send slashed amount to the slashing script
+        expect(Buffer.from(psbt.txOutputs[0].script).toString("hex")).toBe(slashingPkScriptHex);
         expect(psbt.txOutputs[0].value).toBe(
           Math.floor(stakingAmount * slashingRate),
         );
@@ -233,7 +234,7 @@ describe.each(testingNetworks)("Transactions - ", (
           slashEarlyUnbondedTransaction(
             stakingScripts,
             unbondingTx,
-            slashingAddress,
+            slashingPkScriptHex,
             0,
             minSlashingFee,
             network,
@@ -244,7 +245,7 @@ describe.each(testingNetworks)("Transactions - ", (
           slashEarlyUnbondedTransaction(
             stakingScripts,
             unbondingTx,
-            slashingAddress,
+            slashingPkScriptHex,
             -0.1,
             minSlashingFee,
             network,
@@ -255,7 +256,7 @@ describe.each(testingNetworks)("Transactions - ", (
           slashEarlyUnbondedTransaction(
             stakingScripts,
             unbondingTx,
-            slashingAddress,
+            slashingPkScriptHex,
             1,
             minSlashingFee,
             network,
@@ -266,7 +267,7 @@ describe.each(testingNetworks)("Transactions - ", (
           slashEarlyUnbondedTransaction(
             stakingScripts,
             unbondingTx,
-            slashingAddress,
+            slashingPkScriptHex,
             1.1,
             minSlashingFee,
             network,
@@ -279,7 +280,7 @@ describe.each(testingNetworks)("Transactions - ", (
           slashEarlyUnbondedTransaction(
             stakingScripts,
             unbondingTx,
-            slashingAddress,
+            slashingPkScriptHex,
             slashingRate,
             0,
             network,
@@ -301,7 +302,7 @@ describe.each(testingNetworks)("Transactions - ", (
           slashEarlyUnbondedTransaction(
             stakingScripts,
             unbondingTxWithLimitedAmount,
-            slashingAddress,
+            slashingPkScriptHex,
             slashingRate,
             Math.ceil(stakingAmount * (1 - slashingRate) + 1),
             network,
@@ -315,7 +316,7 @@ describe.each(testingNetworks)("Transactions - ", (
           slashEarlyUnbondedTransaction(
             stakingScripts,
             unbondingTx,
-            slashingAddress,
+            slashingPkScriptHex,
             smallSlashingRate,
             minSlashingFee,
             network,
@@ -327,7 +328,7 @@ describe.each(testingNetworks)("Transactions - ", (
         const { psbt } = slashEarlyUnbondedTransaction(
           stakingScripts,
           unbondingTx,
-          slashingAddress,
+          slashingPkScriptHex,
           slashingRate,
           minSlashingFee,
           network,
@@ -337,8 +338,8 @@ describe.each(testingNetworks)("Transactions - ", (
 
         expect(psbt).toBeDefined();
         expect(psbt.txOutputs.length).toBe(2);
-        // first output shall send slashed amount to the slashing address (i.e burn output)
-        expect(psbt.txOutputs[0].address).toBe(slashingAddress);
+        // first output shall send slashed amount to the slashing pk script (i.e burn output)
+        expect(Buffer.from(psbt.txOutputs[0].script).toString("hex")).toBe(slashingPkScriptHex);
         expect(psbt.txOutputs[0].value).toBe(
           Math.floor(unbondingTxOutputValue * slashingRate),
         );

@@ -5,6 +5,7 @@ import { StakingError, StakingErrorCode } from "../../src/error";
 import { testingNetworks } from "../helper";
 import { NON_RBF_SEQUENCE } from "../../src/constants/psbt";
 import * as stakingScript from "../../src/staking/stakingScript";
+import { deriveStakingOutputAddress, findMatchingStakingTxOutputIndex } from "../../src/utils/staking";
 
 describe.each(testingNetworks)("Create unbonding transaction", ({
   network, networkName, datagen: { stakingDatagen : dataGenerator }
@@ -19,18 +20,6 @@ describe.each(testingNetworks)("Create unbonding transaction", ({
   const { stakingTx, timelock} = dataGenerator.generateRandomStakingTransaction(
     keys, feeRate, stakingAmount, "nativeSegwit", params,
   );
-  const stakingOutputIndex = 0;
-  // const delegation = {
-  //   stakingTxHashHex: stakingTx.getId(),
-  //   stakerPkNoCoordHex: keys.publicKeyNoCoord,
-  //   finalityProviderPkNoCoordHex,
-  //   stakingTx,
-  //   stakingOutputIndex: 0,
-  //   startHeight: dataGenerator.getRandomIntegerBetween(
-  //     700000, 800000,
-  //   ),
-  //   timelock,
-  // }
   const stakerInfo = {
     address: dataGenerator.getAddressAndScriptPubKey(keys.publicKey).nativeSegwit.address,
     publicKeyNoCoordHex: keys.publicKeyNoCoord,
@@ -54,7 +43,7 @@ describe.each(testingNetworks)("Create unbonding transaction", ({
     });
 
     expect(() => staking.createUnbondingTransaction(
-      stakingTx, stakingOutputIndex,
+      stakingTx,
     )).toThrow("build script error");
   });
 
@@ -63,13 +52,18 @@ describe.each(testingNetworks)("Create unbonding transaction", ({
       throw new Error("fail to build unbonding tx");
     });
     expect(() => staking.createUnbondingTransaction(
-      stakingTx, stakingOutputIndex,
+      stakingTx,
     )).toThrow("fail to build unbonding tx");
   });
 
   it(`${networkName} should successfully create an unbonding transaction`, async () => {
     const { psbt } = staking.createUnbondingTransaction(
-      stakingTx, stakingOutputIndex,
+      stakingTx,
+    );
+    const scripts = staking.buildScripts();
+
+    const stakingOutputIndex = findMatchingStakingTxOutputIndex(
+      stakingTx, deriveStakingOutputAddress(scripts, network), network,
     );
     expect(psbt).toBeDefined();
 

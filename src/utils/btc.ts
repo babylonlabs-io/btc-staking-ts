@@ -104,21 +104,3 @@ const validateNoCoordPublicKeyBuffer = (pkBuffer: Buffer): boolean => {
     ecc.isPoint(compressedKeyEven) || ecc.isPoint(compressedKeyOdd)
   );
 };
-
-/**
- * Derive the Bitcoin address from the public key script.
- * 
- * @param {string} scriptPubKey - The public key script in hex.
- * @param {networks.Network} network - The Bitcoin network (e.g., bitcoin.networks.bitcoin).
- * 
- * @returns {string} - The Bitcoin address.
- * @throws {Error} - If the address cannot be derived from the public key script.
- */
-export const deriveAddressFromPkScript = (scriptPubKey: string, network: networks.Network): string => {
-  try {
-    const scriptPubKeyBuffer = Buffer.from(scriptPubKey, "hex");
-    return address.fromOutputScript(scriptPubKeyBuffer, network);  
-  } catch (error) {
-    throw new Error(`Failed to derive address from public key script: ${error}`);
-  }
-};

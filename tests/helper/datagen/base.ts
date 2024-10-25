@@ -57,7 +57,7 @@ export class StakingDataGenerator {
       maxStakingTimeBlocks,
       slashing: {
         slashingRate,
-        slashingPkScript: getRandomPaymentScriptHex(this.generateRandomKeyPair().publicKey),
+        slashingPkScriptHex: getRandomPaymentScriptHex(this.generateRandomKeyPair().publicKey),
         minSlashingTxFeeSat,
       }
     };
@@ -317,7 +317,7 @@ export class StakingDataGenerator {
   };
 }
 
-function getRandomPaymentScriptHex(pubKeyHex: string): string {
+export const getRandomPaymentScriptHex = (pubKeyHex: string): string => {
   const pubKeyBuf = Buffer.from(pubKeyHex, "hex");
 
   // Define the possible payment types

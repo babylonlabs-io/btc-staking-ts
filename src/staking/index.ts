@@ -10,12 +10,11 @@ import {
   withdrawEarlyUnbondedTransaction,
   withdrawTimelockUnbondedTransaction
 } from "./transactions";
-import { 
-  deriveAddressFromPkScript,
+import {
   isTaproot,
   isValidBitcoinAddress, isValidNoCoordPublicKey
 } from "../utils/btc";
-import { validateParams, validateStakingTimelock, validateStakingTxInputData, validateStakingTxOutputIndex } from "../utils/staking";
+import { deriveStakingOutputAddress, findMatchingStakingTxOutputIndex, validateParams, validateStakingTimelock, validateStakingTxInputData } from "../utils/staking";
 import { PsbtTransactionResult } from "../types/transaction";
 import { toBuffers } from "../utils/staking";
 export * from "./stakingScript";
@@ -162,11 +161,16 @@ export class Staking {
    */
   public createUnbondingTransaction(
     stakingTx: Transaction,
-    stakingOutputIndex: number,
-  ) : PsbtTransactionResult {
-    validateStakingTxOutputIndex(stakingTx, stakingOutputIndex);
+  ) : PsbtTransactionResult {    
     // Build scripts
     const scripts = this.buildScripts();
+
+    // Reconstruct the stakingOutputIndex
+    const stakingOutputIndex = findMatchingStakingTxOutputIndex(
+      stakingTx,
+      deriveStakingOutputAddress(scripts, this.network),
+      this.network,
+    )
     // Create the unbonding transaction
     try {
       const { psbt } = unbondingTransaction(
@@ -220,22 +224,27 @@ export class Staking {
   }
 
   /**
-   * Create a withdrawal transaction that spends a naturally expired staking transaction for observable staking.
+   * Create a withdrawal transaction that spends a naturally expired staking 
+   * transaction.
    * 
+   * @param {Transaction} stakingTx - The staking transaction to withdraw from.
    * @param {number} feeRate - The fee rate for the transaction in satoshis per byte.
-   * 
    * @returns {PsbtTransactionResult} - An object containing the unsigned psbt and fee
-   * 
    * @throws {StakingError} - If the delegation is invalid or the transaction cannot be built
    */
   public createWithdrawTimelockUnbondedTransaction(
     stakingTx: Transaction,
-    stakingOutputIndex: number,
     feeRate: number,
   ): PsbtTransactionResult {
-    validateStakingTxOutputIndex(stakingTx, stakingOutputIndex);
     // Build scripts
     const scripts = this.buildScripts();
+
+    // Reconstruct the stakingOutputIndex
+    const stakingOutputIndex = findMatchingStakingTxOutputIndex(
+      stakingTx,
+      deriveStakingOutputAddress(scripts, this.network),
+      this.network,
+    )
 
     // Create the timelock unbonded transaction
     try {
@@ -256,16 +265,15 @@ export class Staking {
   }
 
   /**
-   * Create a slash timelock unbonded transaction for staking.
+   * Create a staking slashing transaction.
    * 
    * @param {Transaction} stakingTx - The staking transaction to slash.
    * without coordinates.
-   * 
    * @returns {PsbtTransactionResult} - An object containing the unsigned psbt and fee
    * 
    * @throws {StakingError} - If the delegation is invalid or the transaction cannot be built
    */
-  public createSlashTimelockUnbondedTransaction(
+  public createStakingOutputSlashingTransaction(
     stakingTx: Transaction,
   ) : PsbtTransactionResult {
     if (!this.params.slashing) {
@@ -274,9 +282,6 @@ export class Staking {
         "Slashing parameters are missing",
       );
     }
-    const slashingAddress = deriveAddressFromPkScript(
-      this.params.slashing.slashingPkScript, this.network,
-    );
     
     // Build scripts
     const scripts = this.buildScripts();
@@ -286,7 +291,7 @@ export class Staking {
       const { psbt } = slashTimelockUnbondedTransaction(
         scripts,
         stakingTx,
-        slashingAddress,
+        this.params.slashing.slashingPkScriptHex,
         this.params.slashing.slashingRate,
         this.params.slashing.minSlashingTxFeeSat,
         this.network,
@@ -301,15 +306,14 @@ export class Staking {
   }
 
   /**
-   * Create a slash early unbonded transaction for staking.
+   * Create a unbonding slashing transaction.
    * 
    * @param {Transaction} unbondingTx - The unbonding transaction to slash.
-   * 
    * @returns {PsbtTransactionResult} - An object containing the unsigned psbt and fee
    * 
    * @throws {StakingError} - If the delegation is invalid or the transaction cannot be built
    */
-  public createSlashEarlyUnbondedTransaction(
+  public createUnbondingOutputSlashingTransaction(
     unbondingTx: Transaction,
   ): PsbtTransactionResult {
     if (!this.params.slashing) {
@@ -318,10 +322,6 @@ export class Staking {
         "Slashing parameters are missing",
       );
     }
-    const slashingAddress = deriveAddressFromPkScript(
-      this.params.slashing.slashingPkScript, this.network,
-    );
-
     // Build scripts
     const scripts = this.buildScripts();
 
@@ -330,7 +330,7 @@ export class Staking {
       const { psbt } = slashEarlyUnbondedTransaction(
         scripts,
         unbondingTx,
-        slashingAddress,
+        this.params.slashing.slashingPkScriptHex,
         this.params.slashing.slashingRate,
         this.params.slashing.minSlashingTxFeeSat,
         this.network,

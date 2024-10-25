@@ -1,7 +1,9 @@
-import { deriveAddressFromPkScript, getPublicKeyNoCoord, isTaproot, isValidBitcoinAddress, isValidNoCoordPublicKey } from '../../src/utils/btc';
+import { payments } from "bitcoinjs-lib";
+import { getPublicKeyNoCoord, isTaproot, isValidNoCoordPublicKey } from '../../src/utils/btc';
 import { networks } from 'bitcoinjs-lib';
 import { testingNetworks } from '../helper';
-import exp from 'constants';
+import { Staking } from '../../src';
+import { deriveStakingOutputAddress } from '../../src/utils/staking';
 
 describe('isTaproot', () => {
   describe.each(testingNetworks)('should return true for a valid Taproot address', 
@@ -99,23 +101,64 @@ describe.each(testingNetworks)('public keys', ({ datagen: {
   });  
 });
 
-describe.each(testingNetworks)('Derive address from pkScript', ({
+describe.each(testingNetworks)('Derive staking output address', ({
   network,
   datagen: {
     stakingDatagen: dataGenerator
   }
 }) => {
   const params = dataGenerator.generateStakingParams();
-  describe("should derive the address from the pkScript", () => {
-    const slashingAddress = deriveAddressFromPkScript(
-      params.slashing!.slashingPkScript, network,
+  const keys = dataGenerator.generateRandomKeyPair();
+  const feeRate = 1;
+  const stakingAmount = dataGenerator.getRandomIntegerBetween(
+    params.minStakingAmountSat, params.maxStakingAmountSat,
+  );
+  const finalityProviderPkNoCoordHex = dataGenerator.generateRandomKeyPair().publicKeyNoCoord;
+  const { timelock} = dataGenerator.generateRandomStakingTransaction(
+    keys, feeRate, stakingAmount, "nativeSegwit", params,
+  );
+  const stakerInfo = {
+    address: dataGenerator.getAddressAndScriptPubKey(keys.publicKey).nativeSegwit.address,
+    publicKeyNoCoordHex: keys.publicKeyNoCoord,
+    publicKeyWithCoord: keys.publicKey,
+  }
+  
+
+  describe("should derive the staking output address from the scripts", () => {
+    const staking = new Staking(
+      network, stakerInfo,
+      params, finalityProviderPkNoCoordHex, timelock,
     );
-    expect(isValidBitcoinAddress(slashingAddress, network)).toBe(true);
+    const scripts = staking.buildScripts();
+    const slashingAddress = deriveStakingOutputAddress(
+      scripts, network
+    );
+    expect(isTaproot(slashingAddress, network)).toBe(true);
   });
 
-  it("should throw an error for an invalid pkScript", () => {
-    const invalidPkScript = "invalid_pk_script";
-    expect(() => deriveAddressFromPkScript(invalidPkScript, network))
-      .toThrow("Failed to derive address from public key script: Error:  has no matching Address");
+  it("should throw an error if no address available from creation of pay-2-taproot output", () => {
+    jest.spyOn(payments, "p2tr").mockImplementation(() => {
+      return {};
+    });
+    const staking = new Staking(
+      network, stakerInfo,
+      params, finalityProviderPkNoCoordHex, timelock,
+    );
+    const scripts = staking.buildScripts();
+    expect(() => deriveStakingOutputAddress(scripts, network))
+      .toThrow("Failed to build staking output");
+  });
+
+  it("should throw an error if fail to create pay-2-taproot output", () => {
+    jest.spyOn(payments, "p2tr").mockImplementation(() => {
+      throw new Error("oops");
+    });
+    const staking = new Staking(
+      network, stakerInfo,
+      params, finalityProviderPkNoCoordHex, timelock,
+    );
+    const scripts = staking.buildScripts();
+    expect(() => deriveStakingOutputAddress(scripts, network))
+      .toThrow("oops");
   });
 });

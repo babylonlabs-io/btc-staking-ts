@@ -14,7 +14,6 @@ describe.each(testingNetworks)('validateStakingTxInputData', (
     );
     const numberOfUTXOs = dataGenerator.getRandomIntegerBetween(1, 10);
     const validInputUTXOs = dataGenerator.generateRandomUTXOs(balance, numberOfUTXOs);
-    const { publicKeyNoCoord : finalityProviderPublicKey } = dataGenerator.generateRandomKeyPair();
     const feeRate = 1;
 
     it('should pass with valid staking amount, term, UTXOs, and fee rate', () => {

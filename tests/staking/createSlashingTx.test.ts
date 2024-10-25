@@ -2,7 +2,6 @@ import * as stakingScript from "../../src/staking/stakingScript";
 import { testingNetworks } from "../helper";
 import * as transaction from "../../src/staking/transactions";
 import { Staking } from "../../src/staking";
-import { deriveAddressFromPkScript } from "../../src";
 import { opcodes, payments, script } from "bitcoinjs-lib";
 import { internalPubkey } from "../../src/constants/internalPubkey";
 
@@ -19,7 +18,6 @@ describe.each(testingNetworks)("Create slashing transactions", ({
   const { stakingTx, timelock} = dataGenerator.generateRandomStakingTransaction(
     keys, feeRate, stakingAmount, "nativeSegwit", params,
   );
-  const stakingOutputIndex = 0;
   const stakerPkNoCoordHex = keys.publicKeyNoCoord;
   const stakerInfo = {
     address: dataGenerator.getAddressAndScriptPubKey(keys.publicKey).nativeSegwit.address,
@@ -32,7 +30,7 @@ describe.each(testingNetworks)("Create slashing transactions", ({
 
   );
   const unbondingTx = staking.createUnbondingTransaction(
-    stakingTx, stakingOutputIndex,
+    stakingTx,
   ).psbt.signAllInputs(keys.keyPair).finalizeAllInputs().extractTransaction();
 
 
@@ -48,7 +46,7 @@ describe.each(testingNetworks)("Create slashing transactions", ({
         throw new Error("slash early unbonded delegation build script error");
       });
       
-      expect(() => staking.createSlashEarlyUnbondedTransaction(
+      expect(() => staking.createUnbondingOutputSlashingTransaction(
         unbondingTx,
       )).toThrow("slash early unbonded delegation build script error");
     });
@@ -57,13 +55,13 @@ describe.each(testingNetworks)("Create slashing transactions", ({
       jest.spyOn(transaction, "slashEarlyUnbondedTransaction").mockImplementation(() => {
         throw new Error("fail to build slash tx");
       });
-      expect(() => staking.createSlashEarlyUnbondedTransaction(
+      expect(() => staking.createUnbondingOutputSlashingTransaction(
         unbondingTx,
       )).toThrow("fail to build slash tx");
     });
 
     it(`${networkName} should create slash early unbonded transaction`, () => {
-      const slashTx = staking.createSlashEarlyUnbondedTransaction(
+      const slashTx = staking.createUnbondingOutputSlashingTransaction(
         unbondingTx,
       );
       expect(slashTx.psbt.txInputs.length).toBe(1)
@@ -78,10 +76,9 @@ describe.each(testingNetworks)("Create slashing transactions", ({
       expect(slashTx.psbt.txOutputs[0].value).toBe(
         slashAmount,
       );
-      const slashingAddress = deriveAddressFromPkScript(
-        params.slashing!.slashingPkScript, network,
+      expect(Buffer.from(slashTx.psbt.txOutputs[0].script).toString("hex")).toBe(
+        params.slashing!.slashingPkScriptHex
       );
-      expect(slashTx.psbt.txOutputs[0].address).toBe(slashingAddress);
       // change output
       const unbondingTimelockScript = script.compile([
         Buffer.from(stakerPkNoCoordHex, "hex"),
@@ -112,7 +109,7 @@ describe.each(testingNetworks)("Create slashing transactions", ({
         params, finalityProviderPkNoCoordHex, timelock,
       );
 
-      expect(() => staking.createSlashTimelockUnbondedTransaction(
+      expect(() => staking.createStakingOutputSlashingTransaction(
         stakingTx,
       )).toThrow("slash timelock unbonded delegation build script error");
     });
@@ -122,13 +119,13 @@ describe.each(testingNetworks)("Create slashing transactions", ({
         throw new Error("fail to build slash tx");
       });
 
-      expect(() => staking.createSlashTimelockUnbondedTransaction(
+      expect(() => staking.createStakingOutputSlashingTransaction(
         stakingTx,
       )).toThrow("fail to build slash tx");
     });
 
     it(`${networkName} should create slash timelock unbonded transaction`, async () => {
-      const slashTx = staking.createSlashTimelockUnbondedTransaction(
+      const slashTx = staking.createStakingOutputSlashingTransaction(
         stakingTx,
       );
       expect(slashTx.psbt.txInputs.length).toBe(1)
@@ -142,10 +139,9 @@ describe.each(testingNetworks)("Create slashing transactions", ({
       expect(slashTx.psbt.txOutputs[0].value).toBe(
         slashAmount,
       );
-      const slashingAddress = deriveAddressFromPkScript(
-        params.slashing!.slashingPkScript, network,
+      expect(Buffer.from(slashTx.psbt.txOutputs[0].script).toString("hex")).toBe(
+        params.slashing!.slashingPkScriptHex
       );
-      expect(slashTx.psbt.txOutputs[0].address).toBe(slashingAddress);
       // change output
       const unbondingTimelockScript = script.compile([
         Buffer.from(stakerPkNoCoordHex, "hex"),

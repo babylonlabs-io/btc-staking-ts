@@ -17,7 +17,6 @@ describe.each(testingNetworks)("Create withdrawal transactions", ({
   const { stakingTx, timelock} = dataGenerator.generateRandomStakingTransaction(
     keys, feeRate, stakingAmount, "nativeSegwit", params,
   );
-  const stakingOutputIndex = 0;
   const stakerInfo = {
     address: dataGenerator.getAddressAndScriptPubKey(keys.publicKey).nativeSegwit.address,
     publicKeyNoCoordHex: keys.publicKeyNoCoord,
@@ -28,7 +27,7 @@ describe.each(testingNetworks)("Create withdrawal transactions", ({
     params, finalityProviderPkNoCoordHex, timelock,
   );
   const unbondingTx = staking.createUnbondingTransaction(
-    stakingTx, stakingOutputIndex,
+    stakingTx,
   ).psbt.signAllInputs(keys.keyPair).finalizeAllInputs().extractTransaction();
 
 
@@ -87,7 +86,6 @@ describe.each(testingNetworks)("Create withdrawal transactions", ({
       });
       expect(() => staking.createWithdrawTimelockUnbondedTransaction(
         stakingTx,
-        stakingOutputIndex,
         feeRate,
       )).toThrow("withdraw timelock unbonded delegation build script error");
     });
@@ -99,7 +97,6 @@ describe.each(testingNetworks)("Create withdrawal transactions", ({
 
       expect(() => staking.createWithdrawTimelockUnbondedTransaction(
         stakingTx,
-        stakingOutputIndex,
         feeRate,
       )).toThrow("fail to build withdraw tx");
     });
@@ -107,7 +104,6 @@ describe.each(testingNetworks)("Create withdrawal transactions", ({
     it(`${networkName} should create withdraw timelock unbonded transaction`, async () => {
       const withdrawTx = staking.createWithdrawTimelockUnbondedTransaction(
         stakingTx,
-        stakingOutputIndex,
         feeRate,
       );
       expect(withdrawTx.psbt.txInputs.length).toBe(1)

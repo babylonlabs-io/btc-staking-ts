@@ -1,4 +1,5 @@
 import { Staking } from '../../src';
+import * as utils from '../../src/utils/staking';
 import { testingNetworks } from '../helper';
 
 describe.each(testingNetworks)("Staking input validations", ({
@@ -45,15 +46,18 @@ describe.each(testingNetworks)("Staking input validations", ({
     });
   
     it('should throw an error if the output index is out of range', () => {
+      jest.spyOn(utils, "findMatchingStakingTxOutputIndex").mockImplementation(() => {
+        throw new Error('Staking transaction output index is out of range');
+      });
       expect(() => {
         stakingInstance.createWithdrawTimelockUnbondedTransaction(
-          stakingTx, stakingTx.outs.length, feeRate,
+          stakingTx, feeRate,
         );
       }).toThrow('Staking transaction output index is out of range');
 
       expect(() => {
         stakingInstance.createUnbondingTransaction(
-          stakingTx, stakingTx.outs.length,
+          stakingTx
         );
       }).toThrow('Staking transaction output index is out of range');
     });
@@ -304,7 +308,7 @@ describe.each(testingNetworks)("Staking input validations", ({
     it('should throw an error if slashing public key scrit is empty', () => {
       const params = { ...validParams, slashing: {
         ...validParams.slashing!,
-        slashingPkScript: "",
+        slashingPkScriptHex: "",
       } };
 
       expect(() => new Staking(

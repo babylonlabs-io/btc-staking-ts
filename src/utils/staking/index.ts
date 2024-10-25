@@ -1,4 +1,4 @@
-import { networks, payments, Transaction } from "bitcoinjs-lib";
+import { address, networks, payments, Transaction } from "bitcoinjs-lib";
 import { Taptree } from "bitcoinjs-lib/src/types";
 import { internalPubkey } from "../../constants/internalPubkey";
 import { PsbtOutputExtended } from "../../types/psbtOutputs";
@@ -30,6 +30,40 @@ export const buildStakingOutput = (
   network: networks.Network,
   amount: number,
 ) => {
+  const stakingOutputAddress = deriveStakingOutputAddress(scripts, network);
+  const psbtOutputs: PsbtOutputExtended[] = [
+    {
+      address: stakingOutputAddress,
+      value: amount,
+    },
+  ];
+  if (scripts.dataEmbedScript) {
+    // Add the data embed output to the transaction
+    psbtOutputs.push({
+      script: scripts.dataEmbedScript,
+      value: 0,
+    });
+  }
+  return psbtOutputs;
+};
+
+/**
+ * Derive the staking output address from the staking scripts.
+ * 
+ * @param {StakingScripts} scripts - The staking scripts.
+ * @param {networks.Network} network - The Bitcoin network.
+ * @returns {string} - The staking output address.
+ * @throws {StakingError} - If the staking output address cannot be derived.
+ */
+export const deriveStakingOutputAddress = (
+  scripts: {
+    timelockScript: Buffer;
+    unbondingScript: Buffer;
+    slashingScript: Buffer;
+    dataEmbedScript?: Buffer;
+  },
+  network: networks.Network,
+) => {
   // Build outputs
   const scriptTree: Taptree = [
     {
@@ -51,22 +85,34 @@ export const buildStakingOutput = (
       "Failed to build staking output",
     );
   }
-
-  const psbtOutputs: PsbtOutputExtended[] = [
-    {
-      address: stakingOutput.address,
-      value: amount,
-    },
-  ];
-  if (scripts.dataEmbedScript) {
-    // Add the data embed output to the transaction
-    psbtOutputs.push({
-      script: scripts.dataEmbedScript,
-      value: 0,
-    });
-  }
-  return psbtOutputs;
+  
+  return stakingOutput.address;
 };
+
+/**
+ * Find the matching output index for the given staking transaction.
+ * 
+ * @param {Transaction} stakingTx - The staking transaction.
+ * @param {string} stakingOutputAddress - The staking output address.
+ * @param {networks.Network} network - The Bitcoin network.
+ * @returns {number} - The output index.
+ * @throws {Error} - If the matching output is not found.
+ */
+export const findMatchingStakingTxOutputIndex = (
+  stakingTx: Transaction,
+  stakingOutputAddress: string,
+  network: networks.Network,
+) => {
+  const index = stakingTx.outs.findIndex(output => {
+    return address.fromOutputScript(output.script, network);
+  });
+
+  if (index === -1) {
+    throw new Error(`Matching output not found for address: ${stakingOutputAddress}`);
+  }
+
+  return index;
+}
 
 /**
  * Validate the staking transaction input data.
@@ -201,7 +247,7 @@ export const validateParams = (params: StakingParams) => {
         "Slashing rate must be less or equal to 1",
       );
     }
-    if (params.slashing.slashingPkScript.length == 0) {
+    if (params.slashing.slashingPkScriptHex.length == 0) {
       throw new StakingError(
         StakingErrorCode.INVALID_PARAMS,
         "Slashing public key script is missing",
@@ -234,25 +280,6 @@ export const validateStakingTimelock = (
     throw new StakingError(
       StakingErrorCode.INVALID_INPUT,
       "Staking transaction timelock is out of range",
-    );
-  }
-};
-
-/**
- * Validate the staking transaction output index.
- * 
- * @param {Transaction} stakingTx - The staking transaction.
- * @param {number} stakingOutputIndex - The staking transaction output index.
- * 
- * @throws {StakingError} - If the output index is invalid.
- */
-export const validateStakingTxOutputIndex = (
-  stakingTx: Transaction, stakingOutputIndex: number,
-) => {
-  if (!stakingTx.outs[stakingOutputIndex]) {
-    throw new StakingError(
-      StakingErrorCode.INVALID_INPUT,
-      "Staking transaction output index is out of range",
     );
   }
 };

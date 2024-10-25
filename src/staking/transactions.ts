@@ -379,7 +379,7 @@ function withdrawalTransaction(
  *
  * @param {Object} scripts - The scripts used in the transaction.
  * @param {Transaction} stakingTransaction - The original staking transaction.
- * @param {string} slashingAddress - The address to send the slashed funds to.
+ * @param {string} slashingPkScriptHex - The public key script to send the slashed funds to.
  * @param {number} slashingRate - The rate at which the funds are slashed.
  * @param {number} minimumFee - The minimum fee for the transaction in satoshis.
  * @param {networks.Network} network - The Bitcoin network.
@@ -394,7 +394,7 @@ export function slashTimelockUnbondedTransaction(
     unbondingTimelockScript: Buffer;
   },
   stakingTransaction: Transaction,
-  slashingAddress: string,
+  slashingPkScriptHex: string,
   slashingRate: number,
   minimumFee: number,
   network: networks.Network,
@@ -413,7 +413,7 @@ export function slashTimelockUnbondedTransaction(
     },
     slashingScriptTree,
     stakingTransaction,
-    slashingAddress,
+    slashingPkScriptHex,
     slashingRate,
     minimumFee,
     network,
@@ -427,26 +427,13 @@ export function slashTimelockUnbondedTransaction(
  * This transaction spends the staking output of the staking transaction and distributes the funds
  * according to the specified slashing rate.
  *
- * Outputs:
+ * Transaction outputs:
  * - The first output sends `input * slashing_rate` funds to the slashing address.
  * - The second output sends `input * (1 - slashing_rate) - fee` funds back to the user's address.
  *
- * Inputs:
- * - scripts: Scripts used to construct the taproot output.
- *   - slashingScript: Script for the slashing condition.
- *   - unbondingTimelockScript: Script for the unbonding timelock condition.
- * - transaction: The unbonding transaction.
- * - slashingAddress: The address to send the slashed funds to.
- * - slashingRate: The rate at which the funds are slashed (0 < slashingRate < 1).
- * - minimumFee: The minimum fee for the transaction in satoshis.
- * - network: The Bitcoin network.
- *
- * Returns:
- * - psbt: The partially signed transaction (PSBT).
- *
  * @param {Object} scripts - The scripts used in the transaction. e.g slashingScript, unbondingTimelockScript
  * @param {Transaction} unbondingTx - The unbonding transaction.
- * @param {string} slashingAddress - The address to send the slashed funds to.
+ * @param {string} slashingPkScriptHex - The public key script to send the slashed funds to.
  * @param {number} slashingRate - The rate at which the funds are slashed.
  * @param {number} minimumSlashingFee - The minimum fee for the transaction in satoshis.
  * @param {networks.Network} network - The Bitcoin network.
@@ -458,7 +445,7 @@ export function slashEarlyUnbondedTransaction(
     unbondingTimelockScript: Buffer;
   },
   unbondingTx: Transaction,
-  slashingAddress: string,
+  slashingPkScriptHex: string,
   slashingRate: number,
   minimumSlashingFee: number,
   network: networks.Network,
@@ -478,7 +465,7 @@ export function slashEarlyUnbondedTransaction(
     },
     unbondingScriptTree,
     unbondingTx,
-    slashingAddress,
+    slashingPkScriptHex,
     slashingRate,
     minimumSlashingFee,
     network,
@@ -492,24 +479,13 @@ export function slashEarlyUnbondedTransaction(
  * This transaction spends the staking output of the staking transaction and distributes the funds
  * according to the specified slashing rate.
  *
- * Outputs:
+ * Transaction outputs:
  * - The first output sends `input * slashing_rate` funds to the slashing address.
  * - The second output sends `input * (1 - slashing_rate) - fee` funds back to the user's address.
  *
- * Inputs:
- * - scripts: Scripts used to construct the taproot output.
- *   - slashingScript: Script for the slashing condition.
- *   - unbondingTimelockScript: Script for the unbonding timelock condition.
- * - transaction: The original staking/unbonding transaction.
- * - slashingAddress: The address to send the slashed funds to.
- * - slashingRate: The rate at which the funds are slashed (0 < slashingRate < 1).
- * - minimumFee: The minimum fee for the transaction in satoshis.
- * - network: The Bitcoin network.
- * - outputIndex: The index of the output to be spent in the original transaction (default is 0).
- *
  * @param {Object} scripts - The scripts used in the transaction. e.g slashingScript, unbondingTimelockScript
  * @param {Transaction} transaction - The original staking/unbonding transaction.
- * @param {string} slashingAddress - The address to send the slashed funds to.
+ * @param {string} slashingPkScriptHex - The public key script to send the slashed funds to.
  * @param {number} slashingRate - The rate at which the funds are slashed. Two decimal places, otherwise it will be rounded down.
  * @param {number} minimumFee - The minimum fee for the transaction in satoshis.
  * @param {networks.Network} network - The Bitcoin network.
@@ -523,7 +499,7 @@ function slashingTransaction(
   },
   scriptTree: Taptree,
   transaction: Transaction,
-  slashingAddress: string,
+  slashingPkScriptHex: string,
   slashingRate: number,
   minimumFee: number,
   network: networks.Network,
@@ -601,7 +577,7 @@ function slashingTransaction(
 
   // Add the slashing output
   psbt.addOutput({
-    address: slashingAddress,
+    script: Buffer.from(slashingPkScriptHex, "hex"),
     value: slashingAmount,
   });
 

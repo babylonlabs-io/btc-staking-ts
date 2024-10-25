@@ -8,7 +8,7 @@ export interface StakingParams {
   maxStakingTimeBlocks: number;
   minStakingTimeBlocks: number;
   slashing?: {
-    slashingPkScript: string;
+    slashingPkScriptHex: string;
     slashingRate: number;
     minSlashingTxFeeSat: number;
   }
