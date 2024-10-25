@@ -267,7 +267,6 @@ export const validateParams = (params: StakingParams) => {
  * 
  * @param {number} stakingTimelock - The staking timelock.
  * @param {StakingParams} params - The staking parameters.
- * 
  * @throws {StakingError} - If the staking timelock is invalid.
  */
 export const validateStakingTimelock = (

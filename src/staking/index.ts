@@ -14,7 +14,13 @@ import {
   isTaproot,
   isValidBitcoinAddress, isValidNoCoordPublicKey
 } from "../utils/btc";
-import { deriveStakingOutputAddress, findMatchingStakingTxOutputIndex, validateParams, validateStakingTimelock, validateStakingTxInputData } from "../utils/staking";
+import { 
+  deriveStakingOutputAddress,
+  findMatchingStakingTxOutputIndex,
+  validateParams,
+  validateStakingTimelock,
+  validateStakingTxInputData,
+} from "../utils/staking";
 import { PsbtTransactionResult } from "../types/transaction";
 import { toBuffers } from "../utils/staking";
 export * from "./stakingScript";
@@ -108,12 +114,9 @@ export class Staking {
    * Create a staking transaction for staking.
    * 
    * @param {number} stakingAmountSat - The amount to stake in satoshis.
-   * @param {string} finalityProviderPkNoCoord - The finality provider's public key
-   * without coordinates.
    * @param {UTXO[]} inputUTXOs - The UTXOs to use as inputs for the staking 
    * transaction.
    * @param {number} feeRate - The fee rate for the transaction in satoshis per byte.
-   * 
    * @returns {PsbtTransactionResult} - An object containing the unsigned psbt and fee
    */
   public createStakingTransaction(
@@ -153,10 +156,7 @@ export class Staking {
    * Create an unbonding transaction for staking.
    * 
    * @param {Transaction} stakingTx - The staking transaction to unbond.
-   * @param {number} stakingOutputIndex - The output index of the staking transaction.
-   * 
    * @returns {PsbtTransactionResult} - An object containing the unsigned psbt and fee
-   * 
    * @throws {StakingError} - If the transaction cannot be built
    */
   public createUnbondingTransaction(
@@ -194,9 +194,7 @@ export class Staking {
    * 
    * @param {Transaction} unbondingTx - The unbonding transaction to withdraw from.
    * @param {number} feeRate - The fee rate for the transaction in satoshis per byte.
-   * 
    * @returns {PsbtTransactionResult} - An object containing the unsigned psbt and fee
-   * 
    * @throws {StakingError} - If the delegation is invalid or the transaction cannot be built
    */
   public createWithdrawEarlyUnbondedTransaction (
@@ -265,12 +263,10 @@ export class Staking {
   }
 
   /**
-   * Create a staking slashing transaction.
+   * Create a slashing transaction spending from the staking output.
    * 
    * @param {Transaction} stakingTx - The staking transaction to slash.
-   * without coordinates.
    * @returns {PsbtTransactionResult} - An object containing the unsigned psbt and fee
-   * 
    * @throws {StakingError} - If the delegation is invalid or the transaction cannot be built
    */
   public createStakingOutputSlashingTransaction(
@@ -306,11 +302,10 @@ export class Staking {
   }
 
   /**
-   * Create a unbonding slashing transaction.
+   * Create a slashing transaction for an unbonding output.
    * 
    * @param {Transaction} unbondingTx - The unbonding transaction to slash.
    * @returns {PsbtTransactionResult} - An object containing the unsigned psbt and fee
-   * 
    * @throws {StakingError} - If the delegation is invalid or the transaction cannot be built
    */
   public createUnbondingOutputSlashingTransaction(

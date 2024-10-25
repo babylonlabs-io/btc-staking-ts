@@ -57,7 +57,6 @@ export class ObservableStaking extends Staking {
    * on the tag provided in the parameters.
    * 
    * @returns {ObservableStakingScripts} - The staking scripts for observable staking.
-   * 
    * @throws {StakingError} - If the scripts cannot be built.
    */
   buildScripts(): ObservableStakingScripts {
@@ -105,7 +104,6 @@ export class ObservableStaking extends Staking {
    * @param {UTXO[]} inputUTXOs - The UTXOs to use as inputs for the staking 
    * transaction.
    * @param {number} feeRate - The fee rate for the transaction in satoshis per byte.
-   * 
    * @returns {PsbtTransactionResult} - An object containing the unsigned psbt and fee
    */
   public createStakingTransaction(
