@@ -32,7 +32,6 @@ describe("stakingScript", () => {
   );
   const stakingTimeLock = 65535;
   const unbondingTimeLock = 1000;
-  const magicBytes = Buffer.from("62626234", "hex");
 
   describe("Error path", () => {
     it("should fail if the staker key is not 32 bytes", () => {

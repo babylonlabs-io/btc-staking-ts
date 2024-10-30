@@ -42,6 +42,8 @@ export class StakingDataGenerator {
     const maxStakingTimeBlocks = fixedTerm ? minStakingTimeBlocks : this.getRandomIntegerBetween(minStakingTimeBlocks, minStakingTimeBlocks + 1000);
     const timelock = this.generateRandomTimelock({minStakingTimeBlocks, maxStakingTimeBlocks});
     const unbondingTime = this.generateRandomUnbondingTime(timelock);
+    const slashingRate = this.generateRandomSlashingRate();
+    const minSlashingTxFeeSat = this.getRandomIntegerBetween(1000, 100000);
     return {
       covenantNoCoordPks,
       covenantQuorum,
@@ -53,6 +55,11 @@ export class StakingDataGenerator {
       ),
       minStakingTimeBlocks,
       maxStakingTimeBlocks,
+      slashing: {
+        slashingRate,
+        slashingPkScriptHex: getRandomPaymentScriptHex(this.generateRandomKeyPair().publicKey),
+        minSlashingTxFeeSat,
+      }
     };
   }
 
@@ -308,4 +315,26 @@ export class StakingDataGenerator {
       scriptPubKey: scriptPubKey.toString("hex"),
     };
   };
+}
+
+export const getRandomPaymentScriptHex = (pubKeyHex: string): string => {
+  const pubKeyBuf = Buffer.from(pubKeyHex, "hex");
+
+  // Define the possible payment types
+  const paymentTypes = [
+    bitcoin.payments.p2pkh({ pubkey: pubKeyBuf }),
+    bitcoin.payments.p2sh({ redeem: bitcoin.payments.p2wpkh({ pubkey: pubKeyBuf }) }),
+    bitcoin.payments.p2wpkh({ pubkey: pubKeyBuf }),
+  ];
+
+  // Randomly pick one payment type
+  const randomIndex = Math.floor(Math.random() * paymentTypes.length);
+  const payment = paymentTypes[randomIndex];
+
+  // Get the scriptPubKey from the selected payment type and return its hex representation
+  if (!payment.output) {
+    throw new Error("Failed to generate scriptPubKey.");
+  }
+  
+  return payment.output.toString("hex");
 }

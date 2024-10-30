@@ -6,7 +6,8 @@ import { isTaproot } from "../../utils/btc";
 import { toBuffers, validateStakingTxInputData } from "../../utils/staking";
 import { PsbtTransactionResult } from "../../types/transaction";
 import { ObservableStakingScriptData, ObservableStakingScripts } from "./observableStakingScript";
-import { Delegation, StakerInfo, Staking } from "..";
+import { StakerInfo, Staking } from "..";
+import { networks } from "bitcoinjs-lib";
 export * from "./observableStakingScript";
 
 /**
@@ -19,15 +20,21 @@ export * from "./observableStakingScript";
  * public key(without coordinates).
  */
 export class ObservableStaking extends Staking {
-  /**
-   * validateParams validates the staking parameters for observable staking.
-   * 
-   * @param {ObservableStakingParams} params - The staking parameters for observable staking.
-   * 
-   * @throws {StakingError} - If the staking parameters are invalid
-   */
-  validateParams(params: ObservableStakingParams): void {
-    super.validateParams(params);
+  params: ObservableStakingParams;
+  constructor(
+    network: networks.Network,
+    stakerInfo: StakerInfo,
+    params: ObservableStakingParams,
+    finalityProviderPkNoCoordHex: string,
+    stakingTimelock: number,
+  ) {
+    super(
+      network,
+      stakerInfo,
+      params,
+      finalityProviderPkNoCoordHex,
+      stakingTimelock,
+    );
     if (!params.tag) {
       throw new StakingError(
         StakingErrorCode.INVALID_INPUT, 
@@ -40,64 +47,31 @@ export class ObservableStaking extends Staking {
         "Observable staking parameters must include a positive activation height",
       );
     }
+    // Override the staking parameters type to ObservableStakingParams
+    this.params = params;
   }
-
-  /**
-   * Validate the delegation inputs for observable staking.
-   * This method overwrites the base method to include the start height validation.
-   * 
-   * @param {Delegation} delegation - The delegation to validate.
-   * @param {ObservableStakingParams} stakingParams - The staking parameters.
-   * @param {StakerInfo} stakerInfo - The staker information.
-   * 
-   * @throws {StakingError} - If the delegation inputs are invalid.
-   */
-  validateDelegationInputs(
-    delegation: Delegation,
-    stakingParams: ObservableStakingParams,
-    stakerInfo: StakerInfo,
-  ) {
-    super.validateDelegationInputs(delegation, stakingParams, stakerInfo);
-    if (delegation.startHeight < stakingParams.activationHeight) {
-      throw new StakingError(
-        StakingErrorCode.INVALID_INPUT,
-        "Staking transaction start height cannot be less than activation height",
-      );
-    }
-  }
-
+  
   /**
    * Build the staking scripts for observable staking.
    * This method overwrites the base method to include the OP_RETURN tag based 
    * on the tag provided in the parameters.
    * 
-   * @param {ObservableStakingParams} params - The staking parameters for observable staking.
-   * @param {string} finalityProviderPkNoCoordHex - The finality provider's public key
-   * without coordinates.
-   * @param {number} timelock - The staking time in blocks.
-   * @param {string} stakerPkNoCoordHex - The staker's public key without coordinates.
-   * 
    * @returns {ObservableStakingScripts} - The staking scripts for observable staking.
-   * 
    * @throws {StakingError} - If the scripts cannot be built.
    */
-  buildScripts(
-    params: ObservableStakingParams,
-    finalityProviderPkNoCoordHex: string,
-    timelock: number,
-    stakerPkNoCoordHex: string,
-  ): ObservableStakingScripts {
+  buildScripts(): ObservableStakingScripts {
+    const { covenantQuorum, covenantNoCoordPks, unbondingTime, tag } = this.params;
     // Create staking script data
     let stakingScriptData;
     try {
       stakingScriptData = new ObservableStakingScriptData(
-        Buffer.from(stakerPkNoCoordHex, "hex"),
-        [Buffer.from(finalityProviderPkNoCoordHex, "hex")],
-        toBuffers(params.covenantNoCoordPks),
-        params.covenantQuorum,
-        timelock,
-        params.unbondingTime,
-        Buffer.from(params.tag, "hex"),
+        Buffer.from(this.stakerInfo.publicKeyNoCoordHex, "hex"),
+        [Buffer.from(this.finalityProviderPkNoCoordHex, "hex")],
+        toBuffers(covenantNoCoordPks),
+        covenantQuorum,
+        this.stakingTimelock,
+        unbondingTime,
+        Buffer.from(tag, "hex"),
       );
     } catch (error: unknown) {
       throw StakingError.fromUnknown(
@@ -126,41 +100,26 @@ export class ObservableStaking extends Staking {
    * 1. OP_RETURN tag in the staking scripts
    * 2. lockHeight parameter
    * 
-   * @param {ObservableStakingParams} params - The staking parameters for observable staking.
    * @param {number} stakingAmountSat - The amount to stake in satoshis.
-   * @param {number} timelock - The staking time in blocks.
-   * @param {string} finalityProviderPkNoCoord - The finality provider's public key
-   * without coordinates.
    * @param {UTXO[]} inputUTXOs - The UTXOs to use as inputs for the staking 
    * transaction.
    * @param {number} feeRate - The fee rate for the transaction in satoshis per byte.
-   * 
    * @returns {PsbtTransactionResult} - An object containing the unsigned psbt and fee
    */
-  public createStakingTransaction (
-    params: ObservableStakingParams,
+  public createStakingTransaction(
     stakingAmountSat: number,
-    timelock: number,
-    finalityProviderPkNoCoord: string,
     inputUTXOs: UTXO[],
     feeRate: number,
   ): PsbtTransactionResult{
-    this.validateParams(params);
     validateStakingTxInputData(
       stakingAmountSat,
-      timelock,
-      params,
+      this.stakingTimelock,
+      this.params,
       inputUTXOs,
       feeRate,
-      finalityProviderPkNoCoord,
     );
 
-    const scripts = this.buildScripts(
-      params,
-      finalityProviderPkNoCoord,
-      timelock,
-      this.stakerInfo.publicKeyNoCoordHex,
-    );
+    const scripts = this.buildScripts();
 
     // Create the staking transaction
     try {
@@ -176,7 +135,7 @@ export class ObservableStaking extends Staking {
         // For example, if a Bitcoin height of X is provided,
         // the transaction will be included starting from height X+1.
         // https://learnmeabitcoin.com/technical/transaction/locktime/
-        params.activationHeight - 1,
+        this.params.activationHeight - 1,
       );
     } catch (error: unknown) {
       throw StakingError.fromUnknown(
