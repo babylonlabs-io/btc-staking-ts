@@ -1,4 +1,4 @@
-import { address, networks, payments, Transaction } from "bitcoinjs-lib";
+import { address, networks, payments, Psbt, Transaction } from "bitcoinjs-lib";
 import { Taptree } from "bitcoinjs-lib/src/types";
 import { internalPubkey } from "../../constants/internalPubkey";
 import { PsbtOutputExtended } from "../../types/psbtOutputs";
@@ -301,4 +301,27 @@ export const toBuffers = (inputs: string[]): Buffer[] => {
       "Cannot convert values to buffers",
     );
   }
+}
+
+/**
+ * Convert a PSBT to a transaction.
+ * Note some of the properties of the PSBT are not copied over to the transaction.
+ * such as the witnessUtxo and tapInternalKey.
+ * 
+ * @param {Psbt} psbt - The PSBT.
+ * @returns {Transaction} - The transaction.
+ */
+export const psbtToTransaction = (psbt: Psbt): Transaction => {
+  // Create the transaction
+  const tx = new Transaction();
+  psbt.txInputs.forEach((input) => {
+    tx.addInput(input.hash, input.index, input.sequence);
+  });
+  psbt.txOutputs.forEach((output) => {
+    tx.addOutput(output.script, output.value);
+  });
+  tx.version = psbt.version;
+  tx.locktime = psbt.locktime;
+
+  return tx;
 }

@@ -3,7 +3,7 @@ import { UTXO } from "../../types/UTXO";
 import { StakingError, StakingErrorCode } from "../../error";
 import { stakingTransaction } from "../transactions";
 import { isTaproot } from "../../utils/btc";
-import { toBuffers, validateStakingTxInputData } from "../../utils/staking";
+import { psbtToTransaction, toBuffers, validateStakingTxInputData } from "../../utils/staking";
 import { PsbtTransactionResult } from "../../types/transaction";
 import { ObservableStakingScriptData, ObservableStakingScripts } from "./observableStakingScript";
 import { StakerInfo, Staking } from "..";
@@ -110,7 +110,7 @@ export class ObservableStaking extends Staking {
     stakingAmountSat: number,
     inputUTXOs: UTXO[],
     feeRate: number,
-  ): PsbtTransactionResult{
+  ): PsbtTransactionResult {
     validateStakingTxInputData(
       stakingAmountSat,
       this.stakingTimelock,
@@ -123,7 +123,7 @@ export class ObservableStaking extends Staking {
 
     // Create the staking transaction
     try {
-      return stakingTransaction(
+      const { psbt, fee } = stakingTransaction(
         scripts,
         stakingAmountSat,
         this.stakerInfo.address,
@@ -137,6 +137,11 @@ export class ObservableStaking extends Staking {
         // https://learnmeabitcoin.com/technical/transaction/locktime/
         this.params.activationHeight - 1,
       );
+      return {
+        transaction: psbtToTransaction(psbt),
+        psbt,
+        fee,
+      };
     } catch (error: unknown) {
       throw StakingError.fromUnknown(
         error, StakingErrorCode.BUILD_TRANSACTION_FAILURE,

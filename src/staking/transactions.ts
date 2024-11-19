@@ -4,7 +4,7 @@ import { Taptree } from "bitcoinjs-lib/src/types";
 import { BTC_DUST_SAT } from "../constants/dustSat";
 import { internalPubkey } from "../constants/internalPubkey";
 import { UTXO } from "../types/UTXO";
-import { PsbtTransactionResult } from "../types/transaction";
+import { PsbtResult } from "../types/transaction";
 import { isValidBitcoinAddress } from "../utils/btc";
 import { getStakingTxInputUTXOsAndFees, getWithdrawTxFee } from "../utils/fee";
 import { inputValueSum } from "../utils/fee/utils";
@@ -46,7 +46,7 @@ const BTC_LOCKTIME_HEIGHT_TIME_CUTOFF = 500000000;
  * @param {number} feeRate - The fee rate in satoshis per byte.
  * @param {Buffer} [publicKeyNoCoord] - The public key if the wallet is in taproot mode.
  * @param {number} [lockHeight] - The optional block height locktime.
- * @returns {PsbtTransactionResult} The partially signed transaction and the fee.
+ * @returns {PsbtResult} The partially signed transaction and fee
  * @throws Will throw an error if the amount or fee rate is less than or equal
  * to 0, if the change address is invalid, or if the public key is invalid.
  */
@@ -64,7 +64,7 @@ export function stakingTransaction(
   feeRate: number,
   publicKeyNoCoord?: Buffer,
   lockHeight?: number,
-): PsbtTransactionResult {
+): PsbtResult {
   // Check that amount and fee are bigger than 0
   if (amount <= 0 || feeRate <= 0) {
     throw new Error("Amount and fee rate must be bigger than 0");
@@ -161,7 +161,7 @@ export function stakingTransaction(
  * @param {string} withdrawalAddress - The address to send the withdrawn funds to.
  * @param {networks.Network} network - The Bitcoin network.
  * @param {number} feeRate - The fee rate for the transaction in satoshis per byte.
- * @returns {PsbtTransactionResult} An object containing the partially signed transaction (PSBT).
+ * @returns {PsbtResult} An object containing the partially signed transaction (PSBT).
  */
 export function withdrawEarlyUnbondedTransaction(
   scripts: {
@@ -172,7 +172,7 @@ export function withdrawEarlyUnbondedTransaction(
   withdrawalAddress: string,
   network: networks.Network,
   feeRate: number,
-): PsbtTransactionResult {
+): PsbtResult {
   const scriptTree: Taptree = [
     {
       output: scripts.slashingScript,
@@ -218,7 +218,7 @@ export function withdrawEarlyUnbondedTransaction(
  * @param {networks.Network} network - The Bitcoin network.
  * @param {number} feeRate - The fee rate for the transaction in satoshis per byte.
  * @param {number} [outputIndex=0] - The index of the output to be spent in the original transaction.
- * @returns {PsbtTransactionResult} An object containing the partially signed transaction (PSBT).
+ * @returns {PsbtResult} An object containing the partially signed transaction (PSBT).
  */
 export function withdrawTimelockUnbondedTransaction(
   scripts: {
@@ -231,7 +231,7 @@ export function withdrawTimelockUnbondedTransaction(
   network: networks.Network,
   feeRate: number,
   outputIndex: number = 0,
-): PsbtTransactionResult {
+): PsbtResult {
   const scriptTree: Taptree = [
     {
       output: scripts.slashingScript,
@@ -262,7 +262,7 @@ function withdrawalTransaction(
   network: networks.Network,
   feeRate: number,
   outputIndex: number = 0,
-): PsbtTransactionResult {
+): PsbtResult {
   // Check that withdrawal feeRate is bigger than 0
   if (feeRate <= 0) {
     throw new Error("Withdrawal feeRate must be bigger than 0");

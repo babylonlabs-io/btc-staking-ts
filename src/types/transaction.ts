@@ -1,9 +1,19 @@
-import { Psbt } from "bitcoinjs-lib";
+import { Psbt, Transaction } from "bitcoinjs-lib";
 
-// PsbtTransactionResult is the result of a transaction creation
-//  - psbt: The partially signed transaction
-//  - fee: The total fee of the transaction
-export interface PsbtTransactionResult {
+/**
+ * PsbtResult is the result of a transaction creation
+ *  - psbt: The partially signed transaction
+ *  - fee: The total fee of the transaction
+ */
+export interface PsbtResult {
   psbt: Psbt;
   fee: number;
+}
+
+/**
+ * PsbtTransactionResult is the result of a transaction creation
+ *  - transaction: The unsigned transaction
+ */
+export interface PsbtTransactionResult extends PsbtResult {
+  transaction: Transaction;
 }

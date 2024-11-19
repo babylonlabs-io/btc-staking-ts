@@ -5,7 +5,7 @@ import {
   withdrawEarlyUnbondedTransaction,
   withdrawTimelockUnbondedTransaction,
 } from "../../../src/index";
-import { PsbtTransactionResult } from "../../../src/types/transaction";
+import { PsbtResult } from "../../../src/types/transaction";
 import { DEFAULT_TEST_FEE_RATE, testingNetworks } from "../../helper";
 import { BTC_DUST_SAT } from "../../../src/constants/dustSat";
 import { TRANSACTION_VERSION } from "../../../src/constants/psbt";
@@ -232,7 +232,7 @@ describe.each(testingNetworks)("withdrawTransaction", (
 });
 
 const validateCommonFields = (
-  psbtResult: PsbtTransactionResult,
+  psbtResult: PsbtResult,
   withdrawalAddress: string,
 ) => {
   expect(psbtResult).toBeDefined();

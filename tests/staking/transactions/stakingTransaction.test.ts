@@ -2,7 +2,7 @@ import { BTC_DUST_SAT } from "../../../src/constants/dustSat";
 import { RBF_SEQUENCE } from "../../../src/constants/psbt";
 import { ObservableStaking, StakingScripts, stakingTransaction } from "../../../src/index";
 import { ObservableStakingScripts } from "../../../src/staking/observable";
-import { PsbtTransactionResult } from "../../../src/types/transaction";
+import { PsbtResult, PsbtTransactionResult } from "../../../src/types/transaction";
 import { getStakingTxInputUTXOsAndFees } from "../../../src/utils/fee";
 import { buildStakingOutput } from "../../../src/utils/staking";
 import { DEFAULT_TEST_FEE_RATE, testingNetworks } from "../../helper";
@@ -363,7 +363,7 @@ describe.each(testingNetworks)("Transactions - ", (
   });
 
   const validateCommonFields = (
-    psbtResult: PsbtTransactionResult,
+    psbtResult: PsbtResult,
     randomAmount: number,
     estimatedFee: number,
     changeAddress: string,
