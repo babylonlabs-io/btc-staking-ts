@@ -1,5 +1,5 @@
 const originalTest = global.test;
-const NUM_ITERATIONS = 1;
+const NUM_ITERATIONS = 10;
 
 global.test = (name, fn, timeout) => {
   for (let i = 0; i < NUM_ITERATIONS; i++) {
