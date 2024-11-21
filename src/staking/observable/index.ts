@@ -7,8 +7,9 @@ import { toBuffers, validateStakingTxInputData } from "../../utils/staking";
 import { TransactionResult } from "../../types/transaction";
 import { ObservableStakingScriptData, ObservableStakingScripts } from "./observableStakingScript";
 import { StakerInfo, Staking } from "..";
-import { networks } from "bitcoinjs-lib";
-import { stakingPsbt } from "../psbt";
+import { networks, Psbt, Transaction } from "bitcoinjs-lib";
+import { stakingPsbt, unbondingPsbt } from "../psbt";
+import { CovenantSignature } from "../../types/covenantSignatures";
 export * from "./observableStakingScript";
 
 /**
@@ -159,4 +160,27 @@ export class ObservableStaking extends Staking {
       );
     }
   };
+
+   /**
+   * Create an unbonding psbt based on the existing unbonding transaction and
+   * staking transaction.
+   * 
+   * @param {Transaction} unbondingTx - The unbonding transaction.
+   * @param {Transaction} stakingTx - The staking transaction.
+   * @param {CovenantSignature[]} _covenantSigs - Ignored parameter (required for override)
+   * @returns {Psbt} - The psbt.
+   */
+   public createUnbondingPsbt(
+    unbondingTx: Transaction,
+    stakingTx: Transaction,
+    _covenantSigs?: CovenantSignature[],
+  ): Psbt {
+    return unbondingPsbt(
+      this.buildScripts(),
+      unbondingTx,
+      stakingTx,
+      this.network,
+      this.params.covenantNoCoordPks,
+    );
+  }
 }

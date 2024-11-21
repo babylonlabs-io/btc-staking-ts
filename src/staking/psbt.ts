@@ -5,8 +5,21 @@ import { Input } from "bitcoinjs-lib/src/transaction";
 import { NO_COORD_PK_BYTE_LENGTH } from "../constants/keys";
 import { internalPubkey } from "../constants/internalPubkey";
 import { Taptree } from "bitcoinjs-lib/src/types";
+import { CovenantSignature } from "../types/covenantSignatures";
 
-const getInputWitnessUtxo = (inputUTXOs: UTXO[], input: Input) => {
+interface InputWitnessUtxo {
+  script: Buffer;
+  value: number;
+}
+
+/**
+ * Get the input witness utxo for the staking transaction.
+ * 
+ * @param {UTXO[]} inputUTXOs - The UTXOs to use as inputs for the staking transaction.
+ * @param {Input} input - The input to get the witness utxo for.
+ * @returns {InputWitnessUtxo} - The witness utxo.
+ */
+const getInputWitnessUtxo = (inputUTXOs: UTXO[], input: Input): InputWitnessUtxo => {
   const inputUTXO = inputUTXOs.find(
     (utxo) => utxo.txid === input.hash.toString("hex") && utxo.vout === input.index,
   );
@@ -78,10 +91,7 @@ export const unbondingPsbt = (
   stakingTx: Transaction,
   network: networks.Network,
   covenantCovenants: string[],
-  covenantSigs?: {
-    btcPkHex: string;
-    sigHex: string;
-  }[],
+  covenantSigs?: CovenantSignature[],
 ) => {
   const psbt = new Psbt({ network });
   if (unbondingTx.version !== undefined) {
@@ -167,16 +177,13 @@ export const unbondingPsbt = (
  * 
  * @param {Buffer[]} originalWitness - The original witness stack.
  * @param {string[]} paramsCovenants - The covenant covenants.
- * @param {Object} covenantSigs - The covenant signatures.
+ * @param {CovenantSignature} covenantSigs - The covenant signatures.
  * @returns {Buffer} - The updated witness stack.
  */
 const addCovenantWitness = (
   originalWitness: Buffer[],
   paramsCovenants: string[],
-  covenantSigs: {
-    btcPkHex: string;
-    sigHex: string;
-  }[],
+  covenantSigs: CovenantSignature[],
 ) => {
   const paramsCovenantsBuffers = paramsCovenants.map(
     (covenant) => Buffer.from(covenant, "hex"),

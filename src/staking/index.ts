@@ -24,6 +24,7 @@ import {
 import { PsbtResult, TransactionResult } from "../types/transaction";
 import { toBuffers } from "../utils/staking";
 import { stakingPsbt, unbondingPsbt } from "./psbt";
+import { CovenantSignature } from "../types/covenantSignatures";
 export * from "./stakingScript";
 
 export interface StakerInfo {
@@ -146,7 +147,8 @@ export class Staking {
         this.network,
         feeRate,
       );
-      // Validate that we can build the psbt based on the above transaction
+      // Do a dry run of stakingPsbt to ensure the transaction can be converted to PSBT
+      // with all the required properties before returning it
       stakingPsbt(
         transaction,
         this.network,
@@ -172,8 +174,8 @@ export class Staking {
    * 
    * @param {Transaction} stakingTx - The staking transaction.
    * @param {UTXO[]} inputUTXOs - The UTXOs to use as inputs for the staking 
-   * transaction. It should contain the same UTXOs that were used to create the
-   * staking transaction.
+   * transaction. The UTXOs that were used to create the staking transaction should
+   * be included in this array.
    * @returns {Psbt} - The psbt.
    */
   public createStakingPsbt(
@@ -200,10 +202,7 @@ export class Staking {
    */
   public createUnbondingTransaction(
     stakingTx: Transaction,
-    covenantSigs?: {
-      btcPkHex: string;
-      sigHex: string;
-    }[],
+    covenantSigs?: CovenantSignature[],
   ) : TransactionResult {    
     // Build scripts
     const scripts = this.buildScripts();
@@ -223,14 +222,14 @@ export class Staking {
         this.network,
         stakingOutputIndex,
       );
-      // Validate that we can build the psbt based on the transaction
+      // Do a dry run of unbondingPsbt to ensure the transaction can be converted to PSBT
+      // with all the required properties before returning it
       unbondingPsbt(
         scripts,
         transaction,
         stakingTx,
         this.network,
         this.params.covenantNoCoordPks,
-        covenantSigs,
       );
       return {
         transaction,
@@ -250,15 +249,15 @@ export class Staking {
    * 
    * @param {Transaction} unbondingTx - The unbonding transaction.
    * @param {Transaction} stakingTx - The staking transaction.
+   * @param {CovenantSignature[]} [covenantSigs] - covenant signatures used to 
+   * combine with staker signatures to unbond the staking transaction
+   * 
    * @returns {Psbt} - The psbt.
    */
   public createUnbondingPsbt(
     unbondingTx: Transaction,
     stakingTx: Transaction,
-    covenantSigs?: {
-      btcPkHex: string;
-      sigHex: string;
-    }[],
+    covenantSigs: CovenantSignature[],
   ): Psbt {
     return unbondingPsbt(
       this.buildScripts(),
