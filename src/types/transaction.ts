@@ -19,11 +19,3 @@ export interface TransactionResult {
   transaction: Transaction;
   fee: number;
 }
-
-/**
- * PsbtTransactionResult is the result of a transaction creation
- *  - transaction: The unsigned transaction
- */
-export interface PsbtTransactionResult extends PsbtResult {
-  transaction: Transaction;
-}

@@ -87,21 +87,6 @@ describe.each(testingNetworks)("Transactions - ", (
         dataGenerator.generateRandomKeyPair().publicKey,
       ).taproot.address;
 
-      // it(`${networkName} - should throw an error if the public key is invalid`, () => {
-      //   const invalidPublicKey = Buffer.from("invalidPublicKey", "hex");
-      //   expect(() =>
-      //     stakingTransaction(
-      //       mockScripts,
-      //       randomAmount,
-      //       randomChangeAddress,
-      //       utxos,
-      //       network,
-      //       feeRate,
-      //       invalidPublicKey, // Invalid public key
-      //     ),
-      //   ).toThrow("Invalid public key");
-      // });
-
       it(`${networkName} - should throw an error if the change address is invalid`, () => {
         const validAddress = dataGenerator.getAddressAndScriptPubKey(
           dataGenerator.generateRandomKeyPair().publicKey,
@@ -305,29 +290,6 @@ describe.each(testingNetworks)("Transactions - ", (
           mockScripts,
         );
       });
-
-      // it(`${networkName} - should return a valid psbt result with tapInternalKey`, () => {
-      //   const psbtResult = stakingTransaction(
-      //     mockScripts,
-      //     randomAmount,
-      //     taproot.address,
-      //     utxos,
-      //     network,
-      //     feeRate,
-      //     Buffer.from(
-      //       dataGenerator.generateRandomKeyPair().publicKeyNoCoord,
-      //       "hex",
-      //     ),
-      //   );
-      //   validateCommonFields(
-      //     psbtResult,
-      //     utxos,
-      //     randomAmount,
-      //     estimatedFee,
-      //     taproot.address,
-      //     mockScripts,
-      //   );
-      // });
 
       it(`${networkName} - should return a valid transaction result with lock field`, () => {
         const lockHeight = Math.floor(Math.random() * 1000000) + 100;
