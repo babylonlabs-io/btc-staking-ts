@@ -1,18 +1,15 @@
 import { address, Psbt } from "bitcoinjs-lib";
 import { BTC_DUST_SAT } from "../../../src/constants/dustSat";
 import { RBF_SEQUENCE } from "../../../src/constants/psbt";
-import { StakingScripts, stakingTransaction, UTXO } from "../../../src/index";
+import { StakingScripts, stakingTransaction } from "../../../src/index";
 import { ObservableStakingScripts } from "../../../src/staking/observable";
-import { TransactionResult } from "../../../src/types/transaction";
-import { getStakingTxInputUTXOsAndFees } from "../../../src/utils/fee";
-import { buildStakingTransactionOutputs } from "../../../src/utils/staking";
 import { DEFAULT_TEST_FEE_RATE, testingNetworks } from "../../helper";
 import { stakingPsbt } from "../../../src/staking/psbt";
 
 describe.each(testingNetworks)("Transactions - ", (
   {network, networkName, datagen}
 ) => {
-  describe.each(Object.values(datagen))("stakingTransaction", (
+  describe.each(Object.values(datagen))("stakingPsbt", (
     dataGenerator
   ) => {
     const mockScripts = dataGenerator.generateMockStakingScripts();
