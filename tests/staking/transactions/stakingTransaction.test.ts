@@ -417,5 +417,4 @@ describe.each(testingNetworks)("Transactions - ", (
     });
     expect(transaction.version).toBe(2);
   };
-
 });
