@@ -1,16 +1,15 @@
-import { Psbt, Transaction, networks, payments, script } from "bitcoinjs-lib";
+import { Psbt, Transaction, networks, payments, script, address } from "bitcoinjs-lib";
 import { Taptree } from "bitcoinjs-lib/src/types";
 
 import { BTC_DUST_SAT } from "../constants/dustSat";
 import { internalPubkey } from "../constants/internalPubkey";
 import { UTXO } from "../types/UTXO";
-import { PsbtResult } from "../types/transaction";
+import { PsbtResult, TransactionResult } from "../types/transaction";
 import { isValidBitcoinAddress } from "../utils/btc";
 import { getStakingTxInputUTXOsAndFees, getWithdrawTxFee } from "../utils/fee";
 import { inputValueSum } from "../utils/fee/utils";
-import { buildStakingOutput } from "../utils/staking";
+import { buildStakingTransactionOutputs } from "../utils/staking";
 import { NON_RBF_SEQUENCE, TRANSACTION_VERSION, RBF_SEQUENCE } from "../constants/psbt";
-import { NO_COORD_PK_BYTE_LENGTH } from "../constants/keys";
 
 // https://bips.xyz/370
 const BTC_LOCKTIME_HEIGHT_TIME_CUTOFF = 500000000;
@@ -44,9 +43,8 @@ const BTC_LOCKTIME_HEIGHT_TIME_CUTOFF = 500000000;
  * @param {UTXO[]} inputUTXOs - All available UTXOs from the wallet.
  * @param {networks.Network} network - The Bitcoin network.
  * @param {number} feeRate - The fee rate in satoshis per byte.
- * @param {Buffer} [publicKeyNoCoord] - The public key if the wallet is in taproot mode.
  * @param {number} [lockHeight] - The optional block height locktime.
- * @returns {PsbtResult} The partially signed transaction and fee
+ * @returns {TransactionResult} - An object containing the unsigned transaction and fee
  * @throws Will throw an error if the amount or fee rate is less than or equal
  * to 0, if the change address is invalid, or if the public key is invalid.
  */
@@ -62,9 +60,8 @@ export function stakingTransaction(
   inputUTXOs: UTXO[],
   network: networks.Network,
   feeRate: number,
-  publicKeyNoCoord?: Buffer,
   lockHeight?: number,
-): PsbtResult {
+): TransactionResult {
   // Check that amount and fee are bigger than 0
   if (amount <= 0 || feeRate <= 0) {
     throw new Error("Amount and fee rate must be bigger than 0");
@@ -75,53 +72,40 @@ export function stakingTransaction(
     throw new Error("Invalid change address");
   }
 
-  // Check whether the public key is valid
-  if (publicKeyNoCoord && publicKeyNoCoord.length !== NO_COORD_PK_BYTE_LENGTH) {
-    throw new Error("Invalid public key");
-  }
-
   // Build outputs and estimate the fee
-  const psbtOutputs = buildStakingOutput(scripts, network, amount);
+  const stakingOutputs = buildStakingTransactionOutputs(scripts, network, amount);
   const { selectedUTXOs, fee } = getStakingTxInputUTXOsAndFees(
-    network,
     inputUTXOs,
     amount,
     feeRate,
-    psbtOutputs,
+    stakingOutputs,
   );
 
-  // Create a partially signed transaction
-  const psbt = new Psbt({ network });
-  psbt.setVersion(TRANSACTION_VERSION);
-
-  // Add the UTXOs provided as inputs to the transaction
+  const tx = new Transaction();
+  tx.version = TRANSACTION_VERSION;
+  
+  
   for (let i = 0; i < selectedUTXOs.length; ++i) {
     const input = selectedUTXOs[i];
-    psbt.addInput({
-      hash: input.txid,
-      index: input.vout,
-      witnessUtxo: {
-        script: Buffer.from(input.scriptPubKey, "hex"),
-        value: input.value,
-      },
-      // this is needed only if the wallet is in taproot mode
-      ...(publicKeyNoCoord && { tapInternalKey: publicKeyNoCoord }),
-      // Enable locktime and setting the sequence value to (RBF-able)
-      sequence: RBF_SEQUENCE,
-    });
+    tx.addInput(
+      Buffer.from(input.txid, 'hex'),
+      input.vout,
+      RBF_SEQUENCE,
+    );
   }
 
-  // Add the staking output to the transaction
-  psbt.addOutputs(psbtOutputs);
+  stakingOutputs.forEach((o) => {
+    tx.addOutput(o.scriptPubKey, o.value);
+  });
 
   // Add a change output only if there's any amount leftover from the inputs
   const inputsSum = inputValueSum(selectedUTXOs);
   // Check if the change amount is above the dust limit, and if so, add it as a change output
   if (inputsSum - (amount + fee) > BTC_DUST_SAT) {
-    psbt.addOutput({
-      address: changeAddress,
-      value: inputsSum - (amount + fee),
-    });
+    tx.addOutput(
+      address.toOutputScript(changeAddress, network),
+      inputsSum - (amount + fee),
+    );
   }
 
   // Set the locktime field if provided. If not provided, the locktime will be set to 0 by default
@@ -130,11 +114,11 @@ export function stakingTransaction(
     if (lockHeight >= BTC_LOCKTIME_HEIGHT_TIME_CUTOFF) {
       throw new Error("Invalid lock height");
     }
-    psbt.setLocktime(lockHeight);
+    tx.locktime = lockHeight;
   }
 
   return {
-    psbt,
+    transaction: tx,
     fee,
   };
 }
@@ -608,14 +592,12 @@ export function unbondingTransaction(
     slashingScript: Buffer;
   },
   stakingTx: Transaction,
-  transactionFee: number,
+  unbondingFee: number,
   network: networks.Network,
   outputIndex: number = 0,
-): {
-  psbt: Psbt;
-} {
+): TransactionResult {
   // Check that transaction fee is bigger than 0
-  if (transactionFee <= 0) {
+  if (unbondingFee <= 0) {
     throw new Error("Unbonding fee must be bigger than 0");
   }
 
@@ -624,47 +606,14 @@ export function unbondingTransaction(
     throw new Error("Output index must be bigger or equal to 0");
   }
 
-  // Build input tapleaf script
-  const inputScriptTree: Taptree = [
-    {
-      output: scripts.slashingScript,
-    },
-    [{ output: scripts.unbondingScript }, { output: scripts.timelockScript }],
-  ];
+  const tx = new Transaction();
+  tx.version = TRANSACTION_VERSION;
 
-  const inputRedeem = {
-    output: scripts.unbondingScript,
-    redeemVersion: 192,
-  };
-
-  const p2tr = payments.p2tr({
-    internalPubkey,
-    scriptTree: inputScriptTree,
-    redeem: inputRedeem,
-    network,
-  });
-
-  const inputTapLeafScript = {
-    leafVersion: inputRedeem.redeemVersion,
-    script: inputRedeem.output,
-    controlBlock: p2tr.witness![p2tr.witness!.length - 1],
-  };
-
-  const psbt = new Psbt({ network });
-  psbt.setVersion(TRANSACTION_VERSION);
-
-  psbt.addInput({
-    hash: stakingTx.getHash(),
-    index: outputIndex,
-    tapInternalKey: internalPubkey,
-    witnessUtxo: {
-      value: stakingTx.outs[outputIndex].value,
-      script: stakingTx.outs[outputIndex].script,
-    },
-    tapLeafScript: [inputTapLeafScript],
-    // not RBF-able
-    sequence: NON_RBF_SEQUENCE,
-  });
+  tx.addInput(
+    stakingTx.getHash(),
+    outputIndex,
+    NON_RBF_SEQUENCE, // not RBF-able
+  );
 
   // Build output tapleaf script
   const outputScriptTree: Taptree = [
@@ -679,22 +628,26 @@ export function unbondingTransaction(
     scriptTree: outputScriptTree,
     network,
   });
-  const outputValue = stakingTx.outs[outputIndex].value - transactionFee;
+  const outputValue = stakingTx.outs[outputIndex].value - unbondingFee;
   if (outputValue < BTC_DUST_SAT) {
     throw new Error("Output value is less than dust limit");
   }
   // Add the unbonding output
-  psbt.addOutput({
-    address: unbondingOutput.address!,
-    value: outputValue,
-  });
+  if (!unbondingOutput.address) {
+    throw new Error("Unbonding output address is not defined");
+  }
+  tx.addOutput(
+    address.toOutputScript(unbondingOutput.address, network),
+    outputValue,
+  );
 
   // Unbonding transaction has no time-based restrictions and can be included 
   // in the next block immediately.
-  psbt.setLocktime(0);
+  tx.locktime = 0;
 
   return {
-    psbt,
+    transaction: tx,
+    fee: unbondingFee,
   };
 }
 

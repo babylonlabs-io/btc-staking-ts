@@ -219,15 +219,12 @@ describe.each(testingNetworks)("Transactions - ", (
     });
 
     describe(`${networkName} slashEarlyUnbondedTransaction - `, () => {
-      const unbondingTx = unbondingTransaction(
+      const { transaction: unbondingTx } = unbondingTransaction(
         stakingScripts,
         stakingTx,
         1,
         network,
-      )
-        .psbt.signAllInputs(stakerKeyPair.keyPair)
-        .finalizeAllInputs()
-        .extractTransaction();
+      );
 
       it("should throw an error if the slashing rate is not between 0 and 1", () => {
         expect(() =>
@@ -289,15 +286,12 @@ describe.each(testingNetworks)("Transactions - ", (
       });
 
       it("should throw error if user funds is less than dust", () => {
-        const unbondingTxWithLimitedAmount = unbondingTransaction(
+        const { transaction: unbondingTxWithLimitedAmount } = unbondingTransaction(
           stakingScripts,
           stakingTx,
           1,
           network,
-        )
-          .psbt.signAllInputs(stakerKeyPair.keyPair)
-          .finalizeAllInputs()
-          .extractTransaction();
+        );
         expect(() =>
           slashEarlyUnbondedTransaction(
             stakingScripts,

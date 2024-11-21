@@ -29,9 +29,9 @@ describe.each(testingNetworks)("Create slashing transactions", ({
     params, finalityProviderPkNoCoordHex, timelock,
 
   );
-  const unbondingTx = staking.createUnbondingTransaction(
+  const { transaction: unbondingTx } = staking.createUnbondingTransaction(
     stakingTx,
-  ).psbt.signAllInputs(keys.keyPair).finalizeAllInputs().extractTransaction();
+  );
 
 
   beforeEach(() => {

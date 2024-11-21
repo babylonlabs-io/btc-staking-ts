@@ -1,5 +1,4 @@
-import { StakingError, StakingErrorCode } from "../../../src/error";
-import { toBuffers, validateStakingTxInputData } from "../../../src/utils/staking";
+import { validateStakingTxInputData } from "../../../src/utils/staking";
 import { testingNetworks } from "../../helper";
 
 describe.each(testingNetworks)('validateStakingTxInputData', (

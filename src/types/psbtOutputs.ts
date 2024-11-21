@@ -19,3 +19,8 @@ export const isPsbtOutputExtendedAddress = (
 ): output is PsbtOutputExtendedAddress => {
   return (output as PsbtOutputExtendedAddress).address !== undefined;
 };
+
+export type TransactionOutput = {
+  scriptPubKey: Buffer;
+  value: number;
+};

@@ -1,3 +1,4 @@
+import { address } from "bitcoinjs-lib";
 import * as stakingScript from "../../src/staking/stakingScript";
 import { testingNetworks } from "../helper";
 import { StakingParams } from "../../src/types/params";
@@ -130,39 +131,66 @@ describe.each(testingNetworks)("Create staking transaction", ({
     const amount = dataGenerator.getRandomIntegerBetween(
       params.minStakingAmountSat, params.maxStakingAmountSat,
     );
-    const { psbt, fee} = staking.createStakingTransaction(
+    const { transaction, fee} = staking.createStakingTransaction(
       amount,
       utxos,
       feeRate,
     );
 
-    expect(psbt).toBeDefined();
+    expect(transaction).toBeDefined();
     expect(fee).toBeGreaterThan(0);
     
     // Check the inputs
-    expect(psbt.data.inputs.length).toBeGreaterThan(0);
-    expect(psbt.data.inputs[0].tapInternalKey?.toString("hex")).toEqual(stakerInfo.publicKeyNoCoordHex);
-    expect(psbt.data.inputs[0].witnessUtxo?.script.toString("hex")).toEqual(utxos[0].scriptPubKey);
+    // expect(psbt.data.inputs.length).toBeGreaterThan(0);
+    // expect(psbt.data.inputs[0].tapInternalKey?.toString("hex")).toEqual(stakerInfo.publicKeyNoCoordHex);
+    // expect(psbt.data.inputs[0].witnessUtxo?.script.toString("hex")).toEqual(utxos[0].scriptPubKey);
+    expect(transaction.ins.length).toBeGreaterThan(0);
 
     // Check the outputs
-    expect(psbt.txOutputs.length).toBeGreaterThanOrEqual(1);
+    expect(transaction.outs.length).toBeGreaterThanOrEqual(1);
     // build the psbt input amount from psbt.data.inputs
+    // let psbtInputAmount = 0;
+    // for (let i = 0; i < transaction.ins.length; i++) {
+    //   const newValue = psbt.data.inputs[i].witnessUtxo?.value || 0;
+    //   psbtInputAmount += newValue;
+    // }
+    // const changeAmount = psbtInputAmount - amount - fee;
+    // expect(psbtInputAmount).toBeGreaterThanOrEqual(amount + fee);
+    // if (changeAmount > BTC_DUST_SAT) {
+    //   expect(psbt.txOutputs[psbt.txOutputs.length - 1].value).toEqual(changeAmount);
+    //   expect(psbt.txOutputs[psbt.txOutputs.length - 1].address).toEqual(stakerInfo.address);
+    // }
+    // expect(psbt.txOutputs[0].value).toEqual(amount);
+
+    // // Check the psbt properties
+    // expect(psbt.version).toBe(2);
+    // psbt.txInputs.map((input) => {
+    //   expect(input.sequence).toBe(RBF_SEQUENCE);
+    // });
+
     let psbtInputAmount = 0;
-    for (let i = 0; i < psbt.data.inputs.length; i++) {
-      const newValue = psbt.data.inputs[i].witnessUtxo?.value || 0;
-      psbtInputAmount += newValue;
+    for (let i = 0; i < transaction.ins.length; i++) {
+      const input = transaction.ins[i];
+      const matchingUtxo = utxos.find(utxo => 
+        utxo.txid === input.hash.toString('hex') && 
+        utxo.vout === input.index
+      );
+      if (matchingUtxo) {
+        psbtInputAmount += matchingUtxo.value;
+      }
     }
     const changeAmount = psbtInputAmount - amount - fee;
     expect(psbtInputAmount).toBeGreaterThanOrEqual(amount + fee);
     if (changeAmount > BTC_DUST_SAT) {
-      expect(psbt.txOutputs[psbt.txOutputs.length - 1].value).toEqual(changeAmount);
-      expect(psbt.txOutputs[psbt.txOutputs.length - 1].address).toEqual(stakerInfo.address);
+      expect(transaction.outs[transaction.outs.length - 1].value).toEqual(changeAmount);
+      expect(transaction.outs[transaction.outs.length - 1].script)
+        .toEqual(address.toOutputScript(stakerInfo.address, network));
     }
-    expect(psbt.txOutputs[0].value).toEqual(amount);
+    expect(transaction.outs[0].value).toEqual(amount);
 
     // Check the psbt properties
-    expect(psbt.version).toBe(2);
-    psbt.txInputs.map((input) => {
+    expect(transaction.version).toBe(2);
+    transaction.ins.map((input) => {
       expect(input.sequence).toBe(RBF_SEQUENCE);
     });
   });

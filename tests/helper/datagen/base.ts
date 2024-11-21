@@ -246,7 +246,7 @@ export class StakingDataGenerator {
       scriptPubKey,
     );
 
-    const { psbt } = stakingTransaction(
+    const { transaction } = stakingTransaction(
       stakingScripts,
       stakingAmount
         ? stakingAmount
@@ -256,13 +256,9 @@ export class StakingDataGenerator {
       this.network,
       feeRate,
     );
-    const stakingTx = psbt.signAllInputs(stakerKeyPair.keyPair)
-    .finalizeAllInputs()
-    .extractTransaction();
-
+    
     return {
-      stakingTx,
-      unsignedPsbt: psbt,
+      stakingTx: transaction,
       timelock
     }
   };

@@ -57,7 +57,7 @@ describe.each(testingNetworks)("Create unbonding transaction", ({
   });
 
   it(`${networkName} should successfully create an unbonding transaction`, async () => {
-    const { psbt } = staking.createUnbondingTransaction(
+    const { transaction } = staking.createUnbondingTransaction(
       stakingTx,
     );
     const scripts = staking.buildScripts();
@@ -65,26 +65,36 @@ describe.each(testingNetworks)("Create unbonding transaction", ({
     const stakingOutputIndex = findMatchingStakingTxOutputIndex(
       stakingTx, deriveStakingOutputAddress(scripts, network), network,
     );
-    expect(psbt).toBeDefined();
+    expect(transaction).toBeDefined();
 
     // Check the psbt inputs
-    expect(psbt.txInputs.length).toBe(1);
-    expect(psbt.txInputs[0].hash).toEqual(stakingTx.getHash());
-    expect(psbt.data.inputs[0].tapInternalKey).toEqual(internalPubkey);
-    expect(psbt.data.inputs[0].tapLeafScript?.length).toBe(1);
-    expect(psbt.data.inputs[0].witnessUtxo?.value).toEqual(stakingAmount);
-    expect(psbt.data.inputs[0].witnessUtxo?.script).toEqual(
-      stakingTx.outs[stakingOutputIndex].script,
-    );
-    expect(psbt.txInputs[0].sequence).toEqual(NON_RBF_SEQUENCE);
-    expect(psbt.txInputs[0].index).toEqual(stakingOutputIndex);
+    expect(transaction.ins.length).toBe(1);
+    expect(transaction.ins[0].hash).toEqual(stakingTx.getHash());
+    
+    // expect(psbt.data.inputs[0].tapInternalKey).toEqual(internalPubkey);
+    // expect(psbt.data.inputs[0].tapLeafScript?.length).toBe(1);
+    // expect(psbt.data.inputs[0].witnessUtxo?.value).toEqual(stakingAmount);
+    // expect(psbt.data.inputs[0].witnessUtxo?.script).toEqual(
+    //   stakingTx.outs[stakingOutputIndex].script,
+    // );
+    // expect(psbt.txInputs[0].sequence).toEqual(NON_RBF_SEQUENCE);
+    // expect(psbt.txInputs[0].index).toEqual(stakingOutputIndex);
+
+    // // Check the psbt outputs
+    // expect(psbt.txOutputs.length).toBe(1);
+    // expect(psbt.txOutputs[0].value).toEqual(stakingAmount - params.unbondingFeeSat);
+
+    expect(transaction.ins[0].hash).toEqual(stakingTx.getHash());
+
+    expect(transaction.ins[0].sequence).toEqual(NON_RBF_SEQUENCE);
+    expect(transaction.ins[0].index).toEqual(stakingOutputIndex);
 
     // Check the psbt outputs
-    expect(psbt.txOutputs.length).toBe(1);
-    expect(psbt.txOutputs[0].value).toEqual(stakingAmount - params.unbondingFeeSat);
+    expect(transaction.outs.length).toBe(1);
+    expect(transaction.outs[0].value).toEqual(stakingAmount - params.unbondingFeeSat);
 
     // Check the psbt properties
-    expect(psbt.locktime).toBe(0);
-    expect(psbt.version).toBe(2);
+    expect(transaction.locktime).toBe(0);
+    expect(transaction.version).toBe(2);
   });
 });

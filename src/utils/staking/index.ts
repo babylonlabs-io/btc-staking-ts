@@ -1,14 +1,12 @@
-import { address, networks, payments, Psbt, Transaction } from "bitcoinjs-lib";
+import { address, networks, payments, Transaction } from "bitcoinjs-lib";
 import { Taptree } from "bitcoinjs-lib/src/types";
 import { internalPubkey } from "../../constants/internalPubkey";
-import { PsbtOutputExtended } from "../../types/psbtOutputs";
+import { TransactionOutput } from "../../types/psbtOutputs";
 import { StakingError, StakingErrorCode } from "../../error";
 import { UTXO } from "../../types/UTXO";
 import { isValidNoCoordPublicKey } from "../btc";
 import { StakingParams } from "../../types/params";
 import { MIN_UNBONDING_OUTPUT_VALUE } from "../../constants/unbonding";
-
-
 
 /**
  * Build the staking output for the transaction which contains p2tr output 
@@ -17,10 +15,10 @@ import { MIN_UNBONDING_OUTPUT_VALUE } from "../../constants/unbonding";
  * @param {StakingScripts} scripts - The staking scripts.
  * @param {networks.Network} network - The Bitcoin network.
  * @param {number} amount - The amount to stake.
- * @returns {PsbtOutputExtended[]} - The staking output.
+ * @returns {TransactionOutput[]} - The staking transaction outputs.
  * @throws {Error} - If the staking output cannot be built.
  */
-export const buildStakingOutput = (
+export const buildStakingTransactionOutputs = (
   scripts: {
     timelockScript: Buffer;
     unbondingScript: Buffer;
@@ -29,22 +27,22 @@ export const buildStakingOutput = (
   },
   network: networks.Network,
   amount: number,
-) => {
+): TransactionOutput[] => {
   const stakingOutputAddress = deriveStakingOutputAddress(scripts, network);
-  const psbtOutputs: PsbtOutputExtended[] = [
+  const transactionOutputs: {scriptPubKey: Buffer, value: number}[] = [
     {
-      address: stakingOutputAddress,
+      scriptPubKey: address.toOutputScript(stakingOutputAddress, network),
       value: amount,
     },
   ];
   if (scripts.dataEmbedScript) {
     // Add the data embed output to the transaction
-    psbtOutputs.push({
-      script: scripts.dataEmbedScript,
+    transactionOutputs.push({
+      scriptPubKey: scripts.dataEmbedScript,
       value: 0,
     });
   }
-  return psbtOutputs;
+  return transactionOutputs;
 };
 
 /**
@@ -303,25 +301,3 @@ export const toBuffers = (inputs: string[]): Buffer[] => {
   }
 }
 
-/**
- * Convert a PSBT to a transaction.
- * Note some of the properties of the PSBT are not copied over to the transaction.
- * such as the witnessUtxo and tapInternalKey.
- * 
- * @param {Psbt} psbt - The PSBT.
- * @returns {Transaction} - The transaction.
- */
-export const psbtToTransaction = (psbt: Psbt): Transaction => {
-  // Create the transaction
-  const tx = new Transaction();
-  psbt.txInputs.forEach((input) => {
-    tx.addInput(input.hash, input.index, input.sequence);
-  });
-  psbt.txOutputs.forEach((output) => {
-    tx.addOutput(output.script, output.value);
-  });
-  tx.version = psbt.version;
-  tx.locktime = psbt.locktime;
-
-  return tx;
-}

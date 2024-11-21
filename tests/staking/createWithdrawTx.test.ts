@@ -26,9 +26,9 @@ describe.each(testingNetworks)("Create withdrawal transactions", ({
     network, stakerInfo,
     params, finalityProviderPkNoCoordHex, timelock,
   );
-  const unbondingTx = staking.createUnbondingTransaction(
+  const { transaction: unbondingTx } = staking.createUnbondingTransaction(
     stakingTx,
-  ).psbt.signAllInputs(keys.keyPair).finalizeAllInputs().extractTransaction();
+  );
 
 
   beforeEach(() => {

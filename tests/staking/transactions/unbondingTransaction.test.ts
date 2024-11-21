@@ -60,21 +60,21 @@ describe.each(testingNetworks)("Transactions - ", (
             1,
             stakingAmount - BTC_DUST_SAT - 1,
           );
-        const { psbt } = unbondingTransaction(
+        const { transaction } = unbondingTransaction(
           stakingScripts,
           stakingTx,
           unbondingFee,
           network,
           0,
         );
-        expect(psbt).toBeDefined();
-        expect(psbt.txOutputs.length).toBe(1);
+        expect(transaction).toBeDefined();
+        expect(transaction.outs.length).toBe(1);
         // check output value
-        expect(psbt.txOutputs[0].value).toBe(stakingAmount - unbondingFee);
+        expect(transaction.outs[0].value).toBe(stakingAmount - unbondingFee);
   
-        expect(psbt.locktime).toBe(0);
-        expect(psbt.version).toBe(TRANSACTION_VERSION);
-        psbt.txInputs.forEach((input) => {
+        expect(transaction.locktime).toBe(0);
+        expect(transaction.version).toBe(TRANSACTION_VERSION);
+        transaction.ins.forEach((input) => {
           expect(input.sequence).toBe(NON_RBF_SEQUENCE);
         });
       });

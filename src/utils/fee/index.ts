@@ -1,4 +1,4 @@
-import { Network, address, script as bitcoinScript } from "bitcoinjs-lib";
+import { script as bitcoinScript } from "bitcoinjs-lib";
 import { BTC_DUST_SAT } from "../../constants/dustSat";
 import {
   LOW_RATE_ESTIMATION_ACCURACY_BUFFER,
@@ -12,8 +12,7 @@ import {
 } from "../../constants/fee";
 import { UTXO } from "../../types/UTXO";
 import {
-  PsbtOutputExtended,
-  isPsbtOutputExtendedAddress,
+  TransactionOutput,
 } from "../../types/psbtOutputs";
 import {
   getEstimatedChangeOutputSize,
@@ -30,7 +29,6 @@ import {
  * totalFee = (inputSize + outputSize) * feeRate + buffer
  * where outputSize may or may not include the change output size depending on the remaining value.
  *
- * @param network - The Bitcoin network.
  * @param availableUTXOs - All available UTXOs from the wallet.
  * @param stakingAmount - The amount to stake.
  * @param feeRate - The fee rate in satoshis per byte.
@@ -39,11 +37,10 @@ import {
  * @throws Will throw an error if there are insufficient funds or if the fee cannot be calculated.
  */
 export const getStakingTxInputUTXOsAndFees = (
-  network: Network,
   availableUTXOs: UTXO[],
   stakingAmount: number,
   feeRate: number,
-  outputs: PsbtOutputExtended[],
+  outputs: TransactionOutput[],
 ): {
   selectedUTXOs: UTXO[];
   fee: number;
@@ -73,7 +70,7 @@ export const getStakingTxInputUTXOsAndFees = (
     accumulatedValue += utxo.value;
 
     // Calculate the fee for the current set of UTXOs and outputs
-    const estimatedSize = getEstimatedSize(network, selectedUTXOs, outputs);
+    const estimatedSize = getEstimatedSize(selectedUTXOs, outputs);
     estimatedFee = estimatedSize * feeRate + rateBasedTxBufferFee(feeRate);
     // Check if there will be any change left after the staking amount and fee.
     // If there is, a change output needs to be added, which also comes with an additional fee.
@@ -96,6 +93,7 @@ export const getStakingTxInputUTXOsAndFees = (
     fee: estimatedFee,
   };
 };
+
 
 /**
  * Calculates the estimated fee for a withdrawal transaction.
@@ -120,6 +118,7 @@ export const getWithdrawTxFee = (feeRate: number): number => {
   );
 };
 
+
 /**
  * Calculates the estimated transaction size using a heuristic formula which
  * includes the input size, output size, and a fixexd buffer for the transaction size.
@@ -127,15 +126,13 @@ export const getWithdrawTxFee = (feeRate: number): number => {
  *
  * totalSize = inputSize + outputSize + TX_BUFFER_SIZE_OVERHEAD
  *
- * @param network - The Bitcoin network being used.
  * @param inputUtxos - The UTXOs used as inputs in the transaction.
  * @param outputs - The outputs in the transaction.
  * @returns The estimated transaction size in bytes.
  */
 const getEstimatedSize = (
-  network: Network,
   inputUtxos: UTXO[],
-  outputs: PsbtOutputExtended[],
+  outputs: TransactionOutput[],
 ): number => {
   // Estimate the input size
   const inputSize = inputUtxos.reduce((acc: number, u: UTXO): number => {
@@ -150,13 +147,10 @@ const getEstimatedSize = (
 
   // Estimate the output size
   const outputSize = outputs.reduce((acc, output): number => {
-    const script = isPsbtOutputExtendedAddress(output)
-      ? address.toOutputScript(output.address, network)
-      : output.script;
-    if (isOP_RETURN(script)) {
+    if (isOP_RETURN(output.scriptPubKey)) {
       return (
         acc +
-        script.length +
+        output.scriptPubKey.length +
         OP_RETURN_OUTPUT_VALUE_SIZE +
         OP_RETURN_VALUE_SERIALIZE_SIZE
       );
