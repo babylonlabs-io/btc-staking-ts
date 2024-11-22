@@ -106,7 +106,7 @@ const validateNoCoordPublicKeyBuffer = (pkBuffer: Buffer): boolean => {
 };
 
 /**
- * Convert a transaction id hex string to a hash.
+ * Convert a transaction id to a hash. in buffer format.
  * 
  * @param {string} txId - The transaction id.
  * @returns {Buffer} - The transaction hash.

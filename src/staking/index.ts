@@ -279,17 +279,13 @@ export class Staking {
 
     // Create the withdraw early unbonded transaction
     try {
-      const { psbt, fee } = withdrawEarlyUnbondedTransaction(
+      return withdrawEarlyUnbondedTransaction(
         scripts,
         unbondingTx,
         this.stakerInfo.address,
         this.network,
         feeRate,
       );  
-      return {
-        psbt,
-        fee,
-      };
     } catch (error) {
       throw StakingError.fromUnknown(
         error, StakingErrorCode.BUILD_TRANSACTION_FAILURE,

@@ -107,7 +107,7 @@ export class ObservableStaking extends Staking {
    * transaction.
    * @param {number} feeRate - The fee rate for the transaction in satoshis per byte.
    * @returns {TransactionResult} - An object containing the unsigned transaction,
-   * psbt, and fee
+   * and fee
    */
   public createStakingTransaction(
     stakingAmountSat: number,
