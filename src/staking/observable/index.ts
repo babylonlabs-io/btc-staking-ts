@@ -167,20 +167,17 @@ export class ObservableStaking extends Staking {
    * 
    * @param {Transaction} unbondingTx - The unbonding transaction.
    * @param {Transaction} stakingTx - The staking transaction.
-   * @param {CovenantSignature[]} _covenantSigs - Ignored parameter (required for override)
    * @returns {Psbt} - The psbt.
    */
    public createUnbondingPsbt(
     unbondingTx: Transaction,
     stakingTx: Transaction,
-    _covenantSigs?: CovenantSignature[],
   ): Psbt {
     return unbondingPsbt(
       this.buildScripts(),
       unbondingTx,
       stakingTx,
       this.network,
-      this.params.covenantNoCoordPks,
     );
   }
 }

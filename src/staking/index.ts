@@ -229,7 +229,6 @@ export class Staking {
         transaction,
         stakingTx,
         this.network,
-        this.params.covenantNoCoordPks,
       );
       return {
         transaction,
@@ -249,23 +248,18 @@ export class Staking {
    * 
    * @param {Transaction} unbondingTx - The unbonding transaction.
    * @param {Transaction} stakingTx - The staking transaction.
-   * @param {CovenantSignature[]} [covenantSigs] - covenant signatures used to 
-   * combine with staker signatures to unbond the staking transaction
    * 
    * @returns {Psbt} - The psbt.
    */
   public createUnbondingPsbt(
     unbondingTx: Transaction,
     stakingTx: Transaction,
-    covenantSigs: CovenantSignature[],
   ): Psbt {
     return unbondingPsbt(
       this.buildScripts(),
       unbondingTx,
       stakingTx,
       this.network,
-      this.params.covenantNoCoordPks,
-      covenantSigs,
     );
   }
 

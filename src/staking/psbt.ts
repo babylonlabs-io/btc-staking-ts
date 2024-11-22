@@ -1,6 +1,6 @@
 
 import { UTXO } from "../types/UTXO";
-import { Psbt, Transaction, networks, payments } from "bitcoinjs-lib";
+import { Psbt, Transaction, networks, payments, crypto } from "bitcoinjs-lib";
 import { Input } from "bitcoinjs-lib/src/transaction";
 import { NO_COORD_PK_BYTE_LENGTH } from "../constants/keys";
 import { internalPubkey } from "../constants/internalPubkey";
@@ -100,8 +100,6 @@ export const unbondingPsbt = (
   unbondingTx: Transaction,
   stakingTx: Transaction,
   network: networks.Network,
-  covenantCovenants: string[],
-  covenantSigs?: CovenantSignature[],
 ) => {
   const psbt = new Psbt({ network });
   if (unbondingTx.version !== undefined) {
@@ -160,75 +158,5 @@ export const unbondingPsbt = (
     });
   });
 
-  // Add covenant witness if exists
-  if (covenantSigs && covenantSigs.length > 0) {
-    // Get the original witness stack
-    const originalWitness = [
-      inputTapLeafScript.controlBlock,
-      inputTapLeafScript.script,
-    ];
-    // Add the covenant witness
-    const updatedWitness = addCovenantWitness(
-      originalWitness,
-      covenantCovenants,
-      covenantSigs,
-    );
-    // Update the witness stack
-    psbt.updateInput(0, {
-      finalScriptWitness: updatedWitness,
-    });
-  }
-
   return psbt;
 }
-
-/**
- * Add covenant witness to the psbt.
- * 
- * @param {Buffer[]} originalWitness - The original witness stack.
- * @param {string[]} paramsCovenants - The covenant covenants.
- * @param {CovenantSignature} covenantSigs - The covenant signatures.
- * @returns {Buffer} - The updated witness stack.
- */
-const addCovenantWitness = (
-  originalWitness: Buffer[],
-  paramsCovenants: string[],
-  covenantSigs: CovenantSignature[],
-) => {
-  const paramsCovenantsBuffers = paramsCovenants.map(
-    (covenant) => Buffer.from(covenant, "hex"),
-  );
-
-  // map API response to Buffer values
-  const covenantSigsBuffers = covenantSigs.map((sig) => ({
-    btcPkHex: Buffer.from(sig.btcPkHex, "hex"),
-    sigHex: Buffer.from(sig.sigHex, "hex"),
-  }));
-  // we need covenant from params to be sorted in reverse order
-  const paramsCovenantsSorted = [...paramsCovenantsBuffers]
-    .sort(Buffer.compare)
-    .reverse();
-  const composedCovenantSigs = paramsCovenantsSorted.map((covenant) => {
-    // in case there's covenant with this btc_pk_hex we return the sig
-    // otherwise we return empty Buffer
-    const covenantSig = covenantSigsBuffers.find(
-      (sig) => sig.btcPkHex.compare(covenant) === 0,
-    );
-    return covenantSig?.sigHex || Buffer.alloc(0);
-  });
-  return serializeWitnessStack([...composedCovenantSigs, ...originalWitness]);
-};
-
-/**
- * Serialize a witness stack into a single buffer.
- * 
- * @param {Buffer[]} stack - The witness stack to serialize.
- * @returns {Buffer} - The serialized witness stack.
- */
-const serializeWitnessStack = (stack: Buffer[]): Buffer => {
-  const serializedItems = stack.map((item) => {
-    const lengthPrefix = Buffer.from([item.length]); // Add length prefix
-    return Buffer.concat([lengthPrefix, item]); // Combine length and item
-  });
-  return Buffer.concat(serializedItems);
-};

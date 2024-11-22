@@ -43,7 +43,6 @@ describe.each(testingNetworks)("Transactions - ", (
         unbondingTx.transaction,
         tx.transaction,
         network,
-        params.covenantNoCoordPks,
       );
 
       expect(psbt).toBeDefined();

@@ -57,17 +57,10 @@ describe.each(testingNetworks)("Create unbonding transaction", ({
   });
 
   it(`${networkName} should successfully create an unbonding transaction & psbt`, async () => {
-    // Create mock covenant signatures
-    const covenantSigs = params.covenantNoCoordPks.map(pkHex => {
-      return {
-        btcPkHex: pkHex,
-        sigHex: "0123456789abcdef" // TODO: To be replaced by actual covenant signatures
-      };
-    });
     // Create transaction and psbt
     const { transaction } = staking.createUnbondingTransaction(stakingTx);
     const scripts = staking.buildScripts();
-    const psbt = staking.createUnbondingPsbt(transaction, stakingTx, covenantSigs);
+    const psbt = staking.createUnbondingPsbt(transaction, stakingTx);
 
     // Basic validation
     expect(transaction.version).toBe(2);
