@@ -11,9 +11,13 @@ export class ObservableStakingDatagen extends StakingDataGenerator {
     return buffer;
   };
 
-  generateStakingParams = (fixedTerm = false, committeeSize?: number): ObservableStakingParams => {
+  generateStakingParams = (
+    fixedTerm = false,
+    committeeSize?: number,
+    minStakingAmount?: number,
+  ): ObservableStakingParams => {
     return {
-      ...super.generateStakingParams(fixedTerm, committeeSize),
+      ...super.generateStakingParams(fixedTerm, committeeSize, minStakingAmount),
       activationHeight: this.getRandomIntegerBetween(1000, 100000),
       tag: this.generateRandomTag().toString("hex")
     };

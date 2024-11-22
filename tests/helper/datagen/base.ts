@@ -1,11 +1,12 @@
 import * as ecc from "@bitcoin-js/tiny-secp256k1-asmjs";
 import * as bitcoin from "bitcoinjs-lib";
 import ECPairFactory from "ecpair";
-import { stakingTransaction } from "../../../src";
+import { Staking, stakingTransaction } from "../../../src";
 import { UTXO } from "../../../src/types/UTXO";
 import { StakingParams } from "../../../src/types/params";
 import { generateRandomAmountSlices } from "../math";
 import { StakingScriptData, StakingScripts } from "../../../src/index";
+import { MIN_UNBONDING_OUTPUT_VALUE } from "../../../src/constants/unbonding";
 
 bitcoin.initEccLib(ecc);
 const ECPair = ECPairFactory(ecc);
@@ -27,7 +28,8 @@ export class StakingDataGenerator {
   }
 
   generateStakingParams(
-    fixedTerm: boolean = false, committeeSize?: number
+    fixedTerm: boolean = false, committeeSize?: number,
+    minStakingAmount?: number
   ): StakingParams {
     if (!committeeSize) {
       committeeSize = this.getRandomIntegerBetween(5, 50);
@@ -36,8 +38,10 @@ export class StakingDataGenerator {
       (buffer) => buffer.toString("hex"),
     );
     const covenantQuorum = Math.floor(Math.random() * (committeeSize - 1)) + 1;
-  
-    const minStakingAmountSat = this.getRandomIntegerBetween(100000, 1000000000);
+    if (minStakingAmount && minStakingAmount < MIN_UNBONDING_OUTPUT_VALUE + 1) {
+      throw new Error("Minimum staking amount is less than the unbonding output value");
+    }
+    const minStakingAmountSat = minStakingAmount ? minStakingAmount : this.getRandomIntegerBetween(100000, 1000000000);
     const minStakingTimeBlocks = this.getRandomIntegerBetween(1, 2000);
     const maxStakingTimeBlocks = fixedTerm ? minStakingTimeBlocks : this.getRandomIntegerBetween(minStakingTimeBlocks, minStakingTimeBlocks + 1000);
     const timelock = this.generateRandomTimelock({minStakingTimeBlocks, maxStakingTimeBlocks});
@@ -48,7 +52,7 @@ export class StakingDataGenerator {
       covenantNoCoordPks,
       covenantQuorum,
       unbondingTime,
-      unbondingFeeSat: this.getRandomIntegerBetween(1000, 100000),
+      unbondingFeeSat: minStakingAmountSat - MIN_UNBONDING_OUTPUT_VALUE - 1,
       minStakingAmountSat,
       maxStakingAmountSat: this.getRandomIntegerBetween(
         minStakingAmountSat, minStakingAmountSat + 1000000000,
@@ -209,57 +213,77 @@ export class StakingDataGenerator {
     return Math.floor(Math.random() * (max - min + 1)) + min;
   };
 
+  /**
+   * The main entry point for generating a random staking transaction and
+   * its instance, as well as getting the staker info, params, and staking amount
+   * etc
+   * @param network - The network to use
+   * @param feeRate - The fee rate to use
+   * @param stakerKeyPair - The staker key pair to use
+   * @param stakingAmount - The staking amount to use
+   * @param addressType - The address type to use
+   * @param param - The staking parameters to use
+   * @returns {Object} - A random staking transaction
+   */
   generateRandomStakingTransaction = (
-    stakerKeyPair: KeyPair,
+    network: bitcoin.networks.Network,
     feeRate: number = DEFAULT_TEST_FEE_RATE,
+    stakerKeyPair?: KeyPair,
     stakingAmount?: number,
     addressType?: "taproot" | "nativeSegwit",
-    globalParam?: StakingParams,
+    param?: StakingParams,
   ) => {
-    const { publicKey, publicKeyNoCoord: stakerPublicKeyNoCoord } =
-      stakerKeyPair;
+    if (!stakerKeyPair) {
+      stakerKeyPair = this.generateRandomKeyPair();
+    }
+    const stakerInfo = {
+      address: this.getAddressAndScriptPubKey(stakerKeyPair.publicKey).nativeSegwit.address,
+      publicKeyNoCoordHex: stakerKeyPair.publicKeyNoCoord,
+      publicKeyWithCoord: stakerKeyPair.publicKey,
+    }
+    const params = param ? param : this.generateStakingParams();
+    const timelock = this.generateRandomTimelock(params);
+    const finalityProviderPkNoCoordHex = this.generateRandomKeyPair().publicKeyNoCoord;
+
+    const staking = new Staking(
+      network, stakerInfo,
+      params, finalityProviderPkNoCoordHex, timelock,
+    );
+
+    const stakingAmountSat = stakingAmount ? 
+      stakingAmount : this.getRandomIntegerBetween(
+        params.minStakingAmountSat, params.maxStakingAmountSat,
+      );
+
+    const { publicKey } = stakerKeyPair;
     const { taproot, nativeSegwit } = this.getAddressAndScriptPubKey(publicKey);
-    const address =
-      addressType === "taproot" ? taproot.address : nativeSegwit.address;
     const scriptPubKey =
       addressType === "taproot"
         ? taproot.scriptPubKey
         : nativeSegwit.scriptPubKey;
 
-    const committeeSize = this.getRandomIntegerBetween(1, 10);
-    
-    const param = globalParam
-      ? globalParam
-      : this.generateStakingParams(false, committeeSize);
-    const timelock = this.generateRandomTimelock(param);
-    
-    const stakingScripts = this.generateStakingScriptData(
-      stakerKeyPair.publicKeyNoCoord, param, timelock,
-    );
-    const stakingAmountSat = stakingAmount ? 
-      stakingAmount : this.getRandomIntegerBetween(
-        param.minStakingAmountSat, param.maxStakingAmountSat,
-      );
     const utxos = this.generateRandomUTXOs(
       this.getRandomIntegerBetween(stakingAmountSat, stakingAmountSat + 100000000),
       this.getRandomIntegerBetween(1, 10),
       scriptPubKey,
     );
 
-    const { transaction } = stakingTransaction(
-      stakingScripts,
-      stakingAmount
-        ? stakingAmount
-        : this.getRandomIntegerBetween(1000, 100000) + 10000,
-      address,
+    const { transaction: stakingTx, fee: stakingTxFee } = staking.createStakingTransaction(
+      stakingAmountSat,
       utxos,
-      this.network,
       feeRate,
     );
     
     return {
-      stakingTx: transaction,
-      timelock
+      stakingTx,
+      timelock,
+      stakingInstance: staking,
+      stakerInfo,
+      params,
+      finalityProviderPkNoCoordHex,
+      stakingAmountSat,
+      keyPair: stakerKeyPair,
+      stakingTxFee,
     }
   };
 

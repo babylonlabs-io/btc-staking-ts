@@ -8,31 +8,16 @@ import { internalPubkey } from "../../src/constants/internalPubkey";
 describe.each(testingNetworks)("Create slashing transactions", ({
   network, networkName, datagen: { stakingDatagen: dataGenerator }
 }) => {
-  const params = dataGenerator.generateStakingParams();
-  const keys = dataGenerator.generateRandomKeyPair();
-  const feeRate = 1;
-  const stakingAmount = dataGenerator.getRandomIntegerBetween(
-    params.minStakingAmountSat, params.maxStakingAmountSat,
+  const {
+    stakingTx, timelock, stakingInstance, finalityProviderPkNoCoordHex,
+    stakerInfo, params, stakingAmountSat,
+  } = dataGenerator.generateRandomStakingTransaction(
+    network, 1
   );
-  const finalityProviderPkNoCoordHex = dataGenerator.generateRandomKeyPair().publicKeyNoCoord;
-  const { stakingTx, timelock} = dataGenerator.generateRandomStakingTransaction(
-    keys, feeRate, stakingAmount, "nativeSegwit", params,
-  );
-  const stakerPkNoCoordHex = keys.publicKeyNoCoord;
-  const stakerInfo = {
-    address: dataGenerator.getAddressAndScriptPubKey(keys.publicKey).nativeSegwit.address,
-    publicKeyNoCoordHex: keys.publicKeyNoCoord,
-    publicKeyWithCoord: keys.publicKey,
-  }
-  const staking = new Staking(
-    network, stakerInfo,
-    params, finalityProviderPkNoCoordHex, timelock,
-
-  );
-  const { transaction: unbondingTx } = staking.createUnbondingTransaction(
+  
+  const { transaction: unbondingTx } = stakingInstance.createUnbondingTransaction(
     stakingTx,
   );
-
 
   beforeEach(() => {
     jest.clearAllMocks();
@@ -46,7 +31,7 @@ describe.each(testingNetworks)("Create slashing transactions", ({
         throw new Error("slash early unbonded delegation build script error");
       });
       
-      expect(() => staking.createUnbondingOutputSlashingTransaction(
+      expect(() => stakingInstance.createUnbondingOutputSlashingTransaction(
         unbondingTx,
       )).toThrow("slash early unbonded delegation build script error");
     });
@@ -55,13 +40,13 @@ describe.each(testingNetworks)("Create slashing transactions", ({
       jest.spyOn(transaction, "slashEarlyUnbondedTransaction").mockImplementation(() => {
         throw new Error("fail to build slash tx");
       });
-      expect(() => staking.createUnbondingOutputSlashingTransaction(
+      expect(() => stakingInstance.createUnbondingOutputSlashingTransaction(
         unbondingTx,
       )).toThrow("fail to build slash tx");
     });
 
     it(`${networkName} should create slash early unbonded transaction`, () => {
-      const slashTx = staking.createUnbondingOutputSlashingTransaction(
+      const slashTx = stakingInstance.createUnbondingOutputSlashingTransaction(
         unbondingTx,
       );
       expect(slashTx.psbt.txInputs.length).toBe(1)
@@ -81,7 +66,7 @@ describe.each(testingNetworks)("Create slashing transactions", ({
       );
       // change output
       const unbondingTimelockScript = script.compile([
-        Buffer.from(stakerPkNoCoordHex, "hex"),
+        Buffer.from(stakerInfo.publicKeyNoCoordHex, "hex"),
         opcodes.OP_CHECKSIGVERIFY,
         script.number.encode(params.unbondingTime),
         opcodes.OP_CHECKSEQUENCEVERIFY,
@@ -109,7 +94,7 @@ describe.each(testingNetworks)("Create slashing transactions", ({
         params, finalityProviderPkNoCoordHex, timelock,
       );
 
-      expect(() => staking.createStakingOutputSlashingTransaction(
+      expect(() => stakingInstance.createStakingOutputSlashingTransaction(
         stakingTx,
       )).toThrow("slash timelock unbonded delegation build script error");
     });
@@ -119,13 +104,13 @@ describe.each(testingNetworks)("Create slashing transactions", ({
         throw new Error("fail to build slash tx");
       });
 
-      expect(() => staking.createStakingOutputSlashingTransaction(
+      expect(() => stakingInstance.createStakingOutputSlashingTransaction(
         stakingTx,
       )).toThrow("fail to build slash tx");
     });
 
     it(`${networkName} should create slash timelock unbonded transaction`, async () => {
-      const slashTx = staking.createStakingOutputSlashingTransaction(
+      const slashTx = stakingInstance.createStakingOutputSlashingTransaction(
         stakingTx,
       );
       expect(slashTx.psbt.txInputs.length).toBe(1)
@@ -135,7 +120,7 @@ describe.each(testingNetworks)("Create slashing transactions", ({
       // verify outputs
       expect(slashTx.psbt.txOutputs.length).toBe(2);
       // slash amount
-      const slashAmount = Math.floor(stakingAmount * params.slashing!.slashingRate);
+      const slashAmount = Math.floor(stakingAmountSat * params.slashing!.slashingRate);
       expect(slashTx.psbt.txOutputs[0].value).toBe(
         slashAmount,
       );
@@ -144,7 +129,7 @@ describe.each(testingNetworks)("Create slashing transactions", ({
       );
       // change output
       const unbondingTimelockScript = script.compile([
-        Buffer.from(stakerPkNoCoordHex, "hex"),
+        Buffer.from(stakerInfo.publicKeyNoCoordHex, "hex"),
         opcodes.OP_CHECKSIGVERIFY,
         script.number.encode(params.unbondingTime),
         opcodes.OP_CHECKSEQUENCEVERIFY,
@@ -155,7 +140,7 @@ describe.each(testingNetworks)("Create slashing transactions", ({
         network,
       });
       expect(slashTx.psbt.txOutputs[1].address).toBe(address);
-      const userFunds = stakingAmount - slashAmount - params.slashing!.minSlashingTxFeeSat;
+      const userFunds = stakingAmountSat - slashAmount - params.slashing!.minSlashingTxFeeSat;
       expect(slashTx.psbt.txOutputs[1].value).toBe(userFunds);
       expect(slashTx.psbt.locktime).toBe(0);
       expect(slashTx.psbt.version).toBe(2);

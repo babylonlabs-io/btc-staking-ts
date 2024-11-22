@@ -202,7 +202,6 @@ export class Staking {
    */
   public createUnbondingTransaction(
     stakingTx: Transaction,
-    covenantSigs?: CovenantSignature[],
   ) : TransactionResult {    
     // Build scripts
     const scripts = this.buildScripts();

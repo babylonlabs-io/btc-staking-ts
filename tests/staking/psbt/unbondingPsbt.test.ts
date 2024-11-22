@@ -3,6 +3,7 @@ import { stakingTransaction, unbondingTransaction } from "../../../src/index";
 import { DEFAULT_TEST_FEE_RATE, testingNetworks } from "../../helper";
 import { unbondingPsbt } from "../../../src/staking/psbt";
 import { internalPubkey } from "../../../src/constants/internalPubkey";
+import { BTC_DUST_SAT } from "../../../src/constants/dustSat";
 
 describe.each(testingNetworks)("Transactions - ", (
   {network, networkName, datagen}
@@ -12,7 +13,8 @@ describe.each(testingNetworks)("Transactions - ", (
   ) => {
     const mockScripts = dataGenerator.generateMockStakingScripts();
     const feeRate = DEFAULT_TEST_FEE_RATE;
-    const randomAmount = Math.floor(Math.random() * 100000000) + 1000;
+    const params = dataGenerator.generateStakingParams();
+    const randomAmount = Math.floor(Math.random() * 100000000) + 1000 + params.unbondingFeeSat + BTC_DUST_SAT;
     // Create enough utxos to cover the amount
     const utxos = dataGenerator.generateRandomUTXOs(
       randomAmount + 1000000, // let's give enough satoshis to cover the fee
@@ -21,7 +23,7 @@ describe.each(testingNetworks)("Transactions - ", (
     const randomChangeAddress = dataGenerator.getAddressAndScriptPubKey(
       dataGenerator.generateRandomKeyPair().publicKey,
     ).taproot.address;
-    const params = dataGenerator.generateStakingParams();
+    
     const tx = stakingTransaction(
       mockScripts,
       randomAmount,

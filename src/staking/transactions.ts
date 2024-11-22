@@ -631,7 +631,7 @@ export function unbondingTransaction(
   });
   const outputValue = stakingTx.outs[outputIndex].value - unbondingFee;
   if (outputValue < BTC_DUST_SAT) {
-    throw new Error("Output value is less than dust limit");
+    throw new Error("Output value is less than dust limit for unbonding transaction");
   }
   // Add the unbonding output
   if (!unbondingOutput.address) {
@@ -657,16 +657,30 @@ export const createWitness = (
   originalWitness: Buffer[],
   paramsCovenants: Buffer[],
   covenantSigs: CovenantSignature[],
+  covenantQuorum: number,
 ) => {
-  // map API response to Buffer values
-  const covenantSigsBuffers = covenantSigs.map((sig) => ({
-    btcPkHex: Buffer.from(sig.btcPkHex, "hex"),
-    sigHex: Buffer.from(sig.sigHex, "hex"),
-  }));
+  if (covenantSigs.length < covenantQuorum) {
+    throw new Error(`Not enough covenant signatures. Required: ${covenantQuorum}, got: ${covenantSigs.length}`);
+  }
+  // Verify all btcPkHex from covenantSigs exist in paramsCovenants
+  for (const sig of covenantSigs) {
+    const btcPkHexBuf = Buffer.from(sig.btcPkHex, "hex");
+    if (!paramsCovenants.some(covenant => covenant.equals(btcPkHexBuf))) {
+      throw new Error(`Covenant signature public key ${sig.btcPkHex} not found in params covenants`);
+    }
+  }
+  const covenantSigsBuffers = covenantSigs
+    .slice(0, covenantQuorum)
+    .map((sig) => ({
+      btcPkHex: Buffer.from(sig.btcPkHex, "hex"),
+      sigHex: Buffer.from(sig.sigHex, "hex"),
+    }));
+
   // we need covenant from params to be sorted in reverse order
   const paramsCovenantsSorted = [...paramsCovenants]
     .sort(Buffer.compare)
     .reverse();
+
   const composedCovenantSigs = paramsCovenantsSorted.map((covenant) => {
     // in case there's covenant with this btc_pk_hex we return the sig
     // otherwise we return empty Buffer
@@ -675,5 +689,6 @@ export const createWitness = (
     );
     return covenantSig?.sigHex || Buffer.alloc(0);
   });
+
   return [...composedCovenantSigs, ...originalWitness];
 };

@@ -10,21 +10,18 @@ import { deriveStakingOutputAddress, findMatchingStakingTxOutputIndex } from "..
 describe.each(testingNetworks)("Create unbonding transaction", ({
   network, networkName, datagen: { stakingDatagen : dataGenerator }
 }) => {
-  const params = dataGenerator.generateStakingParams(true);
-  const keys = dataGenerator.generateRandomKeyPair();
   const feeRate = 1;
-  const stakingAmount = dataGenerator.getRandomIntegerBetween(
-    params.minStakingAmountSat, params.maxStakingAmountSat,
+  const {
+    stakingTx,
+    timelock,
+    stakerInfo,
+    params,
+    finalityProviderPkNoCoordHex,
+    stakingAmountSat,
+  } = dataGenerator.generateRandomStakingTransaction(
+    network,
+    feeRate,
   );
-  const finalityProviderPkNoCoordHex = dataGenerator.generateRandomKeyPair().publicKeyNoCoord;
-  const { stakingTx, timelock} = dataGenerator.generateRandomStakingTransaction(
-    keys, feeRate, stakingAmount, "nativeSegwit", params,
-  );
-  const stakerInfo = {
-    address: dataGenerator.getAddressAndScriptPubKey(keys.publicKey).nativeSegwit.address,
-    publicKeyNoCoordHex: keys.publicKeyNoCoord,
-    publicKeyWithCoord: keys.publicKey,
-  }
   let staking: Staking;
 
   beforeEach(() => {
@@ -88,7 +85,7 @@ describe.each(testingNetworks)("Create unbonding transaction", ({
     // Validate PSBT input details
     expect(psbt.data.inputs[0].tapInternalKey).toEqual(internalPubkey);
     expect(psbt.data.inputs[0].tapLeafScript?.length).toBe(1);
-    expect(psbt.data.inputs[0].witnessUtxo?.value).toEqual(stakingAmount);
+    expect(psbt.data.inputs[0].witnessUtxo?.value).toEqual(stakingAmountSat);
     expect(psbt.data.inputs[0].witnessUtxo?.script).toEqual(
       stakingTx.outs[stakingOutputIndex].script
     );
@@ -96,8 +93,8 @@ describe.each(testingNetworks)("Create unbonding transaction", ({
     // Validate outputs
     expect(transaction.outs.length).toBe(1);
     expect(psbt.txOutputs.length).toBe(1);
-    expect(transaction.outs[0].value).toEqual(stakingAmount - params.unbondingFeeSat);
-    expect(psbt.txOutputs[0].value).toEqual(stakingAmount - params.unbondingFeeSat);
+    expect(transaction.outs[0].value).toEqual(stakingAmountSat - params.unbondingFeeSat);
+    expect(psbt.txOutputs[0].value).toEqual(stakingAmountSat - params.unbondingFeeSat);
 
     // Validate transaction and psbt match
     expect(psbt.txOutputs[0].script).toEqual(transaction.outs[0].script);

@@ -102,7 +102,7 @@ export const findMatchingStakingTxOutputIndex = (
   network: networks.Network,
 ) => {
   const index = stakingTx.outs.findIndex(output => {
-    return address.fromOutputScript(output.script, network);
+    return address.fromOutputScript(output.script, network) === stakingOutputAddress;
   });
 
   if (index === -1) {
@@ -158,7 +158,6 @@ export const validateStakingTxInputData = (
     );
   }
 }
-
 
 /**
  * Validate the staking parameters.

@@ -107,22 +107,11 @@ describe.each(testingNetworks)('Derive staking output address', ({
     stakingDatagen: dataGenerator
   }
 }) => {
-  const params = dataGenerator.generateStakingParams();
-  const keys = dataGenerator.generateRandomKeyPair();
   const feeRate = 1;
-  const stakingAmount = dataGenerator.getRandomIntegerBetween(
-    params.minStakingAmountSat, params.maxStakingAmountSat,
-  );
   const finalityProviderPkNoCoordHex = dataGenerator.generateRandomKeyPair().publicKeyNoCoord;
-  const { timelock} = dataGenerator.generateRandomStakingTransaction(
-    keys, feeRate, stakingAmount, "nativeSegwit", params,
+  const { timelock, stakerInfo, params } = dataGenerator.generateRandomStakingTransaction(
+    network, feeRate
   );
-  const stakerInfo = {
-    address: dataGenerator.getAddressAndScriptPubKey(keys.publicKey).nativeSegwit.address,
-    publicKeyNoCoordHex: keys.publicKeyNoCoord,
-    publicKeyWithCoord: keys.publicKey,
-  }
-  
 
   describe("should derive the staking output address from the scripts", () => {
     const staking = new Staking(

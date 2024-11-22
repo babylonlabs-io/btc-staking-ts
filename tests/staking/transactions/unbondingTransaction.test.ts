@@ -13,15 +13,12 @@ describe.each(testingNetworks)("Transactions - ", (
       initBTCCurve();
     });
     const stakerKeyPair = dataGenerator.generateRandomKeyPair();
-    const stakingAmount =
-      dataGenerator.getRandomIntegerBetween(1000, 100000) + 10000;
-    const { stakingTx} = dataGenerator.generateRandomStakingTransaction(
-      stakerKeyPair,
-      undefined,
-      stakingAmount,
+    const { stakingTx, stakingAmountSat } = dataGenerator.generateRandomStakingTransaction(
+      network, 1, stakerKeyPair
     );
     const stakingScripts =
       dataGenerator.generateMockStakingScripts(stakerKeyPair);
+
     describe(`${networkName} - `, () => {
       it("should throw an error if the unbonding fee is not postive number", () => {
         expect(() =>
@@ -42,7 +39,7 @@ describe.each(testingNetworks)("Transactions - ", (
       });
   
       it("should throw if output is less than dust limit", () => {
-        const unbondingFee = stakingAmount - BTC_DUST_SAT + 1;
+        const unbondingFee = stakingAmountSat - BTC_DUST_SAT + 1;
         expect(() =>
           unbondingTransaction(
             stakingScripts,
@@ -58,7 +55,7 @@ describe.each(testingNetworks)("Transactions - ", (
         const unbondingFee =
           dataGenerator.getRandomIntegerBetween(
             1,
-            stakingAmount - BTC_DUST_SAT - 1,
+            stakingAmountSat - BTC_DUST_SAT - 1,
           );
         const { transaction } = unbondingTransaction(
           stakingScripts,
@@ -70,7 +67,7 @@ describe.each(testingNetworks)("Transactions - ", (
         expect(transaction).toBeDefined();
         expect(transaction.outs.length).toBe(1);
         // check output value
-        expect(transaction.outs[0].value).toBe(stakingAmount - unbondingFee);
+        expect(transaction.outs[0].value).toBe(stakingAmountSat - unbondingFee);
   
         expect(transaction.locktime).toBe(0);
         expect(transaction.version).toBe(TRANSACTION_VERSION);

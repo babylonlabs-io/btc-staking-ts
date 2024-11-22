@@ -19,18 +19,16 @@ describe.each(testingNetworks)("Transactions - ", (
     const stakerKeyPair = dataGenerator.generateRandomKeyPair();
     const stakingScripts =
       dataGenerator.generateMockStakingScripts(stakerKeyPair);
-    const stakingAmount =
-      dataGenerator.getRandomIntegerBetween(1000, 100000) + 1000000;
-    const { stakingTx} = dataGenerator.generateRandomStakingTransaction(
-      stakerKeyPair,
+    const { stakingTx, stakingAmountSat} = dataGenerator.generateRandomStakingTransaction(
+      network,
       DEFAULT_TEST_FEE_RATE,
-      stakingAmount,
+      stakerKeyPair,
     );
     const slashingRate = dataGenerator.generateRandomSlashingRate();
-    const slashingAmount = Math.floor(stakingAmount * slashingRate);
+    const slashingAmount = Math.floor(stakingAmountSat * slashingRate);
     const minSlashingFee = dataGenerator.getRandomIntegerBetween(
       1,
-      stakingAmount - slashingAmount - BTC_DUST_SAT - 1,
+      stakingAmountSat - slashingAmount - BTC_DUST_SAT - 1,
     );
     const defaultOutputIndex = 0;
     const slashingPkScriptHex = getRandomPaymentScriptHex(
@@ -177,7 +175,7 @@ describe.each(testingNetworks)("Transactions - ", (
             stakingTx,
             slashingPkScriptHex,
             slashingRate,
-            Math.ceil(stakingAmount * (1 - slashingRate) + 1),
+            Math.ceil(stakingAmountSat * (1 - slashingRate) + 1),
             network,
             0,
           ),
@@ -200,7 +198,7 @@ describe.each(testingNetworks)("Transactions - ", (
         // first output shall send slashed amount to the slashing script
         expect(Buffer.from(psbt.txOutputs[0].script).toString("hex")).toBe(slashingPkScriptHex);
         expect(psbt.txOutputs[0].value).toBe(
-          Math.floor(stakingAmount * slashingRate),
+          Math.floor(stakingAmountSat * slashingRate),
         );
 
         // second output is the change output which send to unbonding timelock script address
@@ -211,8 +209,8 @@ describe.each(testingNetworks)("Transactions - ", (
         });
         expect(psbt.txOutputs[1].address).toBe(changeOutput.address);
         const expectedChangeOutputValue =
-          stakingAmount -
-          Math.floor(stakingAmount * slashingRate) -
+          stakingAmountSat -
+          Math.floor(stakingAmountSat * slashingRate) -
           minSlashingFee;
         expect(psbt.txOutputs[1].value).toBe(expectedChangeOutputValue);
       });
@@ -298,14 +296,14 @@ describe.each(testingNetworks)("Transactions - ", (
             unbondingTxWithLimitedAmount,
             slashingPkScriptHex,
             slashingRate,
-            Math.ceil(stakingAmount * (1 - slashingRate) + 1),
+            Math.ceil(stakingAmountSat * (1 - slashingRate) + 1),
             network,
           ),
         ).toThrow("User funds are less than dust limit");
       });
 
       it("should throw if its slashing amount is less than dust", () => {
-        const smallSlashingRate = BTC_DUST_SAT / stakingAmount;
+        const smallSlashingRate = BTC_DUST_SAT / stakingAmountSat;
         expect(() => 
           slashEarlyUnbondedTransaction(
             stakingScripts,

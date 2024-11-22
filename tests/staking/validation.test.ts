@@ -7,20 +7,13 @@ describe.each(testingNetworks)("Staking input validations", ({
 }) => {
   describe('validateDelegationInputs', () => {
     const params = dataGenerator.generateStakingParams(true);
-    const keys = dataGenerator.generateRandomKeyPair();
     const feeRate = 1;
-    const stakingAmount = dataGenerator.getRandomIntegerBetween(
-      params.minStakingAmountSat, params.maxStakingAmountSat,
+    const {
+      stakingTx, timelock, stakerInfo, finalityProviderPkNoCoordHex,
+    } = dataGenerator.generateRandomStakingTransaction(
+      network, feeRate, undefined, undefined, undefined, params,
     );
-    const finalityProviderPkNoCoordHex = dataGenerator.generateRandomKeyPair().publicKeyNoCoord;
-    const { stakingTx, timelock} = dataGenerator.generateRandomStakingTransaction(
-      keys, feeRate, stakingAmount, "nativeSegwit", params,
-    );
-    const stakerInfo = {
-      address: dataGenerator.getAddressAndScriptPubKey(keys.publicKey).nativeSegwit.address,
-      publicKeyNoCoordHex: keys.publicKeyNoCoord,
-    }
-
+    
     const stakingInstance = new Staking(
       network, stakerInfo,
       params, finalityProviderPkNoCoordHex, timelock,
