@@ -1,5 +1,5 @@
 import { payments } from "bitcoinjs-lib";
-import { getPublicKeyNoCoord, isTaproot, isValidNoCoordPublicKey } from '../../src/utils/btc';
+import { getPublicKeyNoCoord, isTaproot, isValidNoCoordPublicKey, transactionIdToHash } from '../../src/utils/btc';
 import { networks } from 'bitcoinjs-lib';
 import { testingNetworks } from '../helper';
 import { Staking } from '../../src';
@@ -160,5 +160,31 @@ describe.each(testingNetworks)('Derive staking output address', ({
     const scripts = staking.buildScripts();
     expect(() => deriveStakingOutputAddress(scripts, network))
       .toThrow("oops");
+  });
+});
+
+describe('transactionIdToHash', () => {
+  beforeEach(() => {
+    jest.clearAllMocks();
+    jest.restoreAllMocks();
+  });
+  describe.each(testingNetworks)('should correctly convert transaction id to hash', 
+  ({ datagen: { stakingDatagen: dataGenerator } }) => {
+    it('should correctly convert transaction id to hash', () => {
+      const utxos = dataGenerator.generateRandomUTXOs(1000, 5); // Generate multiple UTXOs to test
+      utxos.forEach(utxo => {
+        const txid = utxo.txid;
+        const expectedHash = Buffer.from(txid, 'hex').reverse();
+        const result = transactionIdToHash(txid);
+        expect(Buffer.isBuffer(result)).toBe(true);
+        expect(result).toEqual(expectedHash);
+        expect(result.toString('hex')).toBe(expectedHash.toString('hex'));
+      });
+    });
+
+    it('should throw an error if the transaction id is empty', () => {
+      const txId = '';
+      expect(() => transactionIdToHash(txId)).toThrow("Transaction id cannot be empty");
+    });
   });
 });

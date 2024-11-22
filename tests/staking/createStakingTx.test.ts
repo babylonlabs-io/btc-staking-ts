@@ -8,7 +8,7 @@ import { BTC_DUST_SAT } from "../../src/constants/dustSat";
 import { RBF_SEQUENCE } from "../../src/constants/psbt";
 import * as stakingUtils from "../../src/utils/staking";
 import * as stakingTx from "../../src/staking/transactions";
-import { Staking } from "../../src";
+import { Staking, transactionIdToHash } from "../../src";
 import { stakingPsbt } from "../../src/staking/psbt";
 
 describe.each(testingNetworks)("Create staking transaction", ({
@@ -163,7 +163,8 @@ describe.each(testingNetworks)("Create staking transaction", ({
       sum + (input.witnessUtxo?.value || 0), 0);
     const txInputAmount = transaction.ins.reduce((sum, input) => {
       const matchingUtxo = utxos.find(utxo => 
-        utxo.txid === input.hash.toString('hex') && utxo.vout === input.index);
+        transactionIdToHash(utxo.txid).toString("hex") === input.hash.toString("hex")
+          && utxo.vout === input.index);
       return sum + (matchingUtxo?.value || 0);
     }, 0);
 

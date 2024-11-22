@@ -5,7 +5,7 @@ import { BTC_DUST_SAT } from "../constants/dustSat";
 import { internalPubkey } from "../constants/internalPubkey";
 import { UTXO } from "../types/UTXO";
 import { PsbtResult, TransactionResult } from "../types/transaction";
-import { isValidBitcoinAddress } from "../utils/btc";
+import { isValidBitcoinAddress, transactionIdToHash } from "../utils/btc";
 import { getStakingTxInputUTXOsAndFees, getWithdrawTxFee } from "../utils/fee";
 import { inputValueSum } from "../utils/fee/utils";
 import { buildStakingTransactionOutputs } from "../utils/staking";
@@ -88,7 +88,7 @@ export function stakingTransaction(
   for (let i = 0; i < selectedUTXOs.length; ++i) {
     const input = selectedUTXOs[i];
     tx.addInput(
-      Buffer.from(input.txid, 'hex'),
+      transactionIdToHash(input.txid),
       input.vout,
       RBF_SEQUENCE,
     );

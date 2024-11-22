@@ -1,5 +1,5 @@
 import { address } from "bitcoinjs-lib";
-import { ObservableStaking } from "../../../src";
+import { ObservableStaking, transactionIdToHash } from "../../../src";
 import * as observableStakingScriptData from "../../../src/staking/observable/observableStakingScript";
 import { testingNetworks } from "../../helper";
 import { ObservableStakingParams } from "../../../src/types/params";
@@ -103,35 +103,39 @@ describe.each(testingNetworks)("Observal - Create staking transaction", ({
     expect(transaction).toBeDefined();
     expect(fee).toBeGreaterThan(0);
     
+    const psbt = observableStaking.createStakingPsbt(transaction, utxos);
     // Check the inputs
     expect(transaction.ins.length).toBeGreaterThan(0);
-    // expect(psbt.data.inputs[0].tapInternalKey?.toString("hex")).toEqual(stakerInfo.publicKeyNoCoordHex);
-    // expect(psbt.data.inputs[0].witnessUtxo?.script.toString("hex")).toEqual(utxos[0].scriptPubKey);
 
     // Check the outputs
     expect(transaction.outs.length).toBeGreaterThanOrEqual(1);
     // build the psbt input amount from psbt.data.inputs
     let psbtInputAmount = 0;
-    // for (let i = 0; i < psbt.data.inputs.length; i++) {
-    //   const newValue = psbt.data.inputs[i].witnessUtxo?.value || 0;
-    //   psbtInputAmount += newValue;
-    // }
+    for (let i = 0; i < psbt.data.inputs.length; i++) {
+      const newValue = psbt.data.inputs[i].witnessUtxo?.value || 0;
+      psbtInputAmount += newValue;
+    }
+    const psbtChangeAmount = psbtInputAmount - amount - fee;
+
+    let txInputAmount = 0;
     for (let i = 0; i < transaction.ins.length; i++) {
       const input = transaction.ins[i];
-      const utxo = utxos.find(u => 
-        u.txid === input.hash.toString('hex') && 
-        u.vout === input.index
+      const utxo = utxos.find(u =>
+        transactionIdToHash(u.txid).toString("hex") === input.hash.toString("hex")
+          && u.vout === input.index,
       );
-      psbtInputAmount += utxo?.value || 0;
+      txInputAmount += utxo?.value || 0;
     }
-    const changeAmount = psbtInputAmount - amount - fee;
-    expect(psbtInputAmount).toBeGreaterThanOrEqual(amount + fee);
+    const changeAmount = txInputAmount - amount - fee;
+    expect(txInputAmount).toBeGreaterThanOrEqual(amount + fee);
     if (changeAmount > BTC_DUST_SAT) {
       expect(transaction.outs[transaction.outs.length - 1].value).toEqual(changeAmount);
       expect(transaction.outs[transaction.outs.length - 1].script)
         .toEqual(address.toOutputScript(stakerInfo.address, network));
     }
     expect(transaction.outs[0].value).toEqual(amount);
+    expect(psbt.txOutputs[0].value).toEqual(amount);
+
 
     // Check the psbt properties
     expect(transaction.locktime).toBe(params.activationHeight - 1);
@@ -146,5 +150,11 @@ describe.each(testingNetworks)("Observal - Create staking transaction", ({
       output.script.equals(scripts.dataEmbedScript),
     );
     expect(dataEmbedOutput).toBeDefined();
+
+    expect(psbtChangeAmount).toEqual(changeAmount);
+    expect(psbtInputAmount).toEqual(txInputAmount);
+    // lock time and version are the same between psbt and transaction
+    expect(psbt.locktime).toEqual(transaction.locktime);
+    expect(psbt.version).toEqual(transaction.version);
   });
 });

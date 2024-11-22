@@ -6,6 +6,7 @@ import { NO_COORD_PK_BYTE_LENGTH } from "../constants/keys";
 import { internalPubkey } from "../constants/internalPubkey";
 import { Taptree } from "bitcoinjs-lib/src/types";
 import { CovenantSignature } from "../types/covenantSignatures";
+import { transactionIdToHash } from "../utils/btc";
 
 interface InputWitnessUtxo {
   script: Buffer;
@@ -19,12 +20,21 @@ interface InputWitnessUtxo {
  * @param {Input} input - The input to get the witness utxo for.
  * @returns {InputWitnessUtxo} - The witness utxo.
  */
-const getInputWitnessUtxo = (inputUTXOs: UTXO[], input: Input): InputWitnessUtxo => {
+const getInputWitnessUtxo = (
+  inputUTXOs: UTXO[],
+  input: Input,
+): InputWitnessUtxo => {
   const inputUTXO = inputUTXOs.find(
-    (utxo) => utxo.txid === input.hash.toString("hex") && utxo.vout === input.index,
+    (utxo) => {
+      return transactionIdToHash(utxo.txid).toString("hex") === input.hash.toString("hex")
+        && utxo.vout === input.index;
+    }
   );
   if (!inputUTXO) {
-    throw new Error(`Input UTXO not found for txid: ${input.hash.toString("hex")} and vout: ${input.index}`);
+    throw new Error(
+      `Input UTXO not found for txid: ${input.hash.toString("hex")} `
+      + `and vout: ${input.index}`
+    );
   }
   return {
     script: Buffer.from(inputUTXO.scriptPubKey, "hex"),

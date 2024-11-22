@@ -1,7 +1,7 @@
 import { address } from "bitcoinjs-lib";
 import { BTC_DUST_SAT } from "../../../src/constants/dustSat";
 import { RBF_SEQUENCE } from "../../../src/constants/psbt";
-import { StakingScripts, stakingTransaction, UTXO } from "../../../src/index";
+import { StakingScripts, stakingTransaction, transactionIdToHash, UTXO } from "../../../src/index";
 import { ObservableStakingScripts } from "../../../src/staking/observable";
 import { TransactionResult } from "../../../src/types/transaction";
 import { getStakingTxInputUTXOsAndFees } from "../../../src/utils/fee";
@@ -332,7 +332,10 @@ describe.each(testingNetworks)("Transactions - ", (
     const inputAmount = transaction.ins.reduce(
       (sum, input) => {
         const id = input.hash.toString("hex");
-        const utxo = utxos.find((utxo) => utxo.txid === id && utxo.vout === input.index);
+        const utxo = utxos.find((utxo) =>
+          transactionIdToHash(utxo.txid).toString("hex") === id
+            && utxo.vout === input.index,
+        );
         return sum + utxo!.value;
       },
       0,
