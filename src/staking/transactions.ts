@@ -10,6 +10,7 @@ import { getStakingTxInputUTXOsAndFees, getWithdrawTxFee } from "../utils/fee";
 import { inputValueSum } from "../utils/fee/utils";
 import { buildStakingTransactionOutputs } from "../utils/staking";
 import { NON_RBF_SEQUENCE, TRANSACTION_VERSION, RBF_SEQUENCE } from "../constants/psbt";
+import { CovenantSignature } from "../types/covenantSignatures";
 
 // https://bips.xyz/370
 const BTC_LOCKTIME_HEIGHT_TIME_CUTOFF = 500000000;
@@ -655,15 +656,12 @@ export function unbondingTransaction(
 export const createWitness = (
   originalWitness: Buffer[],
   paramsCovenants: Buffer[],
-  covenantSigs: {
-    btc_pk_hex: string;
-    sig_hex: string;
-  }[],
+  covenantSigs: CovenantSignature[],
 ) => {
   // map API response to Buffer values
   const covenantSigsBuffers = covenantSigs.map((sig) => ({
-    btc_pk_hex: Buffer.from(sig.btc_pk_hex, "hex"),
-    sig_hex: Buffer.from(sig.sig_hex, "hex"),
+    btcPkHex: Buffer.from(sig.btcPkHex, "hex"),
+    sigHex: Buffer.from(sig.sigHex, "hex"),
   }));
   // we need covenant from params to be sorted in reverse order
   const paramsCovenantsSorted = [...paramsCovenants]
@@ -673,9 +671,9 @@ export const createWitness = (
     // in case there's covenant with this btc_pk_hex we return the sig
     // otherwise we return empty Buffer
     const covenantSig = covenantSigsBuffers.find(
-      (sig) => sig.btc_pk_hex.compare(covenant) === 0,
+      (sig) => sig.btcPkHex.compare(covenant) === 0,
     );
-    return covenantSig?.sig_hex || Buffer.alloc(0);
+    return covenantSig?.sigHex || Buffer.alloc(0);
   });
   return [...composedCovenantSigs, ...originalWitness];
 };
