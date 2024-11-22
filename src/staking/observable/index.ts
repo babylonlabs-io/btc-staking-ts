@@ -9,7 +9,6 @@ import { ObservableStakingScriptData, ObservableStakingScripts } from "./observa
 import { StakerInfo, Staking } from "..";
 import { networks, Psbt, Transaction } from "bitcoinjs-lib";
 import { stakingPsbt, unbondingPsbt } from "../psbt";
-import { CovenantSignature } from "../../types/covenantSignatures";
 export * from "./observableStakingScript";
 
 /**

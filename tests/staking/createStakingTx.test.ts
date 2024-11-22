@@ -9,7 +9,6 @@ import { RBF_SEQUENCE } from "../../src/constants/psbt";
 import * as stakingUtils from "../../src/utils/staking";
 import * as stakingTx from "../../src/staking/transactions";
 import { Staking, transactionIdToHash } from "../../src";
-import { stakingPsbt } from "../../src/staking/psbt";
 
 describe.each(testingNetworks)("Create staking transaction", ({
   network, networkName, datagen: { stakingDatagen: dataGenerator }

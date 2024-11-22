@@ -1,11 +1,10 @@
 
 import { UTXO } from "../types/UTXO";
-import { Psbt, Transaction, networks, payments, crypto } from "bitcoinjs-lib";
+import { Psbt, Transaction, networks, payments } from "bitcoinjs-lib";
 import { Input } from "bitcoinjs-lib/src/transaction";
 import { NO_COORD_PK_BYTE_LENGTH } from "../constants/keys";
 import { internalPubkey } from "../constants/internalPubkey";
 import { Taptree } from "bitcoinjs-lib/src/types";
-import { CovenantSignature } from "../types/covenantSignatures";
 import { transactionIdToHash } from "../utils/btc";
 
 interface InputWitnessUtxo {

@@ -41,11 +41,9 @@ const setupTestData = (
   };
 };
 
-// describe.each(testingNetworks)("withdrawTransaction", (
-//   { networkName, network, datagen }
-// ) => {
-describe("withdrawTransaction", () => {
-  const { datagen, network, networkName } = testingNetworks[0];
+describe.each(testingNetworks)("withdrawTransaction", (
+  { networkName, network, datagen }
+) => {
   describe.each(Object.values(datagen))("withdrawTransaction", (
     dataGenerator
   ) => {

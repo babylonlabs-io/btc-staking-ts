@@ -24,7 +24,6 @@ import {
 import { PsbtResult, TransactionResult } from "../types/transaction";
 import { toBuffers } from "../utils/staking";
 import { stakingPsbt, unbondingPsbt } from "./psbt";
-import { CovenantSignature } from "../types/covenantSignatures";
 export * from "./stakingScript";
 
 export interface StakerInfo {

@@ -1,5 +1,7 @@
 import { payments } from "bitcoinjs-lib";
-import { getPublicKeyNoCoord, isTaproot, isValidNoCoordPublicKey, transactionIdToHash } from '../../src/utils/btc';
+import {
+  getPublicKeyNoCoord, isTaproot, isValidNoCoordPublicKey, transactionIdToHash,
+} from '../../src/utils/btc';
 import { networks } from 'bitcoinjs-lib';
 import { testingNetworks } from '../helper';
 import { Staking } from '../../src';

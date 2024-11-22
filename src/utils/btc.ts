@@ -112,7 +112,7 @@ const validateNoCoordPublicKeyBuffer = (pkBuffer: Buffer): boolean => {
  * @returns {Buffer} - The transaction hash.
  */
 export const transactionIdToHash = (txId: string): Buffer => {
-  if (txId === '') {
+  if (txId === "") {
     throw new Error("Transaction id cannot be empty");
   }
   return Buffer.from(txId, 'hex').reverse();
