@@ -264,13 +264,14 @@ export class Staking {
   /**
    * Create a withdrawal transaction that spends an unbonding transaction.
    * 
-   * @param {Transaction} unbondingTx - The unbonding transaction to withdraw from.
+   * @param {Transaction} earlyUnbondedTx - The transaction to withdraw from, it can be
+   * an unbonding transaction or a slashing unbonded transaction.
    * @param {number} feeRate - The fee rate for the transaction in satoshis per byte.
    * @returns {PsbtResult} - An object containing the unsigned psbt and fee
    * @throws {StakingError} - If the delegation is invalid or the transaction cannot be built
    */
   public createWithdrawEarlyUnbondedTransaction (
-    unbondingTx: Transaction,
+    earlyUnbondedTx: Transaction,
     feeRate: number,
   ): PsbtResult {
     // Build scripts
@@ -280,7 +281,7 @@ export class Staking {
     try {
       return withdrawEarlyUnbondedTransaction(
         scripts,
-        unbondingTx,
+        earlyUnbondedTx,
         this.stakerInfo.address,
         this.network,
         feeRate,
