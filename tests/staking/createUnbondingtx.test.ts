@@ -57,7 +57,7 @@ describe.each(testingNetworks)("Create unbonding transaction", ({
     // Create transaction and psbt
     const { transaction } = staking.createUnbondingTransaction(stakingTx);
     const scripts = staking.buildScripts();
-    const psbt = staking.createUnbondingPsbt(transaction, stakingTx);
+    const psbt = staking.toUnbondingPsbt(transaction, stakingTx);
 
     // Basic validation
     expect(transaction.version).toBe(2);

@@ -652,23 +652,34 @@ export function unbondingTransaction(
   };
 }
 
-// this function is used to create witness for unbonding transaction
-export const createWitness = (
+// This function attaches covenant signatures as the transaction's witness
+// Note that the witness script expects exactly covenantQuorum number of signatures
+// to match the covenant parameters.
+export const createCovenantWitness = (
   originalWitness: Buffer[],
   paramsCovenants: Buffer[],
   covenantSigs: CovenantSignature[],
   covenantQuorum: number,
 ) => {
   if (covenantSigs.length < covenantQuorum) {
-    throw new Error(`Not enough covenant signatures. Required: ${covenantQuorum}, got: ${covenantSigs.length}`);
+    throw new Error(
+      `Not enough covenant signatures. Required: ${covenantQuorum}, `
+      + `got: ${covenantSigs.length}`
+    );
   }
   // Verify all btcPkHex from covenantSigs exist in paramsCovenants
   for (const sig of covenantSigs) {
     const btcPkHexBuf = Buffer.from(sig.btcPkHex, "hex");
     if (!paramsCovenants.some(covenant => covenant.equals(btcPkHexBuf))) {
-      throw new Error(`Covenant signature public key ${sig.btcPkHex} not found in params covenants`);
+      throw new Error(
+        `Covenant signature public key ${sig.btcPkHex} not found in params covenants`
+      );
     }
   }
+  // We only take exactly covenantQuorum number of signatures, even if more are provided.
+  // Including extra signatures will cause the unbonding transaction to fail validation.
+  // This is because the witness script expects exactly covenantQuorum number of signatures
+  // to match the covenant parameters.
   const covenantSigsBuffers = covenantSigs
     .slice(0, covenantQuorum)
     .map((sig) => ({

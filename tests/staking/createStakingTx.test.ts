@@ -139,7 +139,7 @@ describe.each(testingNetworks)("Create staking transaction", ({
       utxos,
       feeRate,
     );
-    const psbt = staking.createStakingPsbt(transaction, utxos);
+    const psbt = staking.toStakingPsbt(transaction, utxos);
 
     // Basic validation
     expect(transaction).toBeDefined();

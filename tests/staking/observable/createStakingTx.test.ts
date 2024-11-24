@@ -103,7 +103,7 @@ describe.each(testingNetworks)("Observal - Create staking transaction", ({
     expect(transaction).toBeDefined();
     expect(fee).toBeGreaterThan(0);
     
-    const psbt = observableStaking.createStakingPsbt(transaction, utxos);
+    const psbt = observableStaking.toStakingPsbt(transaction, utxos);
     // Check the inputs
     expect(transaction.ins.length).toBeGreaterThan(0);
 

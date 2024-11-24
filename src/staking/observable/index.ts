@@ -7,8 +7,8 @@ import { toBuffers, validateStakingTxInputData } from "../../utils/staking";
 import { TransactionResult } from "../../types/transaction";
 import { ObservableStakingScriptData, ObservableStakingScripts } from "./observableStakingScript";
 import { StakerInfo, Staking } from "..";
-import { networks, Psbt, Transaction } from "bitcoinjs-lib";
-import { stakingPsbt, unbondingPsbt } from "../psbt";
+import { networks } from "bitcoinjs-lib";
+import { stakingPsbt } from "../psbt";
 export * from "./observableStakingScript";
 
 /**
@@ -158,25 +158,5 @@ export class ObservableStaking extends Staking {
         "Cannot build unsigned staking transaction",
       );
     }
-  };
-
-   /**
-   * Create an unbonding psbt based on the existing unbonding transaction and
-   * staking transaction.
-   * 
-   * @param {Transaction} unbondingTx - The unbonding transaction.
-   * @param {Transaction} stakingTx - The staking transaction.
-   * @returns {Psbt} - The psbt.
-   */
-   public createUnbondingPsbt(
-    unbondingTx: Transaction,
-    stakingTx: Transaction,
-  ): Psbt {
-    return unbondingPsbt(
-      this.buildScripts(),
-      unbondingTx,
-      stakingTx,
-      this.network,
-    );
   }
 }

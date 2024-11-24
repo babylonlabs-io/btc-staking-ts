@@ -1,7 +1,7 @@
 import { Buffer } from "buffer";
-import { createWitness } from "../../src";
+import { createCovenantWitness } from "../../src";
 
-describe("createWitness", () => {
+describe("createCovenantWitness", () => {
   it("should return only originalWitness if no matches found", () => {
     const originalWitness = [Buffer.from("originalWitness1", "utf-8")];
     const paramsCovenants = [Buffer.from("covenant1", "utf-8")];
@@ -11,7 +11,7 @@ describe("createWitness", () => {
     ];
     const covenantQuorum = 1;
 
-    expect(() => createWitness(
+    expect(() => createCovenantWitness(
       originalWitness,
       paramsCovenants,
       covenantSigs,
@@ -35,7 +35,7 @@ describe("createWitness", () => {
     ];
     const covenantQuorum = 2;
 
-    const result = createWitness(
+    const result = createCovenantWitness(
       originalWitness,
       paramsCovenants,
       covenantSigs,
@@ -61,7 +61,7 @@ describe("createWitness", () => {
     ];
     const covenantQuorum = 2;
 
-    expect(() => createWitness(
+    expect(() => createCovenantWitness(
       originalWitness,
       paramsCovenants,
       covenantSigs,
@@ -77,7 +77,7 @@ describe("createWitness", () => {
     ];
     const covenantQuorum = 1;
 
-    expect(() => createWitness(
+    expect(() => createCovenantWitness(
       originalWitness,
       paramsCovenants,
       covenantSigs,

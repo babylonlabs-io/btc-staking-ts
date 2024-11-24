@@ -43,7 +43,7 @@ describe.each(testingNetworks)("Staking input validations", ({
         throw new Error('Staking transaction output index is out of range');
       });
       expect(() => {
-        stakingInstance.createWithdrawTimelockUnbondedTransaction(
+        stakingInstance.createWithdrawStakingExpiredTransaction(
           stakingTx, feeRate,
         );
       }).toThrow('Staking transaction output index is out of range');

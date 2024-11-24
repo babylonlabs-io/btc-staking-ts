@@ -15,7 +15,7 @@ interface InputWitnessUtxo {
 /**
  * Get the input witness utxo for the staking transaction.
  * 
- * @param {UTXO[]} inputUTXOs - The UTXOs to use as inputs for the staking transaction.
+ * @param {UTXO[]} inputUTXOs - The UTXOs to used as inputs for the staking transaction.
  * @param {Input} input - The input to get the witness utxo for.
  * @returns {InputWitnessUtxo} - The witness utxo.
  */
@@ -46,7 +46,7 @@ const getInputWitnessUtxo = (
  * 
  * @param {Transaction} stakingTx - The staking transaction to convert to psbt.
  * @param {networks.Network} network - The network to use for the psbt.
- * @param {UTXO[]} inputUTXOs - The UTXOs to use as inputs for the staking transaction.
+ * @param {UTXO[]} inputUTXOs - The UTXOs to used as inputs for the staking transaction.
  * @param {Buffer} publicKeyNoCoord - The public key for the staker in no-coordination format.
  * @returns {Psbt} - The psbt for the staking transaction.
  */
@@ -100,6 +100,13 @@ export const unbondingPsbt = (
   stakingTx: Transaction,
   network: networks.Network,
 ) => {
+  if (unbondingTx.outs.length !== 1) {
+    throw new Error("Unbonding transaction must have exactly one output");
+  }
+  if (unbondingTx.ins.length !== 1) {
+    throw new Error("Unbonding transaction must have exactly one input");
+  }
+
   const psbt = new Psbt({ network });
   if (unbondingTx.version !== undefined) {
     psbt.setVersion(unbondingTx.version);
@@ -108,7 +115,6 @@ export const unbondingPsbt = (
     psbt.setLocktime(unbondingTx.locktime);
   }
 
-  // Unbonding transaction only has one input
   const input = unbondingTx.ins[0];
   const outputIndex = input.index;
 
@@ -150,11 +156,9 @@ export const unbondingPsbt = (
     tapLeafScript: [inputTapLeafScript],
   });
 
-  unbondingTx.outs.forEach((o) => {
-    psbt.addOutput({
-      script: o.script,
-      value: o.value,
-    });
+  psbt.addOutput({
+    script: unbondingTx.outs[0].script,
+    value: unbondingTx.outs[0].value,
   });
 
   return psbt;

@@ -177,7 +177,7 @@ export class Staking {
    * be included in this array.
    * @returns {Psbt} - The psbt.
    */
-  public createStakingPsbt(
+  public toStakingPsbt(
     stakingTx: Transaction,
     inputUTXOs: UTXO[],
   ): Psbt {
@@ -249,7 +249,7 @@ export class Staking {
    * 
    * @returns {Psbt} - The psbt.
    */
-  public createUnbondingPsbt(
+  public toUnbondingPsbt(
     unbondingTx: Transaction,
     stakingTx: Transaction,
   ): Psbt {
@@ -262,13 +262,17 @@ export class Staking {
   }
 
   /**
-   * Create a withdrawal transaction that spends an unbonding transaction.
+   * Creates a withdrawal transaction that spends from an unbonding or slashing
+   * transaction. The timelock on the input transaction must have expired before
+   * this withdrawal can be valid.
    * 
-   * @param {Transaction} earlyUnbondedTx - The transaction to withdraw from, it can be
-   * an unbonding transaction or a slashing unbonded transaction.
-   * @param {number} feeRate - The fee rate for the transaction in satoshis per byte.
-   * @returns {PsbtResult} - An object containing the unsigned psbt and fee
-   * @throws {StakingError} - If the delegation is invalid or the transaction cannot be built
+   * @param {Transaction} earlyUnbondedTx - The unbonding or slashing
+   * transaction to withdraw from
+   * @param {number} feeRate - Fee rate in satoshis per byte for the withdrawal
+   * transaction
+   * @returns {PsbtResult} - Contains the unsigned PSBT and fee amount
+   * @throws {StakingError} - If the input transaction is invalid or withdrawal
+   * transaction cannot be built
    */
   public createWithdrawEarlyUnbondedTransaction (
     earlyUnbondedTx: Transaction,
@@ -303,7 +307,7 @@ export class Staking {
    * @returns {PsbtResult} - An object containing the unsigned psbt and fee
    * @throws {StakingError} - If the delegation is invalid or the transaction cannot be built
    */
-  public createWithdrawTimelockUnbondedTransaction(
+  public createWithdrawStakingExpiredTransaction(
     stakingTx: Transaction,
     feeRate: number,
   ): PsbtResult {

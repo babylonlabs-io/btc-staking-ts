@@ -4,6 +4,7 @@ import { DEFAULT_TEST_FEE_RATE, testingNetworks } from "../../helper";
 import { unbondingPsbt } from "../../../src/staking/psbt";
 import { internalPubkey } from "../../../src/constants/internalPubkey";
 import { BTC_DUST_SAT } from "../../../src/constants/dustSat";
+import { Transaction } from "bitcoinjs-lib";
 
 describe.each(testingNetworks)("Transactions - ", (
   {network, networkName, datagen}
@@ -14,7 +15,9 @@ describe.each(testingNetworks)("Transactions - ", (
     const mockScripts = dataGenerator.generateMockStakingScripts();
     const feeRate = DEFAULT_TEST_FEE_RATE;
     const params = dataGenerator.generateStakingParams();
-    const randomAmount = Math.floor(Math.random() * 100000000) + 1000 + params.unbondingFeeSat + BTC_DUST_SAT;
+    const randomAmount = Math.floor(
+      Math.random() * 100000000
+    ) + 1000 + params.unbondingFeeSat + BTC_DUST_SAT;
     // Create enough utxos to cover the amount
     const utxos = dataGenerator.generateRandomUTXOs(
       randomAmount + 1000000, // let's give enough satoshis to cover the fee
@@ -67,6 +70,39 @@ describe.each(testingNetworks)("Transactions - ", (
       // Check the psbt properties
       expect(psbt.locktime).toBe(0);
       expect(psbt.version).toBe(2);
+    });
+
+    it(`${networkName} - should throw error if unbonding tx has more than one output`, () => {
+      // Create a copy of unbonding tx and add another output
+      const invalidUnbondingTx = Transaction.fromBuffer(unbondingTx.transaction.toBuffer());
+      invalidUnbondingTx.addOutput(
+        tx.transaction.outs[0].script,
+        1000
+      );
+
+      expect(() => unbondingPsbt(
+        mockScripts,
+        invalidUnbondingTx,
+        tx.transaction,
+        network,
+      )).toThrow("Unbonding transaction must have exactly one output");
+    });
+
+    it(`${networkName} - should throw error if unbonding tx has more than one input`, () => {
+      // Create a copy of unbonding tx and add another input
+      const invalidUnbondingTx = Transaction.fromBuffer(unbondingTx.transaction.toBuffer());
+      invalidUnbondingTx.addInput(
+        tx.transaction.getHash(),
+        1,
+        NON_RBF_SEQUENCE
+      );
+
+      expect(() => unbondingPsbt(
+        mockScripts,
+        invalidUnbondingTx,
+        tx.transaction,
+        network,
+      )).toThrow("Unbonding transaction must have exactly one input");
     });
   });
 });
