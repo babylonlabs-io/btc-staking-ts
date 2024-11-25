@@ -4,10 +4,11 @@ import { StakingError, StakingErrorCode } from "../../error";
 import { stakingTransaction } from "../transactions";
 import { isTaproot } from "../../utils/btc";
 import { toBuffers, validateStakingTxInputData } from "../../utils/staking";
-import { PsbtTransactionResult } from "../../types/transaction";
+import { TransactionResult } from "../../types/transaction";
 import { ObservableStakingScriptData, ObservableStakingScripts } from "./observableStakingScript";
 import { StakerInfo, Staking } from "..";
 import { networks } from "bitcoinjs-lib";
+import { stakingPsbt } from "../psbt";
 export * from "./observableStakingScript";
 
 /**
@@ -104,13 +105,14 @@ export class ObservableStaking extends Staking {
    * @param {UTXO[]} inputUTXOs - The UTXOs to use as inputs for the staking 
    * transaction.
    * @param {number} feeRate - The fee rate for the transaction in satoshis per byte.
-   * @returns {PsbtTransactionResult} - An object containing the unsigned psbt and fee
+   * @returns {TransactionResult} - An object containing the unsigned transaction,
+   * and fee
    */
   public createStakingTransaction(
     stakingAmountSat: number,
     inputUTXOs: UTXO[],
     feeRate: number,
-  ): PsbtTransactionResult{
+  ): TransactionResult {
     validateStakingTxInputData(
       stakingAmountSat,
       this.stakingTimelock,
@@ -123,25 +125,38 @@ export class ObservableStaking extends Staking {
 
     // Create the staking transaction
     try {
-      return stakingTransaction(
+      const { transaction, fee } = stakingTransaction(
         scripts,
         stakingAmountSat,
         this.stakerInfo.address,
         inputUTXOs,
         this.network,
         feeRate,
-        isTaproot(this.stakerInfo.address, this.network) ? Buffer.from(this.stakerInfo.publicKeyNoCoordHex, "hex") : undefined,
         // `lockHeight` is exclusive of the provided value.
         // For example, if a Bitcoin height of X is provided,
         // the transaction will be included starting from height X+1.
         // https://learnmeabitcoin.com/technical/transaction/locktime/
         this.params.activationHeight - 1,
       );
+      
+      stakingPsbt(
+        transaction,
+        this.network,
+        inputUTXOs,
+        isTaproot(
+          this.stakerInfo.address, this.network
+        ) ? Buffer.from(this.stakerInfo.publicKeyNoCoordHex, "hex") : undefined,
+      );
+
+      return {
+        transaction,
+        fee,
+      };
     } catch (error: unknown) {
       throw StakingError.fromUnknown(
         error, StakingErrorCode.BUILD_TRANSACTION_FAILURE,
         "Cannot build unsigned staking transaction",
       );
     }
-  };
+  }
 }

@@ -1,7 +1,7 @@
 import { UTXO } from "../../../src/types/UTXO";
-import { PsbtOutputExtended } from "../../../src/types/psbtOutputs";
+import { TransactionOutput } from "../../../src/types/psbtOutputs";
 import { getStakingTxInputUTXOsAndFees } from "../../../src/utils/fee";
-import { buildStakingOutput } from "../../../src/utils/staking";
+import { buildStakingTransactionOutputs } from "../../../src/utils/staking";
 import { DEFAULT_TEST_FEE_RATE, testingNetworks } from "../../helper";
 
 describe.each(testingNetworks)("utils - fee - ", (
@@ -15,10 +15,9 @@ describe.each(testingNetworks)("utils - fee - ", (
 
       it("should throw an error if there are no available UTXOs", () => {
         const availableUTXOs: UTXO[] = [];
-        const outputs: PsbtOutputExtended[] = [];
+        const outputs: TransactionOutput[] = [];
         expect(() =>
           getStakingTxInputUTXOsAndFees(
-            network,
             availableUTXOs,
             randomAmount,
             feeRate,
@@ -32,10 +31,9 @@ describe.each(testingNetworks)("utils - fee - ", (
           randomAmount + 1,
           Math.floor(Math.random() * 10) + 1,
         );
-        const outputs = buildStakingOutput(mockScripts, network, randomAmount);
+        const outputs = buildStakingTransactionOutputs(mockScripts, network, randomAmount);
         expect(() =>
           getStakingTxInputUTXOsAndFees(
-            network,
             availableUTXOs,
             randomAmount,
             feeRate,
@@ -51,10 +49,9 @@ describe.each(testingNetworks)("utils - fee - ", (
           randomAmount + 10000000, // give enough satoshis to cover the fee
           Math.floor(Math.random() * 10) + 1,
         );
-        const outputs = buildStakingOutput(mockScripts, network, randomAmount);
+        const outputs = buildStakingTransactionOutputs(mockScripts, network, randomAmount);
 
         const result = getStakingTxInputUTXOsAndFees(
-          network,
           availableUTXOs,
           randomAmount,
           feeRate,
@@ -92,10 +89,9 @@ describe.each(testingNetworks)("utils - fee - ", (
           },
         ];
 
-        const outputs = buildStakingOutput(mockScripts, network, stakeAmount);
+        const outputs = buildStakingTransactionOutputs(mockScripts, network, stakeAmount);
         // Manually setting fee rate less than 2 so that the fee calculation included ESTIMATION_ACCUARACY_BUFFER
         let result = getStakingTxInputUTXOsAndFees(
-          network,
           availableUTXOs,
           stakeAmount,
           1,
@@ -109,7 +105,6 @@ describe.each(testingNetworks)("utils - fee - ", (
         expect(result.selectedUTXOs.length).toEqual(2);
 
         result = getStakingTxInputUTXOsAndFees(
-          network,
           availableUTXOs,
           stakeAmount,
           2,
@@ -124,7 +119,6 @@ describe.each(testingNetworks)("utils - fee - ", (
 
         // Once fee rate is set to 3, the fee will be calculated with addition of TX_BUFFER_SIZE_OVERHEAD * feeRate
         result = getStakingTxInputUTXOsAndFees(
-          network,
           availableUTXOs,
           stakeAmount,
           3,
@@ -158,9 +152,8 @@ describe.each(testingNetworks)("utils - fee - ", (
           },
         ];
 
-        const outputs = buildStakingOutput(mockScripts, network, stakeAmount);
+        const outputs = buildStakingTransactionOutputs(mockScripts, network, stakeAmount);
         const result = getStakingTxInputUTXOsAndFees(
-          network,
           availableUTXOs,
           stakeAmount,
           1,
@@ -194,9 +187,8 @@ describe.each(testingNetworks)("utils - fee - ", (
           },
         ];
 
-        const outputs = buildStakingOutput(mockScripts, network, stakeAmount);
+        const outputs = buildStakingTransactionOutputs(mockScripts, network, stakeAmount);
         const result = getStakingTxInputUTXOsAndFees(
-          network,
           availableUTXOs,
           stakeAmount,
           1,
@@ -230,9 +222,8 @@ describe.each(testingNetworks)("utils - fee - ", (
           },
         ];
 
-        const outputs = buildStakingOutput(mockScripts, network, stakeAmount);
+        const outputs = buildStakingTransactionOutputs(mockScripts, network, stakeAmount);
         const result = getStakingTxInputUTXOsAndFees(
-          network,
           availableUTXOs,
           stakeAmount,
           1,

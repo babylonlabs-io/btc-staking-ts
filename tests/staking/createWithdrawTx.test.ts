@@ -2,34 +2,22 @@ import * as stakingScript from "../../src/staking/stakingScript";
 import { testingNetworks } from "../helper";
 import * as transaction from "../../src/staking/transactions";
 import { getWithdrawTxFee } from "../../src/utils/fee";
-import { Staking } from "../../src/staking";
 
 describe.each(testingNetworks)("Create withdrawal transactions", ({
   network, networkName, datagen: { stakingDatagen: dataGenerator }
 }) => {
-  const params = dataGenerator.generateStakingParams(true);
-  const keys = dataGenerator.generateRandomKeyPair();
   const feeRate = 1;
-  const stakingAmount = dataGenerator.getRandomIntegerBetween(
-    params.minStakingAmountSat, params.maxStakingAmountSat,
-  );
-  const finalityProviderPkNoCoordHex = dataGenerator.generateRandomKeyPair().publicKeyNoCoord;
-  const { stakingTx, timelock} = dataGenerator.generateRandomStakingTransaction(
-    keys, feeRate, stakingAmount, "nativeSegwit", params,
-  );
-  const stakerInfo = {
-    address: dataGenerator.getAddressAndScriptPubKey(keys.publicKey).nativeSegwit.address,
-    publicKeyNoCoordHex: keys.publicKeyNoCoord,
-    publicKeyWithCoord: keys.publicKey,
-  }
-  const staking = new Staking(
-    network, stakerInfo,
-    params, finalityProviderPkNoCoordHex, timelock,
-  );
-  const unbondingTx = staking.createUnbondingTransaction(
+  const {
     stakingTx,
-  ).psbt.signAllInputs(keys.keyPair).finalizeAllInputs().extractTransaction();
-
+    stakerInfo,
+    stakingInstance,
+  } = dataGenerator.generateRandomStakingTransaction(
+    network, feeRate,
+  );
+  
+  const { transaction: unbondingTx } = stakingInstance.createUnbondingTransaction(
+    stakingTx,
+  );
 
   beforeEach(() => {
     jest.clearAllMocks();
@@ -43,7 +31,7 @@ describe.each(testingNetworks)("Create withdrawal transactions", ({
         throw new Error("withdraw early unbonded delegation build script error");
       });
       
-      expect(() => staking.createWithdrawEarlyUnbondedTransaction(
+      expect(() => stakingInstance.createWithdrawEarlyUnbondedTransaction(
         unbondingTx,
         feeRate,
       )).toThrow("withdraw early unbonded delegation build script error");
@@ -53,14 +41,14 @@ describe.each(testingNetworks)("Create withdrawal transactions", ({
       jest.spyOn(transaction, "withdrawEarlyUnbondedTransaction").mockImplementation(() => {
         throw new Error("fail to build withdraw tx");
       });
-      expect(() => staking.createWithdrawEarlyUnbondedTransaction(
+      expect(() => stakingInstance.createWithdrawEarlyUnbondedTransaction(
         unbondingTx,
         feeRate,
       )).toThrow("fail to build withdraw tx");
     });
 
     it(`${networkName} should create withdraw early unbonded transaction`, () => {
-      const withdrawTx = staking.createWithdrawEarlyUnbondedTransaction(
+      const withdrawTx = stakingInstance.createWithdrawEarlyUnbondedTransaction(
         unbondingTx,
         feeRate,
       );
@@ -84,7 +72,7 @@ describe.each(testingNetworks)("Create withdrawal transactions", ({
       jest.spyOn(stakingScript, "StakingScriptData").mockImplementation(() => {
         throw new Error("withdraw timelock unbonded delegation build script error");
       });
-      expect(() => staking.createWithdrawTimelockUnbondedTransaction(
+      expect(() => stakingInstance.createWithdrawStakingExpiredTransaction(
         stakingTx,
         feeRate,
       )).toThrow("withdraw timelock unbonded delegation build script error");
@@ -95,14 +83,14 @@ describe.each(testingNetworks)("Create withdrawal transactions", ({
         throw new Error("fail to build withdraw tx");
       });
 
-      expect(() => staking.createWithdrawTimelockUnbondedTransaction(
+      expect(() => stakingInstance.createWithdrawStakingExpiredTransaction(
         stakingTx,
         feeRate,
       )).toThrow("fail to build withdraw tx");
     });
 
     it(`${networkName} should create withdraw timelock unbonded transaction`, async () => {
-      const withdrawTx = staking.createWithdrawTimelockUnbondedTransaction(
+      const withdrawTx = stakingInstance.createWithdrawStakingExpiredTransaction(
         stakingTx,
         feeRate,
       );

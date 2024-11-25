@@ -10,21 +10,18 @@ import { deriveStakingOutputAddress, findMatchingStakingTxOutputIndex } from "..
 describe.each(testingNetworks)("Create unbonding transaction", ({
   network, networkName, datagen: { stakingDatagen : dataGenerator }
 }) => {
-  const params = dataGenerator.generateStakingParams(true);
-  const keys = dataGenerator.generateRandomKeyPair();
   const feeRate = 1;
-  const stakingAmount = dataGenerator.getRandomIntegerBetween(
-    params.minStakingAmountSat, params.maxStakingAmountSat,
+  const {
+    stakingTx,
+    timelock,
+    stakerInfo,
+    params,
+    finalityProviderPkNoCoordHex,
+    stakingAmountSat,
+  } = dataGenerator.generateRandomStakingTransaction(
+    network,
+    feeRate,
   );
-  const finalityProviderPkNoCoordHex = dataGenerator.generateRandomKeyPair().publicKeyNoCoord;
-  const { stakingTx, timelock} = dataGenerator.generateRandomStakingTransaction(
-    keys, feeRate, stakingAmount, "nativeSegwit", params,
-  );
-  const stakerInfo = {
-    address: dataGenerator.getAddressAndScriptPubKey(keys.publicKey).nativeSegwit.address,
-    publicKeyNoCoordHex: keys.publicKeyNoCoord,
-    publicKeyWithCoord: keys.publicKey,
-  }
   let staking: Staking;
 
   beforeEach(() => {
@@ -56,35 +53,50 @@ describe.each(testingNetworks)("Create unbonding transaction", ({
     )).toThrow("fail to build unbonding tx");
   });
 
-  it(`${networkName} should successfully create an unbonding transaction`, async () => {
-    const { psbt } = staking.createUnbondingTransaction(
-      stakingTx,
-    );
+  it(`${networkName} should successfully create an unbonding transaction & psbt`, async () => {
+    // Create transaction and psbt
+    const { transaction } = staking.createUnbondingTransaction(stakingTx);
     const scripts = staking.buildScripts();
+    const psbt = staking.toUnbondingPsbt(transaction, stakingTx);
 
+    // Basic validation
+    expect(transaction.version).toBe(2);
+    expect(psbt.version).toBe(2);
+    expect(transaction.locktime).toBe(0);
+    expect(psbt.locktime).toBe(0);
+
+    // Get staking output index
     const stakingOutputIndex = findMatchingStakingTxOutputIndex(
-      stakingTx, deriveStakingOutputAddress(scripts, network), network,
+      stakingTx,
+      deriveStakingOutputAddress(scripts, network),
+      network,
     );
-    expect(psbt).toBeDefined();
 
-    // Check the psbt inputs
-    expect(psbt.txInputs.length).toBe(1);
+    // Validate inputs
+    expect(transaction.ins.length).toBe(1);
+    expect(psbt.data.inputs.length).toBe(1);
+    expect(transaction.ins[0].hash).toEqual(stakingTx.getHash());
     expect(psbt.txInputs[0].hash).toEqual(stakingTx.getHash());
+    expect(transaction.ins[0].index).toEqual(stakingOutputIndex);
+    expect(psbt.txInputs[0].index).toEqual(stakingOutputIndex);
+    expect(transaction.ins[0].sequence).toEqual(NON_RBF_SEQUENCE);
+    expect(psbt.txInputs[0].sequence).toEqual(NON_RBF_SEQUENCE);
+
+    // Validate PSBT input details
     expect(psbt.data.inputs[0].tapInternalKey).toEqual(internalPubkey);
     expect(psbt.data.inputs[0].tapLeafScript?.length).toBe(1);
-    expect(psbt.data.inputs[0].witnessUtxo?.value).toEqual(stakingAmount);
+    expect(psbt.data.inputs[0].witnessUtxo?.value).toEqual(stakingAmountSat);
     expect(psbt.data.inputs[0].witnessUtxo?.script).toEqual(
-      stakingTx.outs[stakingOutputIndex].script,
+      stakingTx.outs[stakingOutputIndex].script
     );
-    expect(psbt.txInputs[0].sequence).toEqual(NON_RBF_SEQUENCE);
-    expect(psbt.txInputs[0].index).toEqual(stakingOutputIndex);
 
-    // Check the psbt outputs
+    // Validate outputs
+    expect(transaction.outs.length).toBe(1);
     expect(psbt.txOutputs.length).toBe(1);
-    expect(psbt.txOutputs[0].value).toEqual(stakingAmount - params.unbondingFeeSat);
+    expect(transaction.outs[0].value).toEqual(stakingAmountSat - params.unbondingFeeSat);
+    expect(psbt.txOutputs[0].value).toEqual(stakingAmountSat - params.unbondingFeeSat);
 
-    // Check the psbt properties
-    expect(psbt.locktime).toBe(0);
-    expect(psbt.version).toBe(2);
+    // Validate transaction and psbt match
+    expect(psbt.txOutputs[0].script).toEqual(transaction.outs[0].script);
   });
 });

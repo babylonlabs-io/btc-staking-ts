@@ -104,3 +104,16 @@ const validateNoCoordPublicKeyBuffer = (pkBuffer: Buffer): boolean => {
     ecc.isPoint(compressedKeyEven) || ecc.isPoint(compressedKeyOdd)
   );
 };
+
+/**
+ * Convert a transaction id to a hash. in buffer format.
+ * 
+ * @param {string} txId - The transaction id.
+ * @returns {Buffer} - The transaction hash.
+ */
+export const transactionIdToHash = (txId: string): Buffer => {
+  if (txId === "") {
+    throw new Error("Transaction id cannot be empty");
+  }
+  return Buffer.from(txId, 'hex').reverse();
+};
