@@ -11,6 +11,7 @@ import { inputValueSum } from "../utils/fee/utils";
 import { buildStakingTransactionOutputs } from "../utils/staking";
 import { NON_RBF_SEQUENCE, TRANSACTION_VERSION, RBF_SEQUENCE } from "../constants/psbt";
 import { CovenantSignature } from "../types/covenantSignatures";
+import { REDEEM_VERSION } from "../constants/transaction";
 
 // https://bips.xyz/370
 const BTC_LOCKTIME_HEIGHT_TIME_CUTOFF = 500000000;
@@ -280,7 +281,7 @@ function withdrawalTransaction(
 
   const redeem = {
     output: scripts.timelockScript,
-    redeemVersion: 192,
+    redeemVersion: REDEEM_VERSION,
   };
 
   const p2tr = payments.p2tr({
@@ -515,7 +516,7 @@ function slashingTransaction(
 
   const redeem = {
     output: scripts.slashingScript,
-    redeemVersion: 192,
+    redeemVersion: REDEEM_VERSION,
   };
 
   const p2tr = payments.p2tr({

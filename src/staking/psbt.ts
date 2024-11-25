@@ -1,4 +1,3 @@
-
 import { UTXO } from "../types/UTXO";
 import { Psbt, Transaction, networks, payments } from "bitcoinjs-lib";
 import { Input } from "bitcoinjs-lib/src/transaction";
@@ -6,6 +5,7 @@ import { NO_COORD_PK_BYTE_LENGTH } from "../constants/keys";
 import { internalPubkey } from "../constants/internalPubkey";
 import { Taptree } from "bitcoinjs-lib/src/types";
 import { transactionIdToHash } from "../utils/btc";
+import { REDEEM_VERSION } from "../constants/transaction";
 
 interface InputWitnessUtxo {
   script: Buffer;
@@ -15,7 +15,8 @@ interface InputWitnessUtxo {
 /**
  * Get the input witness utxo for the staking transaction.
  * 
- * @param {UTXO[]} inputUTXOs - The UTXOs to used as inputs for the staking transaction.
+ * @param {UTXO[]} inputUTXOs - The UTXOs to be used as inputs for the staking 
+ * transaction.
  * @param {Input} input - The input to get the witness utxo for.
  * @returns {InputWitnessUtxo} - The witness utxo.
  */
@@ -46,8 +47,10 @@ const getInputWitnessUtxo = (
  * 
  * @param {Transaction} stakingTx - The staking transaction to convert to psbt.
  * @param {networks.Network} network - The network to use for the psbt.
- * @param {UTXO[]} inputUTXOs - The UTXOs to used as inputs for the staking transaction.
- * @param {Buffer} publicKeyNoCoord - The public key for the staker in no-coordination format.
+ * @param {UTXO[]} inputUTXOs - The UTXOs to be used as inputs for the staking 
+ * transaction.
+ * @param {Buffer} publicKeyNoCoord - The public key for the staker in
+ * no-coordination format.
  * @returns {Psbt} - The psbt for the staking transaction.
  */
 export const stakingPsbt = (
@@ -128,7 +131,7 @@ export const unbondingPsbt = (
 
   const inputRedeem = {
     output: scripts.unbondingScript,
-    redeemVersion: 192,
+    redeemVersion: REDEEM_VERSION,
   };
 
   const p2tr = payments.p2tr({
