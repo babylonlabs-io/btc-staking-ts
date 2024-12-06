@@ -5,7 +5,7 @@ import { StakingParams } from "../../src/types/params";
 import { UTXO } from "../../src/types/UTXO";
 import { StakingError, StakingErrorCode } from "../../src/error";
 import { BTC_DUST_SAT } from "../../src/constants/dustSat";
-import { RBF_SEQUENCE } from "../../src/constants/psbt";
+import { NON_RBF_SEQUENCE } from "../../src/constants/psbt";
 import * as stakingUtils from "../../src/utils/staking";
 import * as stakingTx from "../../src/staking/transactions";
 import { Staking, transactionIdToHash } from "../../src";
@@ -154,8 +154,8 @@ describe.each(testingNetworks)("Create staking transaction", ({
     expect(psbt.data.inputs[0].witnessUtxo?.script.toString("hex")).toEqual(utxos[0].scriptPubKey);
 
     // Validate sequences
-    transaction.ins.forEach(input => expect(input.sequence).toBe(RBF_SEQUENCE));
-    psbt.txInputs.forEach(input => expect(input.sequence).toBe(RBF_SEQUENCE));
+    transaction.ins.forEach(input => expect(input.sequence).toBe(NON_RBF_SEQUENCE));
+    psbt.txInputs.forEach(input => expect(input.sequence).toBe(NON_RBF_SEQUENCE));
 
     // Calculate and validate amounts
     const psbtInputAmount = psbt.data.inputs.reduce((sum, input) => 

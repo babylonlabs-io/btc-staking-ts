@@ -1,6 +1,6 @@
 import { address } from "bitcoinjs-lib";
 import { BTC_DUST_SAT } from "../../../src/constants/dustSat";
-import { RBF_SEQUENCE } from "../../../src/constants/psbt";
+import { NON_RBF_SEQUENCE } from "../../../src/constants/psbt";
 import { StakingScripts, stakingTransaction, transactionIdToHash, UTXO } from "../../../src/index";
 import { ObservableStakingScripts } from "../../../src/staking/observable";
 import { TransactionResult } from "../../../src/types/transaction";
@@ -378,7 +378,7 @@ describe.each(testingNetworks)("Transactions - ", (
     ).toBeDefined();
 
     transaction.ins.map((input) => {
-      expect(input.sequence).toBe(RBF_SEQUENCE);
+      expect(input.sequence).toBe(NON_RBF_SEQUENCE);
     });
     expect(transaction.version).toBe(2);
   };

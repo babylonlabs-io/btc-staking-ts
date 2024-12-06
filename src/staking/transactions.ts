@@ -9,7 +9,7 @@ import { isValidBitcoinAddress, transactionIdToHash } from "../utils/btc";
 import { getStakingTxInputUTXOsAndFees, getWithdrawTxFee } from "../utils/fee";
 import { inputValueSum } from "../utils/fee/utils";
 import { buildStakingTransactionOutputs } from "../utils/staking";
-import { NON_RBF_SEQUENCE, TRANSACTION_VERSION, RBF_SEQUENCE } from "../constants/psbt";
+import { NON_RBF_SEQUENCE, TRANSACTION_VERSION } from "../constants/psbt";
 import { CovenantSignature } from "../types/covenantSignatures";
 import { REDEEM_VERSION } from "../constants/transaction";
 
@@ -92,7 +92,7 @@ export function stakingTransaction(
     tx.addInput(
       transactionIdToHash(input.txid),
       input.vout,
-      RBF_SEQUENCE,
+      NON_RBF_SEQUENCE,
     );
   }
 

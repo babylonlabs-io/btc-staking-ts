@@ -6,7 +6,7 @@ import { ObservableStakingParams } from "../../../src/types/params";
 import { UTXO } from "../../../src/types/UTXO";
 import { StakingError, StakingErrorCode } from "../../../src/error";
 import { BTC_DUST_SAT } from "../../../src/constants/dustSat";
-import { RBF_SEQUENCE } from "../../../src/constants/psbt";
+import { NON_RBF_SEQUENCE } from "../../../src/constants/psbt";
 import * as stakingUtils from "../../../src/utils/staking";
 import * as staking from "../../../src/staking/transactions";
 
@@ -141,7 +141,7 @@ describe.each(testingNetworks)("Observal - Create staking transaction", ({
     expect(transaction.locktime).toBe(params.activationHeight - 1);
     expect(transaction.version).toBe(2);
     transaction.ins.map((input) => {
-      expect(input.sequence).toBe(RBF_SEQUENCE);
+      expect(input.sequence).toBe(NON_RBF_SEQUENCE);
     });
 
     // Check the data embed script(OP_RETURN)
