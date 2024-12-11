@@ -32,7 +32,7 @@ const getInputWitnessUtxo = (
   );
   if (!inputUTXO) {
     throw new Error(
-      `Input UTXO not found for txid: ${input.hash.toString("hex")} `
+      `Input UTXO not found for txid: ${Buffer.from(input.hash).reverse().toString("hex")} `
       + `and vout: ${input.index}`
     );
   }
