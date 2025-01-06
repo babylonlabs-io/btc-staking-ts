@@ -88,25 +88,55 @@ export const deriveStakingOutputAddress = (
 };
 
 /**
- * Find the matching output index for the given staking transaction.
+ * Derive the slashing output address from the staking scripts.
  * 
- * @param {Transaction} stakingTx - The staking transaction.
- * @param {string} stakingOutputAddress - The staking output address.
+ * @param {StakingScripts} scripts - The unbonding timelock scripts
+ * @param {networks.Network} network - The Bitcoin network.
+ * @returns {string} - The slashing output address.
+ * @throws {StakingError} - If the slashing output address cannot be derived.
+ */
+export const deriveSlashingOutputAddress = (
+  scripts: {
+    unbondingTimelockScript: Buffer;
+  },
+  network: networks.Network,
+) => {
+  const slashingOutput = payments.p2tr({
+    internalPubkey,
+    scriptTree: { output: scripts.unbondingTimelockScript },
+    network,
+  });
+
+  if (!slashingOutput.address) {
+    throw new StakingError(
+      StakingErrorCode.INVALID_OUTPUT,
+      "Failed to build slashing output address",
+    );
+  }
+  
+  return slashingOutput.address;
+}
+
+/**
+ * Find the matching output index for the given transaction.
+ * 
+ * @param {Transaction} tx - The transaction.
+ * @param {string} outputAddress - The output address.
  * @param {networks.Network} network - The Bitcoin network.
  * @returns {number} - The output index.
  * @throws {Error} - If the matching output is not found.
  */
-export const findMatchingStakingTxOutputIndex = (
-  stakingTx: Transaction,
-  stakingOutputAddress: string,
+export const findMatchingTxOutputIndex = (
+  tx: Transaction,
+  outputAddress: string,
   network: networks.Network,
 ) => {
-  const index = stakingTx.outs.findIndex(output => {
-    return address.fromOutputScript(output.script, network) === stakingOutputAddress;
+  const index = tx.outs.findIndex(output => {
+    return address.fromOutputScript(output.script, network) === outputAddress;
   });
 
   if (index === -1) {
-    throw new Error(`Matching output not found for address: ${stakingOutputAddress}`);
+    throw new Error(`Matching output not found for address: ${outputAddress}`);
   }
 
   return index;

@@ -236,6 +236,50 @@ export function withdrawTimelockUnbondedTransaction(
   );
 }
 
+/**
+ * Constructs a withdrawal transaction for a slashing transaction.
+ *
+ * This transaction spends the output from the slashing transaction.
+ *
+ * @param {Object} scripts - The scripts used in the transaction.
+ * @param {Transaction} slashingTx - The slashing transaction.
+ * @param {string} withdrawalAddress - The address to send the withdrawn funds to.
+ * @param {networks.Network} network - The Bitcoin network.
+ * @param {number} feeRate - The fee rate for the transaction in satoshis per byte.
+ * @param {number} outputIndex - The index of the output to be spent in the original transaction.
+ * @returns {PsbtResult} An object containing the partially signed transaction (PSBT).
+ */
+export function withdrawSlashingTransaction(
+  scripts: {
+    unbondingTimelockScript: Buffer;
+    slashingScript: Buffer;
+  },
+  slashingTx: Transaction,
+  withdrawalAddress: string,
+  network: networks.Network,
+  feeRate: number,
+  outputIndex: number,
+): PsbtResult {
+  const scriptTree: Taptree = [
+    {
+      output: scripts.slashingScript,
+    },
+    { output: scripts.unbondingTimelockScript },
+  ];
+
+  return withdrawalTransaction(
+    {
+      timelockScript: scripts.unbondingTimelockScript,
+    },
+    scriptTree,
+    slashingTx,
+    withdrawalAddress,
+    network,
+    feeRate,
+    outputIndex,
+  );
+}
+
 // withdrawalTransaction generates a transaction that
 // spends the staking output of the staking transaction
 function withdrawalTransaction(

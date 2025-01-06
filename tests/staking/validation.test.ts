@@ -39,7 +39,7 @@ describe.each(testingNetworks)("Staking input validations", ({
     });
   
     it('should throw an error if the output index is out of range', () => {
-      jest.spyOn(utils, "findMatchingStakingTxOutputIndex").mockImplementation(() => {
+      jest.spyOn(utils, "findMatchingTxOutputIndex").mockImplementation(() => {
         throw new Error('Staking transaction output index is out of range');
       });
       expect(() => {
