@@ -251,7 +251,7 @@ export function withdrawTimelockUnbondedTransaction(
  */
 export function withdrawSlashingTransaction(
   scripts: {
-    unbondingTimelockScript: Buffer;
+    timelockScript: Buffer;
     slashingScript: Buffer;
   },
   slashingTx: Transaction,
@@ -264,12 +264,12 @@ export function withdrawSlashingTransaction(
     {
       output: scripts.slashingScript,
     },
-    { output: scripts.unbondingTimelockScript },
+    { output: scripts.timelockScript },
   ];
 
   return withdrawalTransaction(
     {
-      timelockScript: scripts.unbondingTimelockScript,
+      timelockScript: scripts.timelockScript,
     },
     scriptTree,
     slashingTx,

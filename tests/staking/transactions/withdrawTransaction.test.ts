@@ -261,12 +261,20 @@ describe.each(testingNetworks)("withdrawTransaction", (
 
         const outputIndex = findMatchingTxOutputIndex(
           slashingTx,
-          deriveSlashingOutputAddress(testData.stakingScripts, network),
+          deriveSlashingOutputAddress(
+            {
+              timelockScript: testData.stakingScripts.unbondingTimelockScript,
+            },
+            network,
+          ),
           network,
         );
 
         const psbt = withdrawSlashingTransaction(
-          testData.stakingScripts,
+          {
+            timelockScript: testData.stakingScripts.unbondingTimelockScript,
+            slashingScript: testData.stakingScripts.slashingScript,
+          },
           slashingTx,
           testData.stakerInfo.address,
           network,

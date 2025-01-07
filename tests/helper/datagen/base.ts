@@ -293,6 +293,18 @@ export class StakingDataGenerator {
     }
   };
 
+  /**
+   * Generates a random slashing transaction based on the staking transaction 
+   * and staking scripts
+   * @param network - The network to use
+   * @param stakingScripts - The staking scripts to use
+   * @param stakingTx - The staking transaction to use
+   * @param param - The param used in the staking transaction
+   * @param keyPair - The key pair to use. This is used to sign the slashing 
+   * psbt to derive the transaction.
+   * @param type - The type of slashing to use.
+   * @returns {Object} - A random slashing transaction
+   */
   generateSlashingTransaction = (
     network: bitcoin.networks.Network,
     stakingScripts: StakingScripts,

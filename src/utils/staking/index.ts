@@ -97,13 +97,13 @@ export const deriveStakingOutputAddress = (
  */
 export const deriveSlashingOutputAddress = (
   scripts: {
-    unbondingTimelockScript: Buffer;
+    timelockScript: Buffer;
   },
   network: networks.Network,
 ) => {
   const slashingOutput = payments.p2tr({
     internalPubkey,
-    scriptTree: { output: scripts.unbondingTimelockScript },
+    scriptTree: { output: scripts.timelockScript },
     network,
   });
 

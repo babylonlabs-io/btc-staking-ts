@@ -443,14 +443,24 @@ export class Staking {
     // Reconstruct and validate the slashingOutputIndex
     const slashingOutputIndex = findMatchingTxOutputIndex(
       slashingTx,
-      deriveSlashingOutputAddress(scripts, this.network),
+      deriveSlashingOutputAddress(
+        {
+          timelockScript: scripts.unbondingTimelockScript,
+        },
+        this.network,
+      ),
       this.network,
     )
 
     // Create the withdraw slashed transaction
     try {
       return withdrawSlashingTransaction(
-        scripts,
+        {
+          // Unbonding timelock script is used as the timelock of slashing
+          // is the same as the unbonding timelock.
+          timelockScript: scripts.unbondingTimelockScript,
+          slashingScript: scripts.slashingScript,
+        },
         slashingTx,
         this.stakerInfo.address,
         this.network,
