@@ -86,7 +86,6 @@ export function stakingTransaction(
   const tx = new Transaction();
   tx.version = TRANSACTION_VERSION;
   
-  
   for (let i = 0; i < selectedUTXOs.length; ++i) {
     const input = selectedUTXOs[i];
     tx.addInput(
@@ -241,7 +240,7 @@ export function withdrawTimelockUnbondedTransaction(
  *
  * This transaction spends the output from the slashing transaction.
  *
- * @param {Object} scripts - The unbondingTimelockScript and slashingScript
+ * @param {Object} scripts - The unbondingTimelockScript
  * We use the unbonding timelock script as the timelock of the slashing transaction.
  * This is due to slashing tx timelock is the same as the unbonding timelock.
  * @param {Transaction} slashingTx - The slashing transaction.
@@ -254,7 +253,6 @@ export function withdrawTimelockUnbondedTransaction(
 export function withdrawSlashingTransaction(
   scripts: {
     unbondingTimelockScript: Buffer;
-    slashingScript: Buffer;
   },
   slashingTx: Transaction,
   withdrawalAddress: string,
@@ -262,12 +260,7 @@ export function withdrawSlashingTransaction(
   feeRate: number,
   outputIndex: number,
 ): PsbtResult {
-  const scriptTree: Taptree = [
-    {
-      output: scripts.slashingScript,
-    },
-    { output: scripts.unbondingTimelockScript },
-  ];
+  const scriptTree: Taptree = { output: scripts.unbondingTimelockScript };
 
   return withdrawalTransaction(
     {
