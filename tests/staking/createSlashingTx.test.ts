@@ -1,7 +1,6 @@
 import * as stakingScript from "../../src/staking/stakingScript";
 import { testingNetworks } from "../helper";
 import * as transaction from "../../src/staking/transactions";
-import { Staking } from "../../src/staking";
 import { opcodes, payments, script } from "bitcoinjs-lib";
 import { internalPubkey } from "../../src/constants/internalPubkey";
 
@@ -89,10 +88,6 @@ describe.each(testingNetworks)("Create slashing transactions", ({
       jest.spyOn(stakingScript, "StakingScriptData").mockImplementation(() => {
         throw new Error("slash timelock unbonded delegation build script error");
       });
-      const staking = new Staking(
-        network, stakerInfo,
-        params, finalityProviderPkNoCoordHex, timelock,
-      );
 
       expect(() => stakingInstance.createStakingOutputSlashingTransaction(
         stakingTx,

@@ -1,12 +1,16 @@
 import * as ecc from "@bitcoin-js/tiny-secp256k1-asmjs";
 import * as bitcoin from "bitcoinjs-lib";
 import ECPairFactory from "ecpair";
-import { Staking, stakingTransaction } from "../../../src";
+import { slashEarlyUnbondedTransaction, slashTimelockUnbondedTransaction, Staking, stakingTransaction, TransactionResult, unbondingTransaction } from "../../../src";
 import { UTXO } from "../../../src/types/UTXO";
 import { StakingParams } from "../../../src/types/params";
 import { generateRandomAmountSlices } from "../math";
 import { StakingScriptData, StakingScripts } from "../../../src/index";
 import { MIN_UNBONDING_OUTPUT_VALUE } from "../../../src/constants/unbonding";
+import { payments, Psbt, Transaction } from "bitcoinjs-lib";
+import { TRANSACTION_VERSION } from "../../../src/constants/psbt";
+import { NON_RBF_SEQUENCE } from "../../../src/constants/psbt";
+import { internalPubkey } from "../../../src/constants/internalPubkey";
 
 bitcoin.initEccLib(ecc);
 const ECPair = ECPairFactory(ecc);
@@ -19,6 +23,8 @@ export interface KeyPair {
   publicKeyNoCoord: string;
   keyPair: bitcoin.Signer;
 }
+
+export type SlashingType = "earlyUnbonded" | "timelockExpire";
 
 export class StakingDataGenerator {
   network: bitcoin.networks.Network;
@@ -286,6 +292,102 @@ export class StakingDataGenerator {
       stakingTxFee,
     }
   };
+
+  /**
+   * Generates a random slashing transaction based on the staking transaction 
+   * and staking scripts
+   * @param network - The network to use
+   * @param stakingScripts - The staking scripts to use
+   * @param stakingTx - The staking transaction to use
+   * @param param - The param used in the staking transaction
+   * @param keyPair - The key pair to use. This is used to sign the slashing 
+   * psbt to derive the transaction.
+   * @param type - The type of slashing to use.
+   * @returns {Object} - A random slashing transaction
+   */
+  generateSlashingTransaction = (
+    network: bitcoin.networks.Network,
+    stakingScripts: StakingScripts,
+    stakingTx: Transaction,
+    param: {
+      minSlashingTxFeeSat: number,
+      slashingPkScriptHex: string,
+      slashingRate: number,
+    },
+    keyPair: KeyPair,
+    type: SlashingType = "timelockExpire",
+  ) => {
+    let slashingPsbt: Psbt;
+    let outputValue: number;
+
+    if (type === "earlyUnbonded") {
+      const { transaction: unbondingTx } = unbondingTransaction(
+        stakingScripts,
+        stakingTx,
+        1,
+        network,
+      );
+      const { psbt } = slashEarlyUnbondedTransaction(
+        stakingScripts,
+        unbondingTx,
+        param.slashingPkScriptHex,
+        param.slashingRate,
+        param.minSlashingTxFeeSat,
+        network,
+      );
+      slashingPsbt = psbt;
+      outputValue = unbondingTx.outs[0].value;
+    } else {
+      const { psbt } = slashTimelockUnbondedTransaction(
+        stakingScripts,
+        stakingTx,
+        param.slashingPkScriptHex,
+        param.slashingRate,
+        param.minSlashingTxFeeSat,
+        network,
+      );
+      slashingPsbt = psbt;
+      outputValue = stakingTx.outs[0].value;
+    }
+
+    expect(slashingPsbt).toBeDefined();
+    expect(slashingPsbt.txOutputs.length).toBe(2);
+    // first output shall send slashed amount to the slashing pk script (i.e burn output)
+    expect(Buffer.from(slashingPsbt.txOutputs[0].script).toString("hex")).toBe(
+      param.slashingPkScriptHex,
+    );
+    expect(slashingPsbt.txOutputs[0].value).toBe(
+      Math.floor(outputValue * param.slashingRate),
+    );
+
+     // second output is the change output which send to unbonding timelock script address
+     const changeOutput = payments.p2tr({
+      internalPubkey,
+      scriptTree: { output: stakingScripts.unbondingTimelockScript },
+      network,
+    });
+    expect(slashingPsbt.txOutputs[1].address).toBe(changeOutput.address);
+    const expectedChangeOutputValue =
+      outputValue -
+      Math.floor(outputValue * param.slashingRate) -
+      param.minSlashingTxFeeSat;
+    expect(slashingPsbt.txOutputs[1].value).toBe(expectedChangeOutputValue);
+
+    expect(slashingPsbt.version).toBe(TRANSACTION_VERSION);
+    expect(slashingPsbt.locktime).toBe(0);
+    slashingPsbt.txInputs.forEach((input) => {
+      expect(input.sequence).toBe(NON_RBF_SEQUENCE);
+    });
+
+    const tx = slashingPsbt.signAllInputs(
+      keyPair.keyPair,
+    ).finalizeAllInputs().extractTransaction();
+
+    return {
+      psbt: slashingPsbt,
+      tx,
+    };
+  }
 
   randomBoolean(): boolean {
     return Math.random() >= 0.5;

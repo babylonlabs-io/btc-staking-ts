@@ -8,6 +8,7 @@ import {
   slashTimelockUnbondedTransaction,
   stakingTransaction, unbondingTransaction,
   withdrawEarlyUnbondedTransaction,
+  withdrawSlashingTransaction,
   withdrawTimelockUnbondedTransaction
 } from "./transactions";
 import {
@@ -16,7 +17,8 @@ import {
 } from "../utils/btc";
 import { 
   deriveStakingOutputAddress,
-  findMatchingStakingTxOutputIndex,
+  deriveSlashingOutputAddress,
+  findMatchingTxOutputIndex,
   validateParams,
   validateStakingTimelock,
   validateStakingTxInputData,
@@ -206,7 +208,7 @@ export class Staking {
     const scripts = this.buildScripts();
 
     // Reconstruct the stakingOutputIndex
-    const stakingOutputIndex = findMatchingStakingTxOutputIndex(
+    const stakingOutputIndex = findMatchingTxOutputIndex(
       stakingTx,
       deriveStakingOutputAddress(scripts, this.network),
       this.network,
@@ -315,7 +317,7 @@ export class Staking {
     const scripts = this.buildScripts();
 
     // Reconstruct the stakingOutputIndex
-    const stakingOutputIndex = findMatchingStakingTxOutputIndex(
+    const stakingOutputIndex = findMatchingTxOutputIndex(
       stakingTx,
       deriveStakingOutputAddress(scripts, this.network),
       this.network,
@@ -418,6 +420,47 @@ export class Staking {
       throw StakingError.fromUnknown(
         error, StakingErrorCode.BUILD_TRANSACTION_FAILURE,
         "Cannot build the slash early unbonded transaction",
+      );
+    }
+  }
+
+  /**
+   * Create a withdraw transaction that spends a slashing transaction from the
+   * staking output.
+   * 
+   * @param {Transaction} slashingTx - The slashing transaction.
+   * @param {number} feeRate - The fee rate for the transaction in satoshis per byte.
+   * @returns {PsbtResult} - An object containing the unsigned psbt and fee
+   * @throws {StakingError} - If the delegation is invalid or the transaction cannot be built
+   */
+  public createWithdrawSlashingTransaction(
+    slashingTx: Transaction,
+    feeRate: number,
+  ): PsbtResult {
+    // Build scripts
+    const scripts = this.buildScripts();
+
+    // Reconstruct and validate the slashingOutputIndex
+    const slashingOutputIndex = findMatchingTxOutputIndex(
+      slashingTx,
+      deriveSlashingOutputAddress(scripts, this.network),
+      this.network,
+    )
+
+    // Create the withdraw slashed transaction
+    try {
+      return withdrawSlashingTransaction(
+        scripts,
+        slashingTx,
+        this.stakerInfo.address,
+        this.network,
+        feeRate,
+        slashingOutputIndex,
+      );  
+    } catch (error) {
+      throw StakingError.fromUnknown(
+        error, StakingErrorCode.BUILD_TRANSACTION_FAILURE,
+        "Cannot build withdraw slashing transaction",
       );
     }
   }

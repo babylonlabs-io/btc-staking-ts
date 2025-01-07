@@ -1,24 +1,30 @@
 import { Network, Transaction, script } from "bitcoinjs-lib";
 import {
   initBTCCurve,
+  StakingParams,
   StakingScripts,
   withdrawEarlyUnbondedTransaction,
+  withdrawSlashingTransaction,
   withdrawTimelockUnbondedTransaction,
 } from "../../../src/index";
 import { PsbtResult } from "../../../src/types/transaction";
 import { DEFAULT_TEST_FEE_RATE, testingNetworks } from "../../helper";
 import { BTC_DUST_SAT } from "../../../src/constants/dustSat";
 import { TRANSACTION_VERSION } from "../../../src/constants/psbt";
-import { KeyPair, StakingDataGenerator } from "../../helper/datagen/base";
+import { KeyPair, SlashingType, StakingDataGenerator } from "../../helper/datagen/base";
 import { ObservableStakingDatagen } from "../../helper/datagen/observable";
 import { StakerInfo } from "../../../src/staking";
 import { getWithdrawTxFee } from "../../../src/utils/fee";
+import { deriveSlashingOutputAddress } from "../../../src/utils/staking";
+import { findMatchingTxOutputIndex } from "../../../src/utils/staking";
 
 interface WithdrawTransactionTestData {
   keyPair: KeyPair;
   stakerInfo: StakerInfo;
   stakingScripts: StakingScripts;
   stakingTx: Transaction;
+  stakingAmountSat: number;
+  params: StakingParams;
 }
 
 const setupTestData = (
@@ -29,7 +35,7 @@ const setupTestData = (
 
   const stakingScripts =
     dataGenerator.generateMockStakingScripts(stakerKeyPair);
-  const { stakingTx, stakerInfo } = dataGenerator.generateRandomStakingTransaction(
+  const { stakingTx, stakerInfo, params, stakingAmountSat } = dataGenerator.generateRandomStakingTransaction(
     network, 1, stakerKeyPair,
   );
 
@@ -38,6 +44,8 @@ const setupTestData = (
     stakerInfo,
     stakingScripts,
     stakingTx,
+    stakingAmountSat,
+    params,
   };
 };
 
@@ -231,6 +239,51 @@ describe.each(testingNetworks)("withdrawTransaction", (
         DEFAULT_TEST_FEE_RATE,
       );
       validateCommonFields(psbtResult, testData.stakerInfo.address);
+    });
+    
+    it(`${networkName} - should create the withdraw slashing transactions successfully`, () => {
+      const slashingTypes: SlashingType[] = ["earlyUnbonded", "timelockExpire"];
+      slashingTypes.forEach((type) => {
+        const {
+          tx: slashingTx,
+        } = dataGenerator.generateSlashingTransaction(
+        network,
+        testData.stakingScripts,
+        testData.stakingTx,
+        {
+          minSlashingTxFeeSat: testData.params.slashing?.minSlashingTxFeeSat!!,
+          slashingPkScriptHex: testData.params.slashing?.slashingPkScriptHex!!,
+          slashingRate: testData.params.slashing?.slashingRate!!,
+        },
+        testData.keyPair,
+        type,
+        );
+
+        const outputIndex = findMatchingTxOutputIndex(
+          slashingTx,
+          deriveSlashingOutputAddress(testData.stakingScripts, network),
+          network,
+        );
+
+        const psbt = withdrawSlashingTransaction(
+          testData.stakingScripts,
+          slashingTx,
+          testData.stakerInfo.address,
+          network,
+          DEFAULT_TEST_FEE_RATE,
+          outputIndex,
+        );
+        validateCommonFields(psbt, testData.stakerInfo.address);
+
+        // Validate the slashing output value
+        const remainingAmout = slashingTx.outs[outputIndex].value - 
+          getWithdrawTxFee(DEFAULT_TEST_FEE_RATE);
+        expect(psbt.psbt.txOutputs[0].value).toBe(
+          Math.floor(
+              remainingAmout
+            )
+          );
+        });
     });
   });
 });
