@@ -440,7 +440,7 @@ export class Staking {
     // Build scripts
     const scripts = this.buildScripts();
 
-    // Reconstruct the slashingOutputIndex
+    // Reconstruct and validate the slashingOutputIndex
     const slashingOutputIndex = findMatchingTxOutputIndex(
       slashingTx,
       deriveSlashingOutputAddress(scripts, this.network),
