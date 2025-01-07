@@ -241,7 +241,9 @@ export function withdrawTimelockUnbondedTransaction(
  *
  * This transaction spends the output from the slashing transaction.
  *
- * @param {Object} scripts - The scripts used in the transaction.
+ * @param {Object} scripts - The unbondingTimelockScript and slashingScript
+ * We use the unbonding timelock script as the timelock of the slashing transaction.
+ * This is due to slashing tx timelock is the same as the unbonding timelock.
  * @param {Transaction} slashingTx - The slashing transaction.
  * @param {string} withdrawalAddress - The address to send the withdrawn funds to.
  * @param {networks.Network} network - The Bitcoin network.
@@ -251,7 +253,7 @@ export function withdrawTimelockUnbondedTransaction(
  */
 export function withdrawSlashingTransaction(
   scripts: {
-    timelockScript: Buffer;
+    unbondingTimelockScript: Buffer;
     slashingScript: Buffer;
   },
   slashingTx: Transaction,
@@ -264,12 +266,12 @@ export function withdrawSlashingTransaction(
     {
       output: scripts.slashingScript,
     },
-    { output: scripts.timelockScript },
+    { output: scripts.unbondingTimelockScript },
   ];
 
   return withdrawalTransaction(
     {
-      timelockScript: scripts.timelockScript,
+      timelockScript: scripts.unbondingTimelockScript,
     },
     scriptTree,
     slashingTx,

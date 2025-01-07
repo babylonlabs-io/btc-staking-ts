@@ -433,7 +433,7 @@ export class Staking {
    * @returns {PsbtResult} - An object containing the unsigned psbt and fee
    * @throws {StakingError} - If the delegation is invalid or the transaction cannot be built
    */
-  public createWithdrawSlashedStakingTransaction(
+  public createWithdrawSlashingTransaction(
     slashingTx: Transaction,
     feeRate: number,
   ): PsbtResult {
@@ -443,24 +443,14 @@ export class Staking {
     // Reconstruct and validate the slashingOutputIndex
     const slashingOutputIndex = findMatchingTxOutputIndex(
       slashingTx,
-      deriveSlashingOutputAddress(
-        {
-          timelockScript: scripts.unbondingTimelockScript,
-        },
-        this.network,
-      ),
+      deriveSlashingOutputAddress(scripts, this.network),
       this.network,
     )
 
     // Create the withdraw slashed transaction
     try {
       return withdrawSlashingTransaction(
-        {
-          // Unbonding timelock script is used as the timelock of slashing
-          // is the same as the unbonding timelock.
-          timelockScript: scripts.unbondingTimelockScript,
-          slashingScript: scripts.slashingScript,
-        },
+        scripts,
         slashingTx,
         this.stakerInfo.address,
         this.network,
