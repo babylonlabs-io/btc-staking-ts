@@ -4,6 +4,7 @@ on:
   pull_request:
     branches:
       - "**"
+      - "add-withdraw-slashing-tx-canary"
 
 jobs:
   lint_test:
