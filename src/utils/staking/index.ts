@@ -8,6 +8,12 @@ import { isValidNoCoordPublicKey } from "../btc";
 import { StakingParams } from "../../types/params";
 import { MIN_UNBONDING_OUTPUT_VALUE } from "../../constants/unbonding";
 
+
+export interface StakingOutput {
+  scriptPubKey: Buffer;
+  outputAddress: string;
+}
+
 /**
  * Build the staking output for the transaction which contains p2tr output 
  * with staking scripts.
@@ -28,10 +34,10 @@ export const buildStakingTransactionOutputs = (
   network: networks.Network,
   amount: number,
 ): TransactionOutput[] => {
-  const stakingOutputAddress = deriveStakingOutputAddress(scripts, network);
+  const stakingOutputInfo = deriveStakingOutputInfo(scripts, network);
   const transactionOutputs: {scriptPubKey: Buffer, value: number}[] = [
     {
-      scriptPubKey: address.toOutputScript(stakingOutputAddress, network),
+      scriptPubKey: stakingOutputInfo.scriptPubKey,
       value: amount,
     },
   ];
@@ -50,10 +56,10 @@ export const buildStakingTransactionOutputs = (
  * 
  * @param {StakingScripts} scripts - The staking scripts.
  * @param {networks.Network} network - The Bitcoin network.
- * @returns {string} - The staking output address.
+ * @returns {StakingOutput} - The staking output address and scriptPubKey.
  * @throws {StakingError} - If the staking output address cannot be derived.
  */
-export const deriveStakingOutputAddress = (
+export const deriveStakingOutputInfo = (
   scripts: {
     timelockScript: Buffer;
     unbondingScript: Buffer;
@@ -84,7 +90,10 @@ export const deriveStakingOutputAddress = (
     );
   }
   
-  return stakingOutput.address;
+  return {
+    outputAddress: stakingOutput.address,
+    scriptPubKey: address.toOutputScript(stakingOutput.address, network),
+  };
 };
 
 /**
@@ -138,7 +147,10 @@ export const findMatchingTxOutputIndex = (
   });
 
   if (index === -1) {
-    throw new Error(`Matching output not found for address: ${outputAddress}`);
+    throw new StakingError(
+      StakingErrorCode.INVALID_OUTPUT,
+      `Matching output not found for address: ${outputAddress}`,
+    );
   }
 
   return index;

@@ -5,7 +5,7 @@ import {
 import { networks } from 'bitcoinjs-lib';
 import { testingNetworks } from '../helper';
 import { Staking } from '../../src';
-import { deriveStakingOutputAddress } from '../../src/utils/staking';
+import { deriveStakingOutputInfo } from '../../src/utils/staking';
 
 describe('isTaproot', () => {
   describe.each(testingNetworks)('should return true for a valid Taproot address', 
@@ -121,10 +121,10 @@ describe.each(testingNetworks)('Derive staking output address', ({
       params, finalityProviderPkNoCoordHex, timelock,
     );
     const scripts = staking.buildScripts();
-    const slashingAddress = deriveStakingOutputAddress(
+    const { outputAddress } = deriveStakingOutputInfo(
       scripts, network
     );
-    expect(isTaproot(slashingAddress, network)).toBe(true);
+    expect(isTaproot(outputAddress, network)).toBe(true);
   });
 
   it("should throw an error if no address available from creation of pay-2-taproot output", () => {
@@ -136,7 +136,7 @@ describe.each(testingNetworks)('Derive staking output address', ({
       params, finalityProviderPkNoCoordHex, timelock,
     );
     const scripts = staking.buildScripts();
-    expect(() => deriveStakingOutputAddress(scripts, network))
+    expect(() => deriveStakingOutputInfo(scripts, network))
       .toThrow("Failed to build staking output");
   });
 
@@ -149,7 +149,7 @@ describe.each(testingNetworks)('Derive staking output address', ({
       params, finalityProviderPkNoCoordHex, timelock,
     );
     const scripts = staking.buildScripts();
-    expect(() => deriveStakingOutputAddress(scripts, network))
+    expect(() => deriveStakingOutputInfo(scripts, network))
       .toThrow("oops");
   });
 });

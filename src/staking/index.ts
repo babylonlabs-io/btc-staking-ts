@@ -1,4 +1,4 @@
-import { networks, Psbt, Transaction } from "bitcoinjs-lib";
+import { address, networks, Psbt, Transaction } from "bitcoinjs-lib";
 import { StakingParams } from "../types/params";
 import { UTXO } from "../types/UTXO";
 import { StakingScriptData, StakingScripts } from "./stakingScript";
@@ -16,7 +16,7 @@ import {
   isValidBitcoinAddress, isValidNoCoordPublicKey
 } from "../utils/btc";
 import { 
-  deriveStakingOutputAddress,
+  deriveStakingOutputInfo,
   deriveSlashingOutputAddress,
   findMatchingTxOutputIndex,
   validateParams,
@@ -120,8 +120,8 @@ export class Staking {
    * @param {UTXO[]} inputUTXOs - The UTXOs to use as inputs for the staking 
    * transaction.
    * @param {number} feeRate - The fee rate for the transaction in satoshis per byte.
-   * @returns {TransactionResult} - An object containing the unsigned transaction
-   * and fee
+   * @returns {TransactionResult} - An object containing the unsigned
+   * transaction, and fee
    * @throws {StakingError} - If the transaction cannot be built
    */
   public createStakingTransaction(
@@ -148,16 +148,6 @@ export class Staking {
         this.network,
         feeRate,
       );
-      // Do a dry run of stakingPsbt to ensure the transaction can be converted to PSBT
-      // with all the required properties before returning it
-      stakingPsbt(
-        transaction,
-        this.network,
-        inputUTXOs,
-        isTaproot(
-          this.stakerInfo.address, this.network
-        ) ? Buffer.from(this.stakerInfo.publicKeyNoCoordHex, "hex") : undefined,
-      );
       return {
         transaction,
         fee,
@@ -183,6 +173,27 @@ export class Staking {
     stakingTx: Transaction,
     inputUTXOs: UTXO[],
   ): Psbt {
+    // Validate the staking output before creating the psbt
+    // In staking tx, we only expect at most of 2 outputs:
+    // 1. The staking output
+    // 2. The change output
+    // If more than 2 outputs are found, we throw an error
+    if (stakingTx.outs.length > 2) {
+      throw new StakingError(
+        StakingErrorCode.INVALID_OUTPUT,
+        "Unexpected number of outputs found in staking transaction " +
+        "while building psbt",
+      );
+    }
+    // Check the staking output index can be found
+    const scripts = this.buildScripts();
+    const stakingOutputInfo = deriveStakingOutputInfo(scripts, this.network);
+    findMatchingTxOutputIndex(
+      stakingTx,
+      stakingOutputInfo.outputAddress,
+      this.network,
+    )
+    
     return stakingPsbt(
       stakingTx,
       this.network,
@@ -197,8 +208,8 @@ export class Staking {
    * Create an unbonding transaction for staking.
    * 
    * @param {Transaction} stakingTx - The staking transaction to unbond.
-   * @returns {TransactionResult} - An object containing the unsigned transaction
-   * and fee
+   * @returns {TransactionResult} - An object containing the unsigned
+   * transaction, and fee
    * @throws {StakingError} - If the transaction cannot be built
    */
   public createUnbondingTransaction(
@@ -206,11 +217,11 @@ export class Staking {
   ) : TransactionResult {    
     // Build scripts
     const scripts = this.buildScripts();
-
+    const { outputAddress } = deriveStakingOutputInfo(scripts, this.network);
     // Reconstruct the stakingOutputIndex
     const stakingOutputIndex = findMatchingTxOutputIndex(
       stakingTx,
-      deriveStakingOutputAddress(scripts, this.network),
+      outputAddress,
       this.network,
     )
     // Create the unbonding transaction
@@ -221,14 +232,6 @@ export class Staking {
         this.params.unbondingFeeSat,
         this.network,
         stakingOutputIndex,
-      );
-      // Do a dry run of unbondingPsbt to ensure the transaction can be converted to PSBT
-      // with all the required properties before returning it
-      unbondingPsbt(
-        scripts,
-        transaction,
-        stakingTx,
-        this.network,
       );
       return {
         transaction,
@@ -315,11 +318,11 @@ export class Staking {
   ): PsbtResult {
     // Build scripts
     const scripts = this.buildScripts();
-
+    const { outputAddress } = deriveStakingOutputInfo(scripts, this.network);
     // Reconstruct the stakingOutputIndex
     const stakingOutputIndex = findMatchingTxOutputIndex(
       stakingTx,
-      deriveStakingOutputAddress(scripts, this.network),
+      outputAddress,
       this.network,
     )
 
