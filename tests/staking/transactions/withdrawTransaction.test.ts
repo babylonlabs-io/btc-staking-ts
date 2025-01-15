@@ -15,8 +15,7 @@ import { KeyPair, SlashingType, StakingDataGenerator } from "../../helper/datage
 import { ObservableStakingDatagen } from "../../helper/datagen/observable";
 import { StakerInfo } from "../../../src/staking";
 import { getWithdrawTxFee } from "../../../src/utils/fee";
-import { deriveSlashingOutputAddress } from "../../../src/utils/staking";
-import { findMatchingTxOutputIndex } from "../../../src/utils/staking";
+import { deriveSlashingOutput, findMatchingTxOutputIndex } from "../../../src/utils/staking";
 
 interface WithdrawTransactionTestData {
   keyPair: KeyPair;
@@ -261,7 +260,7 @@ describe.each(testingNetworks)("withdrawTransaction", (
 
         const outputIndex = findMatchingTxOutputIndex(
           slashingTx,
-          deriveSlashingOutputAddress(testData.stakingScripts, network),
+          deriveSlashingOutput(testData.stakingScripts, network).outputAddress,
           network,
         );
 

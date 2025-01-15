@@ -6,6 +6,7 @@ import { internalPubkey } from "../constants/internalPubkey";
 import { Taptree } from "bitcoinjs-lib/src/types";
 import { transactionIdToHash } from "../utils/btc";
 import { REDEEM_VERSION } from "../constants/transaction";
+import { deriveUnbondingOutputInfo } from "../utils/staking";
 
 interface InputWitnessUtxo {
   script: Buffer;
@@ -59,7 +60,6 @@ export const stakingPsbt = (
   inputUTXOs: UTXO[],
   publicKeyNoCoord?: Buffer,
 ) => {
-
   // Check whether the public key is valid
   if (publicKeyNoCoord && publicKeyNoCoord.length !== NO_COORD_PK_BYTE_LENGTH) {
     throw new Error("Invalid public key");
@@ -186,28 +186,9 @@ const validateUnbondingOutput = (
   unbondingTx: Transaction,
   network: networks.Network,
 ) => {
-  // Check the unbonding output index is valid by deriving the expected 
-  const outputScriptTree: Taptree = [
-    {
-      output: scripts.slashingScript,
-    },
-    { output: scripts.unbondingTimelockScript },
-  ];
-
-  const unbondingOutput = payments.p2tr({
-    internalPubkey,
-    scriptTree: outputScriptTree,
-    network,
-  });
-  if (!unbondingOutput.address) {
-    throw new Error("Unbonding output address is not defined while building psbt");
-  }
-  const unbondingOutputScript = address.toOutputScript(
-    unbondingOutput.address,
-    network,
-  );
+  const unbondingOutputInfo = deriveUnbondingOutputInfo(scripts, network);
   if (
-    unbondingOutputScript.toString("hex") !==
+    unbondingOutputInfo.scriptPubKey.toString("hex") !==
      unbondingTx.outs[0].script.toString("hex")
   ) {
     throw new Error("Unbonding output script does not match the expected" +

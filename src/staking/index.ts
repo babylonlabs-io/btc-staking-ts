@@ -1,4 +1,4 @@
-import { address, networks, Psbt, Transaction } from "bitcoinjs-lib";
+import { networks, Psbt, Transaction } from "bitcoinjs-lib";
 import { StakingParams } from "../types/params";
 import { UTXO } from "../types/UTXO";
 import { StakingScriptData, StakingScripts } from "./stakingScript";
@@ -17,7 +17,7 @@ import {
 } from "../utils/btc";
 import { 
   deriveStakingOutputInfo,
-  deriveSlashingOutputAddress,
+  deriveSlashingOutput,
   findMatchingTxOutputIndex,
   validateParams,
   validateStakingTimelock,
@@ -446,7 +446,7 @@ export class Staking {
     // Reconstruct and validate the slashingOutputIndex
     const slashingOutputIndex = findMatchingTxOutputIndex(
       slashingTx,
-      deriveSlashingOutputAddress(scripts, this.network),
+      deriveSlashingOutput(scripts, this.network).outputAddress,
       this.network,
     )
 
