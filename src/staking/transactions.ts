@@ -627,9 +627,7 @@ function slashingTransaction(
 
 export function unbondingTransaction(
   scripts: {
-    unbondingScript: Buffer;
     unbondingTimelockScript: Buffer;
-    timelockScript: Buffer;
     slashingScript: Buffer;
   },
   stakingTx: Transaction,

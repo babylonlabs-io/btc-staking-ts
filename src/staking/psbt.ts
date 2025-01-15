@@ -1,5 +1,5 @@
 import { UTXO } from "../types/UTXO";
-import { Psbt, Transaction, networks, payments } from "bitcoinjs-lib";
+import { Psbt, Transaction, address, networks, payments } from "bitcoinjs-lib";
 import { Input } from "bitcoinjs-lib/src/transaction";
 import { NO_COORD_PK_BYTE_LENGTH } from "../constants/keys";
 import { internalPubkey } from "../constants/internalPubkey";
@@ -59,6 +59,7 @@ export const stakingPsbt = (
   inputUTXOs: UTXO[],
   publicKeyNoCoord?: Buffer,
 ) => {
+
   // Check whether the public key is valid
   if (publicKeyNoCoord && publicKeyNoCoord.length !== NO_COORD_PK_BYTE_LENGTH) {
     throw new Error("Invalid public key");
@@ -98,6 +99,7 @@ export const unbondingPsbt = (
     unbondingScript: Buffer;
     timelockScript: Buffer;
     slashingScript: Buffer;
+    unbondingTimelockScript: Buffer;
   },
   unbondingTx: Transaction,
   stakingTx: Transaction,
@@ -109,6 +111,8 @@ export const unbondingPsbt = (
   if (unbondingTx.ins.length !== 1) {
     throw new Error("Unbonding transaction must have exactly one input");
   }
+
+  validateUnbondingOutput(scripts, unbondingTx, network);
 
   const psbt = new Psbt({ network });
   if (unbondingTx.version !== undefined) {
@@ -165,4 +169,48 @@ export const unbondingPsbt = (
   });
 
   return psbt;
+}
+
+/**
+ * Validate the unbonding output for a given unbonding transaction.
+ * 
+ * @param {Object} scripts - The scripts to use for the unbonding output.
+ * @param {Transaction} unbondingTx - The unbonding transaction.
+ * @param {networks.Network} network - The network to use for the unbonding output.
+ */
+const validateUnbondingOutput = (
+  scripts: {
+    slashingScript: Buffer;
+    unbondingTimelockScript: Buffer;
+  },
+  unbondingTx: Transaction,
+  network: networks.Network,
+) => {
+  // Check the unbonding output index is valid by deriving the expected 
+  const outputScriptTree: Taptree = [
+    {
+      output: scripts.slashingScript,
+    },
+    { output: scripts.unbondingTimelockScript },
+  ];
+
+  const unbondingOutput = payments.p2tr({
+    internalPubkey,
+    scriptTree: outputScriptTree,
+    network,
+  });
+  if (!unbondingOutput.address) {
+    throw new Error("Unbonding output address is not defined while building psbt");
+  }
+  const unbondingOutputScript = address.toOutputScript(
+    unbondingOutput.address,
+    network,
+  );
+  if (
+    unbondingOutputScript.toString("hex") !==
+     unbondingTx.outs[0].script.toString("hex")
+  ) {
+    throw new Error("Unbonding output script does not match the expected" +
+      " script while building psbt");
+  }
 }
