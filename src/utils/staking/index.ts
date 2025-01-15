@@ -7,8 +7,6 @@ import { UTXO } from "../../types/UTXO";
 import { isValidNoCoordPublicKey } from "../btc";
 import { StakingParams } from "../../types/params";
 import { MIN_UNBONDING_OUTPUT_VALUE } from "../../constants/unbonding";
-import { StakingScripts } from "../../staking/stakingScript";
-
 
 export interface OutputInfo {
   scriptPubKey: Buffer;
@@ -97,7 +95,7 @@ export const deriveStakingOutputInfo = (
 };
 
 /**
- * Derive the unbonding output address from the staking scripts.
+ * Derive the unbonding output address and scriptPubKey from the staking scripts.
  * 
  * @param {StakingScripts} scripts - The staking scripts.
  * @param {networks.Network} network - The Bitcoin network.
@@ -138,13 +136,13 @@ export const deriveUnbondingOutputInfo = (
 }
 
 /**
- * Derive the slashing output address from the staking scripts.
+ * Derive the slashing output address and scriptPubKey from the staking scripts.
  * 
  * @param {StakingScripts} scripts - The unbonding timelock scripts, we use the
  * unbonding timelock script as the timelock of the slashing transaction.
  * This is due to slashing tx timelock is the same as the unbonding timelock.
  * @param {networks.Network} network - The Bitcoin network.
- * @returns {string} - The slashing output address.
+ * @returns {OutputInfo} - The slashing output address and scriptPubKey.
  * @throws {StakingError} - If the slashing output address cannot be derived.
  */
 export const deriveSlashingOutput = (
