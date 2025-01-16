@@ -154,12 +154,6 @@ describe.each(testingNetworks)("Create staking transaction", ({
         message: expect.stringContaining("Matching output not found")
       })
     );
-
-    // Should fail if there is more than 2 outputs
-    transaction.addOutput(address.toOutputScript(stakerInfo.address, network), 100000000000000);
-    expect(() => staking.toStakingPsbt(transaction, utxos)).toThrow(
-      new StakingError(StakingErrorCode.INVALID_OUTPUT, "Unexpected number of outputs found in staking transaction while building psbt")
-    );
   });
 
   it(`${networkName} should successfully create a staking transaction & psbt`, async () => {

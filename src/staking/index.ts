@@ -173,18 +173,6 @@ export class Staking {
     stakingTx: Transaction,
     inputUTXOs: UTXO[],
   ): Psbt {
-    // Validate the staking output before creating the psbt
-    // In staking tx, we only expect at most of 2 outputs:
-    // 1. The staking output
-    // 2. The change output
-    // If more than 2 outputs are found, we throw an error
-    if (stakingTx.outs.length > 2) {
-      throw new StakingError(
-        StakingErrorCode.INVALID_OUTPUT,
-        "Unexpected number of outputs found in staking transaction " +
-        "while building psbt",
-      );
-    }
     // Check the staking output index can be found
     const scripts = this.buildScripts();
     const stakingOutputInfo = deriveStakingOutputInfo(scripts, this.network);
@@ -442,11 +430,12 @@ export class Staking {
   ): PsbtResult {
     // Build scripts
     const scripts = this.buildScripts();
+    const slashingOutputInfo = deriveSlashingOutput(scripts, this.network);
 
     // Reconstruct and validate the slashingOutputIndex
     const slashingOutputIndex = findMatchingTxOutputIndex(
       slashingTx,
-      deriveSlashingOutput(scripts, this.network).outputAddress,
+      slashingOutputInfo.outputAddress,
       this.network,
     )
 
