@@ -16,8 +16,8 @@ import {
   isValidBitcoinAddress, isValidNoCoordPublicKey
 } from "../utils/btc";
 import { 
-  deriveStakingOutputAddress,
-  deriveSlashingOutputAddress,
+  deriveStakingOutputInfo,
+  deriveSlashingOutput,
   findMatchingTxOutputIndex,
   validateParams,
   validateStakingTimelock,
@@ -120,8 +120,8 @@ export class Staking {
    * @param {UTXO[]} inputUTXOs - The UTXOs to use as inputs for the staking 
    * transaction.
    * @param {number} feeRate - The fee rate for the transaction in satoshis per byte.
-   * @returns {TransactionResult} - An object containing the unsigned transaction
-   * and fee
+   * @returns {TransactionResult} - An object containing the unsigned
+   * transaction, and fee
    * @throws {StakingError} - If the transaction cannot be built
    */
   public createStakingTransaction(
@@ -148,16 +148,6 @@ export class Staking {
         this.network,
         feeRate,
       );
-      // Do a dry run of stakingPsbt to ensure the transaction can be converted to PSBT
-      // with all the required properties before returning it
-      stakingPsbt(
-        transaction,
-        this.network,
-        inputUTXOs,
-        isTaproot(
-          this.stakerInfo.address, this.network
-        ) ? Buffer.from(this.stakerInfo.publicKeyNoCoordHex, "hex") : undefined,
-      );
       return {
         transaction,
         fee,
@@ -183,6 +173,15 @@ export class Staking {
     stakingTx: Transaction,
     inputUTXOs: UTXO[],
   ): Psbt {
+    // Check the staking output index can be found
+    const scripts = this.buildScripts();
+    const stakingOutputInfo = deriveStakingOutputInfo(scripts, this.network);
+    findMatchingTxOutputIndex(
+      stakingTx,
+      stakingOutputInfo.outputAddress,
+      this.network,
+    )
+    
     return stakingPsbt(
       stakingTx,
       this.network,
@@ -197,8 +196,8 @@ export class Staking {
    * Create an unbonding transaction for staking.
    * 
    * @param {Transaction} stakingTx - The staking transaction to unbond.
-   * @returns {TransactionResult} - An object containing the unsigned transaction
-   * and fee
+   * @returns {TransactionResult} - An object containing the unsigned
+   * transaction, and fee
    * @throws {StakingError} - If the transaction cannot be built
    */
   public createUnbondingTransaction(
@@ -206,11 +205,11 @@ export class Staking {
   ) : TransactionResult {    
     // Build scripts
     const scripts = this.buildScripts();
-
+    const { outputAddress } = deriveStakingOutputInfo(scripts, this.network);
     // Reconstruct the stakingOutputIndex
     const stakingOutputIndex = findMatchingTxOutputIndex(
       stakingTx,
-      deriveStakingOutputAddress(scripts, this.network),
+      outputAddress,
       this.network,
     )
     // Create the unbonding transaction
@@ -221,14 +220,6 @@ export class Staking {
         this.params.unbondingFeeSat,
         this.network,
         stakingOutputIndex,
-      );
-      // Do a dry run of unbondingPsbt to ensure the transaction can be converted to PSBT
-      // with all the required properties before returning it
-      unbondingPsbt(
-        scripts,
-        transaction,
-        stakingTx,
-        this.network,
       );
       return {
         transaction,
@@ -315,11 +306,11 @@ export class Staking {
   ): PsbtResult {
     // Build scripts
     const scripts = this.buildScripts();
-
+    const { outputAddress } = deriveStakingOutputInfo(scripts, this.network);
     // Reconstruct the stakingOutputIndex
     const stakingOutputIndex = findMatchingTxOutputIndex(
       stakingTx,
-      deriveStakingOutputAddress(scripts, this.network),
+      outputAddress,
       this.network,
     )
 
@@ -439,11 +430,12 @@ export class Staking {
   ): PsbtResult {
     // Build scripts
     const scripts = this.buildScripts();
+    const slashingOutputInfo = deriveSlashingOutput(scripts, this.network);
 
     // Reconstruct and validate the slashingOutputIndex
     const slashingOutputIndex = findMatchingTxOutputIndex(
       slashingTx,
-      deriveSlashingOutputAddress(scripts, this.network),
+      slashingOutputInfo.outputAddress,
       this.network,
     )
 

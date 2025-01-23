@@ -104,5 +104,16 @@ describe.each(testingNetworks)("Transactions - ", (
         network,
       )).toThrow("Unbonding transaction must have exactly one input");
     });
+
+    it(`${networkName} - should throw error if unbonding output script does 
+      not match the expected script`, () => {
+      const differentScripts = dataGenerator.generateMockStakingScripts();
+      expect(() => unbondingPsbt(
+        differentScripts,
+        unbondingTx.transaction,
+        tx.transaction,
+        network,
+      )).toThrow("Unbonding output script does not match the expected script while building psbt");
+    });
   });
 });

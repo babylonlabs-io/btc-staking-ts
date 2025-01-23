@@ -123,6 +123,39 @@ describe.each(testingNetworks)("Create staking transaction", ({
     );
   });
 
+  it(`${networkName} should throw an error if fail to validate staking output`, async () => {
+    // Setup
+    const staking = new Staking(
+      network, stakerInfo,
+      params, finalityProviderPublicKey, timelock,
+    );
+    const amount = dataGenerator.getRandomIntegerBetween(
+      params.minStakingAmountSat, params.maxStakingAmountSat,
+    );
+
+    // Create transaction and psbt
+    const { transaction } = staking.createStakingTransaction(
+      amount,
+      utxos,
+      feeRate,
+    );
+
+    // Setup a different param
+    const wrongParams = dataGenerator.generateStakingParams();
+    const wrongTimelock = dataGenerator.generateRandomTimelock(wrongParams);
+    const wrongStaking = new Staking(
+      network, stakerInfo,
+      wrongParams, finalityProviderPublicKey, wrongTimelock,
+    );
+
+    expect(() => wrongStaking.toStakingPsbt(transaction, utxos)).toThrow(
+      expect.objectContaining({
+        code: StakingErrorCode.INVALID_OUTPUT,
+        message: expect.stringContaining("Matching output not found")
+      })
+    );
+  });
+
   it(`${networkName} should successfully create a staking transaction & psbt`, async () => {
     // Setup
     const staking = new Staking(

@@ -8,7 +8,7 @@ import { PsbtResult, TransactionResult } from "../types/transaction";
 import { isValidBitcoinAddress, transactionIdToHash } from "../utils/btc";
 import { getStakingTxInputUTXOsAndFees, getWithdrawTxFee } from "../utils/fee";
 import { inputValueSum } from "../utils/fee/utils";
-import { buildStakingTransactionOutputs } from "../utils/staking";
+import { buildStakingTransactionOutputs, deriveUnbondingOutputInfo } from "../utils/staking";
 import { NON_RBF_SEQUENCE, TRANSACTION_VERSION } from "../constants/psbt";
 import { CovenantSignature } from "../types/covenantSignatures";
 import { REDEEM_VERSION } from "../constants/transaction";
@@ -627,9 +627,7 @@ function slashingTransaction(
 
 export function unbondingTransaction(
   scripts: {
-    unbondingScript: Buffer;
     unbondingTimelockScript: Buffer;
-    timelockScript: Buffer;
     slashingScript: Buffer;
   },
   stakingTx: Transaction,
@@ -656,29 +654,18 @@ export function unbondingTransaction(
     NON_RBF_SEQUENCE, // not RBF-able
   );
 
-  // Build output tapleaf script
-  const outputScriptTree: Taptree = [
-    {
-      output: scripts.slashingScript,
-    },
-    { output: scripts.unbondingTimelockScript },
-  ];
+  const unbondingOutputInfo = deriveUnbondingOutputInfo(scripts, network);
 
-  const unbondingOutput = payments.p2tr({
-    internalPubkey,
-    scriptTree: outputScriptTree,
-    network,
-  });
   const outputValue = stakingTx.outs[outputIndex].value - unbondingFee;
   if (outputValue < BTC_DUST_SAT) {
     throw new Error("Output value is less than dust limit for unbonding transaction");
   }
   // Add the unbonding output
-  if (!unbondingOutput.address) {
+  if (!unbondingOutputInfo.outputAddress) {
     throw new Error("Unbonding output address is not defined");
   }
   tx.addOutput(
-    address.toOutputScript(unbondingOutput.address, network),
+    unbondingOutputInfo.scriptPubKey,
     outputValue,
   );
 

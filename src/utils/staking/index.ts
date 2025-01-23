@@ -8,6 +8,11 @@ import { isValidNoCoordPublicKey } from "../btc";
 import { StakingParams } from "../../types/params";
 import { MIN_UNBONDING_OUTPUT_VALUE } from "../../constants/unbonding";
 
+export interface OutputInfo {
+  scriptPubKey: Buffer;
+  outputAddress: string;
+}
+
 /**
  * Build the staking output for the transaction which contains p2tr output 
  * with staking scripts.
@@ -28,10 +33,10 @@ export const buildStakingTransactionOutputs = (
   network: networks.Network,
   amount: number,
 ): TransactionOutput[] => {
-  const stakingOutputAddress = deriveStakingOutputAddress(scripts, network);
+  const stakingOutputInfo = deriveStakingOutputInfo(scripts, network);
   const transactionOutputs: {scriptPubKey: Buffer, value: number}[] = [
     {
-      scriptPubKey: address.toOutputScript(stakingOutputAddress, network),
+      scriptPubKey: stakingOutputInfo.scriptPubKey,
       value: amount,
     },
   ];
@@ -50,15 +55,14 @@ export const buildStakingTransactionOutputs = (
  * 
  * @param {StakingScripts} scripts - The staking scripts.
  * @param {networks.Network} network - The Bitcoin network.
- * @returns {string} - The staking output address.
+ * @returns {StakingOutput} - The staking output address and scriptPubKey.
  * @throws {StakingError} - If the staking output address cannot be derived.
  */
-export const deriveStakingOutputAddress = (
+export const deriveStakingOutputInfo = (
   scripts: {
     timelockScript: Buffer;
     unbondingScript: Buffer;
     slashingScript: Buffer;
-    dataEmbedScript?: Buffer;
   },
   network: networks.Network,
 ) => {
@@ -84,20 +88,64 @@ export const deriveStakingOutputAddress = (
     );
   }
   
-  return stakingOutput.address;
+  return {
+    outputAddress: stakingOutput.address,
+    scriptPubKey: address.toOutputScript(stakingOutput.address, network),
+  };
 };
 
 /**
- * Derive the slashing output address from the staking scripts.
+ * Derive the unbonding output address and scriptPubKey from the staking scripts.
+ * 
+ * @param {StakingScripts} scripts - The staking scripts.
+ * @param {networks.Network} network - The Bitcoin network.
+ * @returns {OutputInfo} - The unbonding output address and scriptPubKey.
+ * @throws {StakingError} - If the unbonding output address cannot be derived.
+ */
+export const deriveUnbondingOutputInfo = (
+  scripts: {
+    unbondingTimelockScript: Buffer;
+    slashingScript: Buffer;
+  },
+  network: networks.Network,
+) => {
+  const outputScriptTree: Taptree = [
+    {
+      output: scripts.slashingScript,
+    },
+    { output: scripts.unbondingTimelockScript },
+  ];
+
+  const unbondingOutput = payments.p2tr({
+    internalPubkey,
+    scriptTree: outputScriptTree,
+    network,
+  });
+
+  if (!unbondingOutput.address) {
+    throw new StakingError(
+      StakingErrorCode.INVALID_OUTPUT,
+      "Failed to build unbonding output",
+    );
+  }
+
+  return {
+    outputAddress: unbondingOutput.address,
+    scriptPubKey: address.toOutputScript(unbondingOutput.address, network),
+  };
+}
+
+/**
+ * Derive the slashing output address and scriptPubKey from the staking scripts.
  * 
  * @param {StakingScripts} scripts - The unbonding timelock scripts, we use the
  * unbonding timelock script as the timelock of the slashing transaction.
  * This is due to slashing tx timelock is the same as the unbonding timelock.
  * @param {networks.Network} network - The Bitcoin network.
- * @returns {string} - The slashing output address.
+ * @returns {OutputInfo} - The slashing output address and scriptPubKey.
  * @throws {StakingError} - If the slashing output address cannot be derived.
  */
-export const deriveSlashingOutputAddress = (
+export const deriveSlashingOutput = (
   scripts: {
     unbondingTimelockScript: Buffer;
   },
@@ -108,15 +156,19 @@ export const deriveSlashingOutputAddress = (
     scriptTree: { output: scripts.unbondingTimelockScript },
     network,
   });
+  const slashingOutputAddress = slashingOutput.address;
 
-  if (!slashingOutput.address) {
+  if (!slashingOutputAddress) {
     throw new StakingError(
       StakingErrorCode.INVALID_OUTPUT,
       "Failed to build slashing output address",
     );
   }
   
-  return slashingOutput.address;
+  return {
+    outputAddress: slashingOutputAddress,
+    scriptPubKey: address.toOutputScript(slashingOutputAddress, network),
+  };
 }
 
 /**
@@ -138,7 +190,10 @@ export const findMatchingTxOutputIndex = (
   });
 
   if (index === -1) {
-    throw new Error(`Matching output not found for address: ${outputAddress}`);
+    throw new StakingError(
+      StakingErrorCode.INVALID_OUTPUT,
+      `Matching output not found for address: ${outputAddress}`,
+    );
   }
 
   return index;

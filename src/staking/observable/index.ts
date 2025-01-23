@@ -7,7 +7,7 @@ import { toBuffers, validateStakingTxInputData } from "../../utils/staking";
 import { TransactionResult } from "../../types/transaction";
 import { ObservableStakingScriptData, ObservableStakingScripts } from "./observableStakingScript";
 import { StakerInfo, Staking } from "..";
-import { networks } from "bitcoinjs-lib";
+import { networks, Psbt, Transaction } from "bitcoinjs-lib";
 import { stakingPsbt } from "../psbt";
 export * from "./observableStakingScript";
 
@@ -139,15 +139,6 @@ export class ObservableStaking extends Staking {
         this.params.activationHeight - 1,
       );
       
-      stakingPsbt(
-        transaction,
-        this.network,
-        inputUTXOs,
-        isTaproot(
-          this.stakerInfo.address, this.network
-        ) ? Buffer.from(this.stakerInfo.publicKeyNoCoordHex, "hex") : undefined,
-      );
-
       return {
         transaction,
         fee,
@@ -158,5 +149,27 @@ export class ObservableStaking extends Staking {
         "Cannot build unsigned staking transaction",
       );
     }
+  }
+
+  /**
+   * Create a staking psbt for observable staking.
+   * 
+   * @param {Transaction} stakingTx - The staking transaction.
+   * @param {UTXO[]} inputUTXOs - The UTXOs to use as inputs for the staking 
+   * transaction.
+   * @returns {Psbt} - The psbt.
+   */
+  public toStakingPsbt(
+    stakingTx: Transaction,
+    inputUTXOs: UTXO[],
+  ): Psbt {
+    return stakingPsbt(
+      stakingTx,
+      this.network,
+      inputUTXOs,
+      isTaproot(
+        this.stakerInfo.address, this.network
+      ) ? Buffer.from(this.stakerInfo.publicKeyNoCoordHex, "hex") : undefined,
+    );
   }
 }

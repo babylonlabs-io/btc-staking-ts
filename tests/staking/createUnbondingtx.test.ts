@@ -5,7 +5,7 @@ import { StakingError, StakingErrorCode } from "../../src/error";
 import { testingNetworks } from "../helper";
 import { NON_RBF_SEQUENCE } from "../../src/constants/psbt";
 import * as stakingScript from "../../src/staking/stakingScript";
-import { deriveStakingOutputAddress, findMatchingTxOutputIndex } from "../../src/utils/staking";
+import { deriveStakingOutputInfo, findMatchingTxOutputIndex } from "../../src/utils/staking";
 
 describe.each(testingNetworks)("Create unbonding transaction", ({
   network, networkName, datagen: { stakingDatagen : dataGenerator }
@@ -68,7 +68,7 @@ describe.each(testingNetworks)("Create unbonding transaction", ({
     // Get staking output index
     const stakingOutputIndex = findMatchingTxOutputIndex(
       stakingTx,
-      deriveStakingOutputAddress(scripts, network),
+      deriveStakingOutputInfo(scripts, network).outputAddress,
       network,
     );
 
