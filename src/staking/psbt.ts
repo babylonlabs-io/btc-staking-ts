@@ -6,7 +6,7 @@ import { REDEEM_VERSION } from "../constants/transaction";
 import { UTXO } from "../types/UTXO";
 import { deriveUnbondingOutputInfo } from "../utils/staking";
 import { findInputUTXO } from "../utils/utxo/findInputUTXO";
-import { getPsbtInputData } from "../utils/utxo/getPsbtInputData";
+import { getPsbtInputFields } from "../utils/utxo/getPsbtInputFields";
 
 /**
  * Convert a staking transaction to a PSBT.
@@ -36,7 +36,7 @@ export const stakingPsbt = (
 
   stakingTx.ins.forEach((input) => {
     const inputUTXO = findInputUTXO(inputUTXOs, input);
-    const psbtInputData = getPsbtInputData(inputUTXO, publicKeyNoCoord);
+    const psbtInputData = getPsbtInputFields(inputUTXO, publicKeyNoCoord);
 
     psbt.addInput({
       hash: input.hash,

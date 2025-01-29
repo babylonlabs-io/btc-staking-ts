@@ -12,7 +12,7 @@ import { BitcoinScriptType, getScriptType } from "./getScriptType";
  * @throws {Error} If required input data is missing or if an unsupported script type is provided
  */
 
-export const getPsbtInputData = (utxo: UTXO, publicKeyNoCoord?: Buffer) => {
+export const getPsbtInputFields = (utxo: UTXO, publicKeyNoCoord?: Buffer) => {
   const scriptPubKey = Buffer.from(utxo.scriptPubKey, "hex");
   const type = getScriptType(scriptPubKey);
 
