@@ -1,3 +1,5 @@
+import { PsbtInputExtended } from "bip174/src/lib/interfaces";
+
 import { UTXO } from "../../types";
 import { BitcoinScriptType, getScriptType } from "./getScriptType";
 
@@ -12,7 +14,10 @@ import { BitcoinScriptType, getScriptType } from "./getScriptType";
  * @throws {Error} If required input data is missing or if an unsupported script type is provided
  */
 
-export const getPsbtInputFields = (utxo: UTXO, publicKeyNoCoord?: Buffer) => {
+export const getPsbtInputFields = (
+  utxo: UTXO,
+  publicKeyNoCoord?: Buffer,
+): PsbtInputExtended => {
   const scriptPubKey = Buffer.from(utxo.scriptPubKey, "hex");
   const type = getScriptType(scriptPubKey);
 
