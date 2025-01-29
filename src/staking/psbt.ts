@@ -16,8 +16,7 @@ import { getPsbtInputData } from "../utils/utxo/getPsbtInputData";
  * @param {networks.Network} network - The network to use for the PSBT.
  * @param {UTXO[]} inputUTXOs - The UTXOs to be used as inputs for the staking
  * transaction.
- * @param {Buffer} publicKeyNoCoord - The public key for the staker in
- * no-coordination format.
+ * @param {Buffer} [publicKeyNoCoord] - The public key of staker (optional)
  * @returns {Psbt} - The PSBT for the staking transaction.
  * @throws {Error} If unable to create PSBT from transaction
  */
@@ -38,7 +37,7 @@ export const stakingPsbt = (
 
   stakingTx.ins.forEach((input) => {
     const inputUTXO = findInputUTXO(inputUTXOs, input);
-    const psbtInputData = getPsbtInputData(inputUTXO);
+    const psbtInputData = getPsbtInputData(inputUTXO, publicKeyNoCoord);
     const witnessUtxo = getInputWitnessUTXO(inputUTXOs, input);
 
     psbt.addInput({
@@ -47,8 +46,6 @@ export const stakingPsbt = (
       sequence: input.sequence,
       witnessUtxo,
       ...psbtInputData,
-      // this is needed only if the wallet is in taproot mode
-      ...(publicKeyNoCoord && { tapInternalKey: publicKeyNoCoord }),
     });
   });
 

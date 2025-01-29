@@ -7,18 +7,12 @@ import { BitcoinScriptType, getScriptType } from "./getScriptType";
  * the appropriate PSBT input fields required for that UTXO.
  *
  * @param {UTXO} utxo - The unspent transaction output to process
+ * @param {Buffer} [publicKeyNoCoord] - The public of the staker (optional).
  * @returns {object} PSBT input fields object containing the necessary data
  * @throws {Error} If required input data is missing or if an unsupported script type is provided
  */
 
-export const getPsbtInputData = (
-  utxo: UTXO,
-): {
-  nonWitnessUtxo?: Buffer;
-  witnessUtxo?: { script: Buffer; value: number };
-  redeemScript?: Buffer;
-  witnessScript?: Buffer;
-} => {
+export const getPsbtInputData = (utxo: UTXO, publicKeyNoCoord?: Buffer) => {
   const scriptPubKey = Buffer.from(utxo.scriptPubKey, "hex");
   const type = getScriptType(scriptPubKey);
 
@@ -67,6 +61,7 @@ export const getPsbtInputData = (
           script: scriptPubKey,
           value: utxo.value,
         },
+        ...(publicKeyNoCoord && { tapInternalKey: publicKeyNoCoord }),
       };
     }
     default:
