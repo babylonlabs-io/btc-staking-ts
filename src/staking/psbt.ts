@@ -6,7 +6,6 @@ import { REDEEM_VERSION } from "../constants/transaction";
 import { UTXO } from "../types/UTXO";
 import { deriveUnbondingOutputInfo } from "../utils/staking";
 import { findInputUTXO } from "../utils/utxo/findInputUTXO";
-import { getInputWitnessUTXO } from "../utils/utxo/getInputWitnessUTXO";
 import { getPsbtInputData } from "../utils/utxo/getPsbtInputData";
 
 /**
@@ -38,13 +37,15 @@ export const stakingPsbt = (
   stakingTx.ins.forEach((input) => {
     const inputUTXO = findInputUTXO(inputUTXOs, input);
     const psbtInputData = getPsbtInputData(inputUTXO, publicKeyNoCoord);
-    const witnessUtxo = getInputWitnessUTXO(inputUTXOs, input);
 
     psbt.addInput({
       hash: input.hash,
       index: input.index,
       sequence: input.sequence,
-      witnessUtxo,
+      witnessUtxo: {
+        script: Buffer.from(inputUTXO.scriptPubKey, "hex"),
+        value: inputUTXO.value,
+      },
       ...psbtInputData,
     });
   });
