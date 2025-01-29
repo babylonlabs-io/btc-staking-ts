@@ -42,10 +42,6 @@ export const stakingPsbt = (
       hash: input.hash,
       index: input.index,
       sequence: input.sequence,
-      witnessUtxo: {
-        script: Buffer.from(inputUTXO.scriptPubKey, "hex"),
-        value: inputUTXO.value,
-      },
       ...psbtInputData,
     });
   });
