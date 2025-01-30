@@ -1,5 +1,5 @@
 import { ObservableStakingScriptData, ObservableStakingScripts } from "../../../src/staking/observable";
-import { ObservableStakingParams } from "../../../src/types/params";
+import { ObservableVersionedStakingParams } from "../../../src/types/params";
 import { StakingDataGenerator } from "./base";
 
 export class ObservableStakingDatagen extends StakingDataGenerator {
@@ -15,17 +15,18 @@ export class ObservableStakingDatagen extends StakingDataGenerator {
     fixedTerm = false,
     committeeSize?: number,
     minStakingAmount?: number,
-  ): ObservableStakingParams => {
+  ): ObservableVersionedStakingParams => {
     return {
       ...super.generateStakingParams(fixedTerm, committeeSize, minStakingAmount),
       activationHeight: this.getRandomIntegerBetween(1000, 100000),
-      tag: this.generateRandomTag().toString("hex")
+      tag: this.generateRandomTag().toString("hex"),
+      version: this.getRandomIntegerBetween(1, 10),
     };
   };
 
   generateStakingScriptData = (
     stakerPkNoCoord: string,
-    params: ObservableStakingParams,
+    params: ObservableVersionedStakingParams,
     timelock: number,
   ): ObservableStakingScripts => {
     const fpPkHex = this.generateRandomKeyPair().publicKeyNoCoord;

@@ -2,7 +2,7 @@ import { address } from "bitcoinjs-lib";
 import { ObservableStaking, transactionIdToHash } from "../../../src";
 import * as observableStakingScriptData from "../../../src/staking/observable/observableStakingScript";
 import { testingNetworks } from "../../helper";
-import { ObservableStakingParams } from "../../../src/types/params";
+import { ObservableVersionedStakingParams } from "../../../src/types/params";
 import { UTXO } from "../../../src/types/UTXO";
 import { StakingError, StakingErrorCode } from "../../../src/error";
 import { BTC_DUST_SAT } from "../../../src/constants/dustSat";
@@ -15,7 +15,7 @@ describe.each(testingNetworks)("Observal - Create staking transaction", ({
 }) => {
   let stakerInfo: { address: string, publicKeyNoCoordHex: string, publicKeyWithCoord: string };
   let finalityProviderPkNoCoord: string;
-  let params: ObservableStakingParams;
+  let params: ObservableVersionedStakingParams;
   let timelock: number;
   let utxos: UTXO[];
   const feeRate = 1;

@@ -1,4 +1,4 @@
-import { ObservableStakingParams } from "../../types/params";
+import { ObservableVersionedStakingParams } from "../../types/params";
 import { UTXO } from "../../types/UTXO";
 import { StakingError, StakingErrorCode } from "../../error";
 import { stakingTransaction } from "../transactions";
@@ -21,11 +21,11 @@ export * from "./observableStakingScript";
  * public key(without coordinates).
  */
 export class ObservableStaking extends Staking {
-  params: ObservableStakingParams;
+  params: ObservableVersionedStakingParams;
   constructor(
     network: networks.Network,
     stakerInfo: StakerInfo,
-    params: ObservableStakingParams,
+    params: ObservableVersionedStakingParams,
     finalityProviderPkNoCoordHex: string,
     stakingTimelock: number,
   ) {
