@@ -66,6 +66,7 @@ export const getPsbtInputFields = (
           script: scriptPubKey,
           value: utxo.value,
         },
+        // this is needed only if the wallet is in taproot mode
         ...(publicKeyNoCoord && { tapInternalKey: publicKeyNoCoord }),
       };
     }
