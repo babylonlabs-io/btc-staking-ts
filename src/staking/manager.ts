@@ -85,7 +85,10 @@ export class BabylonBtcStakingManager {
   async createEoiDelegation(
     stakingInput: StakingInputs,
     feeRate: number,
-  ): Promise<Uint8Array> {
+  ): Promise<{
+    signedBbnTx: Uint8Array;
+    stakingTx: Transaction;
+  }> {
     const tipHeight = await this.bbnProvider.getBabylonBtcTipHeight();
     if (tipHeight === 0) {
       throw new Error("Babylon BTC tip height cannot be 0");
@@ -131,7 +134,10 @@ export class BabylonBtcStakingManager {
         p
       );
 
-      return this.bbnProvider.signTransaction(msg);
+      return {
+        signedBbnTx: await this.bbnProvider.signTransaction(msg),
+        stakingTx: transaction,
+      };
   }
 
   /**
@@ -146,7 +152,9 @@ export class BabylonBtcStakingManager {
     stakingTxHeight: number,
     stakingInput: StakingInputs,
     inclusionProof: InclusionProof,
-  ): Promise<Uint8Array> {
+  ): Promise<{
+    signedBbnTx: Uint8Array;
+  }> {
     // Get the staking params at the time of the staking transaction
     const p = getBbnParamByBtcHeight(stakingTxHeight, this.stakingParams);
     if (!p)
@@ -183,7 +191,9 @@ export class BabylonBtcStakingManager {
       this.getInclusionProof(inclusionProof),
     );
 
-    return this.bbnProvider.signTransaction(delegationMsg);
+    return {
+      signedBbnTx: await this.bbnProvider.signTransaction(delegationMsg),
+    };
   }
 
   /**
