@@ -292,7 +292,7 @@ export class Staking {
   }
 
   /**
-   * Create a withdrawal transaction that spends a naturally expired staking 
+   * Create a withdrawal psbt that spends a naturally expired staking 
    * transaction.
    * 
    * @param {Transaction} stakingTx - The staking transaction to withdraw from.
@@ -300,7 +300,7 @@ export class Staking {
    * @returns {PsbtResult} - An object containing the unsigned psbt and fee
    * @throws {StakingError} - If the delegation is invalid or the transaction cannot be built
    */
-  public createWithdrawStakingExpiredTransaction(
+  public createWithdrawStakingExpiredPsbt(
     stakingTx: Transaction,
     feeRate: number,
   ): PsbtResult {
@@ -333,13 +333,13 @@ export class Staking {
   }
 
   /**
-   * Create a slashing transaction spending from the staking output.
+   * Create a slashing psbt spending from the staking output.
    * 
    * @param {Transaction} stakingTx - The staking transaction to slash.
    * @returns {PsbtResult} - An object containing the unsigned psbt and fee
    * @throws {StakingError} - If the delegation is invalid or the transaction cannot be built
    */
-  public createStakingOutputSlashingTransaction(
+  public createStakingOutputSlashingPsbt(
     stakingTx: Transaction,
   ) : PsbtResult {
     if (!this.params.slashing) {
@@ -375,13 +375,13 @@ export class Staking {
   }
 
   /**
-   * Create a slashing transaction for an unbonding output.
+   * Create a slashing psbt for an unbonding output.
    * 
    * @param {Transaction} unbondingTx - The unbonding transaction to slash.
    * @returns {PsbtResult} - An object containing the unsigned psbt and fee
    * @throws {StakingError} - If the delegation is invalid or the transaction cannot be built
    */
-  public createUnbondingOutputSlashingTransaction(
+  public createUnbondingOutputSlashingPsbt(
     unbondingTx: Transaction,
   ): PsbtResult {
     if (!this.params.slashing) {
@@ -416,7 +416,7 @@ export class Staking {
   }
 
   /**
-   * Create a withdraw transaction that spends a slashing transaction from the
+   * Create a withdraw slashing psbt that spends a slashing transaction from the
    * staking output.
    * 
    * @param {Transaction} slashingTx - The slashing transaction.
@@ -424,7 +424,7 @@ export class Staking {
    * @returns {PsbtResult} - An object containing the unsigned psbt and fee
    * @throws {StakingError} - If the delegation is invalid or the transaction cannot be built
    */
-  public createWithdrawSlashingTransaction(
+  public createWithdrawSlashingPsbt(
     slashingTx: Transaction,
     feeRate: number,
   ): PsbtResult {

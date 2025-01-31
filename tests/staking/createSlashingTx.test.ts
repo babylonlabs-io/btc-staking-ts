@@ -30,7 +30,7 @@ describe.each(testingNetworks)("Create slashing transactions", ({
         throw new Error("slash early unbonded delegation build script error");
       });
       
-      expect(() => stakingInstance.createUnbondingOutputSlashingTransaction(
+      expect(() => stakingInstance.createUnbondingOutputSlashingPsbt(
         unbondingTx,
       )).toThrow("slash early unbonded delegation build script error");
     });
@@ -39,13 +39,13 @@ describe.each(testingNetworks)("Create slashing transactions", ({
       jest.spyOn(transaction, "slashEarlyUnbondedTransaction").mockImplementation(() => {
         throw new Error("fail to build slash tx");
       });
-      expect(() => stakingInstance.createUnbondingOutputSlashingTransaction(
+      expect(() => stakingInstance.createUnbondingOutputSlashingPsbt(
         unbondingTx,
       )).toThrow("fail to build slash tx");
     });
 
     it(`${networkName} should create slash early unbonded transaction`, () => {
-      const slashTx = stakingInstance.createUnbondingOutputSlashingTransaction(
+      const slashTx = stakingInstance.createUnbondingOutputSlashingPsbt(
         unbondingTx,
       );
       expect(slashTx.psbt.txInputs.length).toBe(1)
@@ -89,7 +89,7 @@ describe.each(testingNetworks)("Create slashing transactions", ({
         throw new Error("slash timelock unbonded delegation build script error");
       });
 
-      expect(() => stakingInstance.createStakingOutputSlashingTransaction(
+      expect(() => stakingInstance.createStakingOutputSlashingPsbt(
         stakingTx,
       )).toThrow("slash timelock unbonded delegation build script error");
     });
@@ -99,13 +99,13 @@ describe.each(testingNetworks)("Create slashing transactions", ({
         throw new Error("fail to build slash tx");
       });
 
-      expect(() => stakingInstance.createStakingOutputSlashingTransaction(
+      expect(() => stakingInstance.createStakingOutputSlashingPsbt(
         stakingTx,
       )).toThrow("fail to build slash tx");
     });
 
     it(`${networkName} should create slash timelock unbonded transaction`, async () => {
-      const slashTx = stakingInstance.createStakingOutputSlashingTransaction(
+      const slashTx = stakingInstance.createStakingOutputSlashingPsbt(
         stakingTx,
       );
       expect(slashTx.psbt.txInputs.length).toBe(1)
