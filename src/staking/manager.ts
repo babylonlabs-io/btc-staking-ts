@@ -77,12 +77,12 @@ export class BabylonBtcStakingManager {
   }
 
   /**
-   * Creates an signed EOI message that is ready to be sent to the BBN chain.
+   * Creates an signed EOI transaction that is ready to be sent to the BBN chain.
    * @param stakingInput - The staking inputs.
    * @param feeRate - The fee rate in satoshis per byte.
    * @returns The signed babylon transaction in base64 format.
    */
-  async createEoiDelegation(
+  async createEoiDelegationBbnTransaction(
     stakingInput: StakingInputs,
     feeRate: number,
   ): Promise<{
@@ -141,13 +141,15 @@ export class BabylonBtcStakingManager {
   }
 
   /**
-   * Registers an existing staking transaction on the BBN chain.
+   * Creates a signed delegation transaction that is ready to be sent to the 
+   * BBN chain. This is used when a staking transaction is already created and
+   * included in a BTC block and we want to register it on the BBN chain.
    * @param stakingTx - The staking transaction.
    * @param stakingTxHeight - The height of the staking transaction.
    * @param stakingInput - The staking inputs.
    * @returns The signed babylon transaction in base64 format.
    */
-  async registerDelegation(
+  async registerDelegationBbnTransaction(
     stakingTx: Transaction,
     stakingTxHeight: number,
     stakingInput: StakingInputs,
@@ -248,7 +250,7 @@ export class BabylonBtcStakingManager {
    * @param stakingParamVersion - The param version that was used to create the EOI
    * @returns The signed staking transaction.
    */
-  async createSignedStakingTransaction(
+  async createSignedBtcStakingTransaction(
     stakingInput: StakingInputs,
     unsignedStakingTx: Transaction,
     stakingParamVersion: number,
@@ -297,7 +299,7 @@ export class BabylonBtcStakingManager {
    * @param covenantUnbondingSignatures - The covenant unbonding signatures.
    * @returns The signed unbonding transaction.
    */
-  async createSignedUnbondingTransaction(
+  async createSignedBtcUnbondingTransaction(
     stakingInput: StakingInputs,
     stakingParamVersion: number,
     stakingTx: Transaction,
@@ -367,7 +369,7 @@ export class BabylonBtcStakingManager {
    * @param feeRate - The fee rate in satoshis per byte.
    * @returns The signed withdrawal transaction.
    */
-  async createWithdrawEarlyUnbondedTransaction(
+  async createWithdrawEarlyUnbondedBtcTransaction(
     stakingInput: StakingInputs,
     stakingParamVersion: number,
     earlyUnbondingTx: Transaction,
@@ -415,7 +417,7 @@ export class BabylonBtcStakingManager {
    * @param feeRate - The fee rate in satoshis per byte.
    * @returns The signed withdrawal transaction.
    */
-  async createWithdrawStakingExpiredTransaction(
+  async createWithdrawStakingExpiredBtcTransaction(
     stakingInput: StakingInputs,
     stakingParamVersion: number,
     stakingTx: Transaction,
@@ -459,7 +461,7 @@ export class BabylonBtcStakingManager {
    * @param feeRate - The fee rate in satoshis per byte.
    * @returns The signed withdrawal transaction.
    */
-  async createWithdrawSlashingTransaction(
+  async createWithdrawSlashingBtcTransaction(
     stakingInput: StakingInputs,
     stakingParamVersion: number,
     slashingTx: Transaction,
