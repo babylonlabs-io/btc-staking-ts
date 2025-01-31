@@ -24,7 +24,7 @@ export interface StakingParams {
  * different blockchain heights, but do not affect the actual staking transaction content.
  */
 export interface VersionedStakingParams extends StakingParams {
-  activationHeight: number;
+  btcActivationHeight: number;
   version: number;
 }
 

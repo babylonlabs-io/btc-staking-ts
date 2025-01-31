@@ -18,7 +18,7 @@ export class ObservableStakingDatagen extends StakingDataGenerator {
   ): ObservableVersionedStakingParams => {
     return {
       ...super.generateStakingParams(fixedTerm, committeeSize, minStakingAmount),
-      activationHeight: this.getRandomIntegerBetween(1000, 100000),
+      btcActivationHeight: this.getRandomIntegerBetween(1000, 100000),
       tag: this.generateRandomTag().toString("hex"),
       version: this.getRandomIntegerBetween(1, 10),
     };

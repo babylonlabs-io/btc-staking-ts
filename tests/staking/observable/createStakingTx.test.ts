@@ -138,7 +138,7 @@ describe.each(testingNetworks)("Observal - Create staking transaction", ({
 
 
     // Check the psbt properties
-    expect(transaction.locktime).toBe(params.activationHeight - 1);
+    expect(transaction.locktime).toBe(params.btcActivationHeight - 1);
     expect(transaction.version).toBe(2);
     transaction.ins.map((input) => {
       expect(input.sequence).toBe(NON_RBF_SEQUENCE);

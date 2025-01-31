@@ -10,14 +10,14 @@ export const getBbnParamByBtcHeight = (
   height: number,
   bbnParams: VersionedStakingParams[],
 ): StakingParams => {
-  // Sort by activationHeight in ascending order
+  // Sort by btcActivationHeight in ascending order
   const sortedParams = [...bbnParams].sort(
-    (a, b) => b.activationHeight - a.activationHeight,
+    (a, b) => b.btcActivationHeight - a.btcActivationHeight,
   );
 
-  // Find first param where height is >= activationHeight
+  // Find first param where height is >= btcActivationHeight
   const param = sortedParams.find(
-    (param) => height >= param.activationHeight,
+    (param) => height >= param.btcActivationHeight,
   );
   if (!param) throw new Error(`BBN param not found for height ${height}`);
   return param;

@@ -42,7 +42,7 @@ export class ObservableStaking extends Staking {
         "Observable staking parameters must include tag",
       );
     }
-    if (!params.activationHeight) {
+    if (!params.btcActivationHeight) {
       throw new StakingError(
         StakingErrorCode.INVALID_INPUT,
         "Observable staking parameters must include a positive activation height",
@@ -136,7 +136,7 @@ export class ObservableStaking extends Staking {
         // For example, if a Bitcoin height of X is provided,
         // the transaction will be included starting from height X+1.
         // https://learnmeabitcoin.com/technical/transaction/locktime/
-        this.params.activationHeight - 1,
+        this.params.btcActivationHeight - 1,
       );
       
       return {
