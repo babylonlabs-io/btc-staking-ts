@@ -1,6 +1,6 @@
-import { Staking } from '../../src';
 import * as utils from '../../src/utils/staking';
 import { testingNetworks } from '../helper';
+import { Staking } from "../../src/staking";
 
 describe.each(testingNetworks)("Staking input validations", ({
   network, datagen: { stakingDatagen: dataGenerator }

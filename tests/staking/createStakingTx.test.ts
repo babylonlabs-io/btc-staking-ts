@@ -8,7 +8,8 @@ import { BTC_DUST_SAT } from "../../src/constants/dustSat";
 import { NON_RBF_SEQUENCE } from "../../src/constants/psbt";
 import * as stakingUtils from "../../src/utils/staking";
 import * as stakingTx from "../../src/staking/transactions";
-import { Staking, transactionIdToHash } from "../../src";
+import { transactionIdToHash } from "../../src";
+import { Staking } from "../../src/staking";
 
 describe.each(testingNetworks)("Create staking transaction", ({
   network, networkName, datagen: { stakingDatagen: dataGenerator }

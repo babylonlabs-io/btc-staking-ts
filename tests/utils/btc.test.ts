@@ -4,8 +4,8 @@ import {
 } from '../../src/utils/btc';
 import { networks } from 'bitcoinjs-lib';
 import { testingNetworks } from '../helper';
-import { Staking } from '../../src';
 import { deriveStakingOutputInfo } from '../../src/utils/staking';
+import { Staking } from '../../src/staking';
 
 describe('isTaproot', () => {
   describe.each(testingNetworks)('should return true for a valid Taproot address', 

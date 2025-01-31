@@ -1,4 +1,4 @@
-export { Staking, StakingScriptData } from "./staking";
+export { StakingScriptData } from "./staking";
 export type { StakingScripts } from "./staking";
 export {
   ObservableStaking,

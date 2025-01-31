@@ -1,4 +1,4 @@
-import { Staking } from "../../src";
+import { Staking } from "../../src/staking";
 import * as transaction from "../../src/staking/transactions";
 import { internalPubkey } from "../../src/constants/internalPubkey";
 import { StakingError, StakingErrorCode } from "../../src/error";
