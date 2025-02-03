@@ -1,96 +1,357 @@
-import { networks, Psbt, Transaction } from "bitcoinjs-lib";
-import { StakingParams } from "../types/params";
-import { UTXO } from "../types/UTXO";
-import { StakingScriptData, StakingScripts } from "./stakingScript";
-import { StakingError, StakingErrorCode } from "../error";
+import { Psbt, Transaction, networks } from "bitcoinjs-lib";
+import { fromBech32 } from "@cosmjs/encoding";
+import {
+  btcstaking,
+  btcstakingpop,
+  btcstakingtx
+} from "@babylonlabs-io/babylon-proto-ts";
+
+import { StakingParams, VersionedStakingParams } from "../types/params";
+import { BABYLON_REGISTRY_TYPE_URLS } from "../constants/registry";
+import { uint8ArrayToHex } from "../utils";
 import { 
+  isValidBitcoinAddress,
+  isValidNoCoordPublicKey
+} from "../utils/btc";
+import {
+  deriveSlashingOutput,
+  deriveStakingOutputInfo,
+  findMatchingTxOutputIndex,
+  toBuffers
+} from "../utils/staking";
+import { StakingError, StakingErrorCode } from "../error";
+import {
+  createCovenantWitness,
   slashEarlyUnbondedTransaction,
   slashTimelockUnbondedTransaction,
-  stakingTransaction, unbondingTransaction,
+  unbondingTransaction,
   withdrawEarlyUnbondedTransaction,
   withdrawSlashingTransaction,
   withdrawTimelockUnbondedTransaction
 } from "./transactions";
-import {
-  isTaproot,
-  isValidBitcoinAddress, isValidNoCoordPublicKey
-} from "../utils/btc";
-import { 
-  deriveStakingOutputInfo,
-  deriveSlashingOutput,
-  findMatchingTxOutputIndex,
-  validateParams,
-  validateStakingTimelock,
-  validateStakingTxInputData,
-} from "../utils/staking";
-import { PsbtResult, TransactionResult } from "../types/transaction";
-import { toBuffers } from "../utils/staking";
-import { stakingPsbt, unbondingPsbt } from "./psbt";
-export * from "./stakingScript";
+import { unbondingPsbt } from "./psbt";
+import { getBabylonParamByBtcHeight } from "../utils/staking/param";
+import { StakingScriptData } from "./stakingScript";
+import { StakingScripts } from "./stakingScript";
 
-export interface StakerInfo {
+interface StakingInputs {
+  finalityProviderPkNoCoordHex: string;
+  stakingAmountSat: number;
+  stakingTimelock: number;
+}
+
+interface StakerBtcInfo {
   address: string;
   publicKeyNoCoordHex: string;
 }
 
-export class Staking {
-  network: networks.Network;
-  stakerInfo: StakerInfo;
-  params: StakingParams;
-  finalityProviderPkNoCoordHex: string;
-  stakingTimelock: number;
+export interface TransactionResultHex {
+  transactionHex: string;
+  fee: number;
+}
+
+export interface PsbtResultHex {
+  psbtHex: string;
+  fee: number;
+}
+
+export interface TransactionResults {
+  stakingResult: TransactionResultHex;
+  unbondingResult: TransactionResultHex;
+  slashingResult: PsbtResultHex;
+  unbondingSlashingResult: PsbtResultHex;
+}
+
+/**
+ * Base abstract class with common functionality for staking registration builders.
+ * 
+ * @param network - The network to use for the staking registration.
+ * @param stakingParams - The staking parameters to use for the staking registration.
+ */
+export abstract class StakingBuilder {
+  protected network: networks.Network;
+  protected params: StakingParams;
+
+  protected stakerBtcInfo?: StakerBtcInfo;
+  protected stakingInput?: StakingInputs;
+  protected babylonAddress?: string;
+  protected btcHeightForBabylonParams?: number;
   
+
   constructor(
     network: networks.Network,
-    stakerInfo: StakerInfo,
-    params: StakingParams,
-    finalityProviderPkNoCoordHex: string,
-    stakingTimelock: number,
+    versionedStakingParams: VersionedStakingParams[],
+    btcHeightForBabylonParams: number,
   ) {
-    // Perform validations
-    if (!isValidBitcoinAddress(stakerInfo.address, network)) {
-      throw new StakingError(
-        StakingErrorCode.INVALID_INPUT, "Invalid staker bitcoin address",
-      );
-    }
-    if (!isValidNoCoordPublicKey(stakerInfo.publicKeyNoCoordHex)) {
-      throw new StakingError(
-        StakingErrorCode.INVALID_INPUT, "Invalid staker public key",
-      );
-    }
-    if (!isValidNoCoordPublicKey(finalityProviderPkNoCoordHex)) {
-      throw new StakingError(
-        StakingErrorCode.INVALID_INPUT, "Invalid finality provider public key",
-      );
-    }
-    validateParams(params);
-    validateStakingTimelock(stakingTimelock, params);
-
     this.network = network;
-    this.stakerInfo = stakerInfo;
-    this.params = params;
-    this.finalityProviderPkNoCoordHex = finalityProviderPkNoCoordHex;
-    this.stakingTimelock = stakingTimelock;
+    if (versionedStakingParams.length === 0) {
+      throw new StakingError(
+        StakingErrorCode.INVALID_INPUT,
+        "No staking parameters provided",
+      );
+    }
+
+    this.params = getBabylonParamByBtcHeight(
+      btcHeightForBabylonParams, versionedStakingParams
+    );
   }
 
   /**
-   * buildScripts builds the staking scripts for the staking transaction.
-   * Note: different staking types may have different scripts.
-   * e.g the observable staking script has a data embed script.
+   * Sets the staker BTC info.
    * 
-   * @returns {StakingScripts} - The staking scripts.
+   * @param stakerBtcInfo - The staker BTC info.
+   * @returns The builder instance.
    */
-  buildScripts(): StakingScripts {
+  withStakerBtcInfo(stakerBtcInfo: StakerBtcInfo): this {
+    if (!isValidBitcoinAddress(stakerBtcInfo.address, this.network)) {
+      throw new StakingError(
+        StakingErrorCode.INVALID_INPUT,
+        "Invalid staker BTC address",
+      );
+    } else if (!isValidNoCoordPublicKey(stakerBtcInfo.publicKeyNoCoordHex)) {
+      throw new StakingError(
+        StakingErrorCode.INVALID_INPUT,
+        "Invalid staker BTC no-coord public key",
+      );
+    }
+    this.stakerBtcInfo = stakerBtcInfo;
+    return this;
+  }
+
+  /**
+   * Sets the staking input.
+   * 
+   * @param input - The staking input.
+   * @returns The builder instance.
+   */
+  withStakingInput(input: StakingInputs): this {
+    if (input.stakingAmountSat <= 0) {
+      throw new StakingError(
+        StakingErrorCode.INVALID_INPUT,
+        "Staking amount must be greater than 0",
+      );
+    } else if (input.stakingTimelock <= 0) {
+      throw new StakingError(
+        StakingErrorCode.INVALID_INPUT,
+        "Staking timelock must be greater than 0",
+      );
+    } else if (!isValidNoCoordPublicKey(input.finalityProviderPkNoCoordHex)) {
+      throw new StakingError(
+        StakingErrorCode.INVALID_INPUT,
+        "Invalid finality provider no-coord public key",
+      );
+    }
+    this.stakingInput = input;
+    return this;
+  }
+
+  withBabylonAddress(bech32Address: string): this {
+    if (!isValidBabylonAddress(bech32Address)) {
+      throw new StakingError(
+        StakingErrorCode.INVALID_INPUT,
+        "Invalid Babylon address",
+      );
+    }
+    this.babylonAddress = bech32Address;
+    return this;
+  }
+
+  /**
+   * Creates a proof of possession for the staker.
+   * 
+   * @param signMessage - The sign message function.
+   * @returns The proof of possession.
+   */
+  public async createProofOfPossession(
+    signMessage: (message: string, type: "ecdsa") => Promise<string>,
+  ): Promise<btcstakingpop.ProofOfPossessionBTC> {
+    if (!signMessage) {
+      throw new StakingError(
+        StakingErrorCode.INVALID_INPUT,
+        "Sign message function not found",
+      );
+    }
+    if (!this.babylonAddress) {
+      throw new StakingError(
+        StakingErrorCode.INVALID_INPUT,
+        "Babylon address required",
+      );
+    }
+    // Create Proof of Possession
+    const bech32AddressHex = uint8ArrayToHex(fromBech32(this.babylonAddress).data);
+    const signedBabylonAddress = await signMessage(
+      bech32AddressHex,
+      "ecdsa",
+    );
+    const ecdsaSig = Uint8Array.from(Buffer.from(signedBabylonAddress, "base64"));
+    return {
+      btcSigType: btcstakingpop.BTCSigType.ECDSA,
+      btcSig: ecdsaSig,
+    };
+  }
+
+  /**
+   * Validates the common fields to ensure the builder is properly configured.
+   */
+  protected validateCommonFields() {
+    if (!this.stakerBtcInfo) throw new StakingError(
+      StakingErrorCode.INVALID_INPUT,
+      "Staker BTC info required",
+    );
+    if (!this.stakingInput) throw new StakingError(
+      StakingErrorCode.INVALID_INPUT,
+      "Staking input required",
+    );
+   if (!this.btcHeightForBabylonParams) throw new StakingError(
+      StakingErrorCode.INVALID_INPUT,
+      "BTC height for Babylon params required",
+    );
+  }
+
+  /**
+   * Builds the transactions from an existing staking transaction.
+   * The transactions are unbonding, slashing psbt, and unbonding slashing psbt.
+   * 
+   * @param stakingInstance - The staking instance.
+   * @param stakingTx - The staking transaction.
+   * @returns An object containing the unbonding transaction, slashing PSBT, and 
+   * unbonding slashing PSBT as well as their fees. 
+   * The transactions are hex encoded.
+   */
+  protected buildTransactionsFromExisting(
+    stakingTx: Transaction,
+  ): Omit<TransactionResults, "stakingResult"> {
+    const { transaction: unbondingTx, fee: unbondingFee } = 
+      this.createUnbondingTransaction(stakingTx);
+
+    const { psbt: slashingPsbt, fee: slashingFee } =
+      this.createStakingOutputSlashingPsbt(stakingTx);
+    
+    const { psbt: unbondingSlashingPsbt, fee: unbondingSlashingFee } =
+      this.createUnbondingOutputSlashingPsbt(unbondingTx);
+
+    return {
+      unbondingResult: {
+        transactionHex: unbondingTx.toHex(),
+        fee: unbondingFee,
+      },
+      slashingResult: {
+        psbtHex: slashingPsbt.toHex(),
+        fee: slashingFee,
+      },
+      unbondingSlashingResult: {
+        psbtHex: unbondingSlashingPsbt.toHex(),
+        fee: unbondingSlashingFee,
+      },
+    };
+  }
+
+  /**
+   * Creates a delegation message.
+   * 
+   * @param unsignedStakingTxHex - The unsigned staking transaction hex.
+   * @param unsignedUnbondingTxHex - The unsigned unbonding transaction hex.
+   * @param signedSlashingTxHex - The signed slashing transaction hex.
+   * @param signedUnbondingSlashingTxHex - The signed unbonding slashing transaction hex.
+   * @param proofOfPossession - The proof of possession.
+   * @param inclusionProof - The inclusion proof.
+   * @returns The delegation message.
+   */
+  protected createDelegationMessage(
+    unsignedStakingTxHex: string,
+    unsignedUnbondingTxHex: string,
+    signedSlashingTxHex: string,
+    signedUnbondingSlashingTxHex: string,
+    proofOfPossession: btcstakingpop.ProofOfPossessionBTC,
+    inclusionProof?: btcstaking.InclusionProof,
+  ): {
+    typeUrl: BABYLON_REGISTRY_TYPE_URLS.MsgCreateBTCDelegation;
+    value: btcstakingtx.MsgCreateBTCDelegation;
+  } {
+    if (!this.babylonAddress) {
+      throw new StakingError(
+        StakingErrorCode.INVALID_INPUT,
+        "Babylon address required",
+      );
+    }
+    const unsignedStakingTx = Transaction.fromHex(unsignedStakingTxHex);
+    const signedSlashingTx = Transaction.fromHex(signedSlashingTxHex);
+    const unsignedUnbondingTx = Transaction.fromHex(unsignedUnbondingTxHex);
+    const signedUnbondingSlashingTx = Transaction.fromHex(signedUnbondingSlashingTxHex);
+  
+    // Extract signatures from signed transactions
+    const slashingSig = extractFirstSchnorrSignatureFromTransaction(
+      signedSlashingTx
+    );
+    if (!slashingSig) {
+      throw new Error(
+        "No signature found in the staking output slashing transaction"
+      );
+    }
+
+    const unbondingSlashingSig = extractFirstSchnorrSignatureFromTransaction(
+      signedUnbondingSlashingTx
+    );
+    if (!unbondingSlashingSig) {
+      throw new Error(
+        "No signature found in the unbonding output slashing transaction"
+      );
+    }
+    
+    // Create the delegation message
+    const msg: btcstakingtx.MsgCreateBTCDelegation = 
+      btcstakingtx.MsgCreateBTCDelegation.fromPartial({
+        stakerAddr: this.babylonAddress!,
+        pop: proofOfPossession,
+        btcPk: Uint8Array.from(
+          Buffer.from(this.stakerBtcInfo!.publicKeyNoCoordHex, "hex")
+        ),
+        fpBtcPkList: [
+          Uint8Array.from(
+            Buffer.from(this.stakingInput!.finalityProviderPkNoCoordHex, "hex")
+          ),
+        ],
+        stakingTime: this.stakingInput!.stakingTimelock,
+        stakingValue: this.stakingInput!.stakingAmountSat,
+        stakingTx: Uint8Array.from(unsignedStakingTx.toBuffer()),
+        slashingTx: Uint8Array.from(
+          Buffer.from(clearTxSignatures(signedSlashingTx).toHex(), "hex")
+        ),
+        delegatorSlashingSig: Uint8Array.from(slashingSig),
+        unbondingTime: this.params.unbondingTime,
+        unbondingTx: Uint8Array.from(unsignedUnbondingTx.toBuffer()),
+        unbondingValue: this.stakingInput!.stakingAmountSat - this.params.unbondingFeeSat,
+        unbondingSlashingTx: Uint8Array.from(
+          Buffer.from(
+            clearTxSignatures(signedUnbondingSlashingTx).toHex(),
+            "hex"
+          )
+        ),
+        delegatorUnbondingSlashingSig: Uint8Array.from(unbondingSlashingSig),
+        stakingTxInclusionProof: inclusionProof 
+          ? inclusionProof
+          : undefined,
+      });
+
+    return {
+      typeUrl: BABYLON_REGISTRY_TYPE_URLS.MsgCreateBTCDelegation,
+      value: msg,
+    };
+  }
+
+  protected buildScripts(): StakingScripts {
     const { covenantQuorum, covenantNoCoordPks, unbondingTime } = this.params;
+    const { publicKeyNoCoordHex } = this.stakerBtcInfo!;
+    const { finalityProviderPkNoCoordHex, stakingTimelock } = this.stakingInput!;
     // Create staking script data
     let stakingScriptData;
     try {
       stakingScriptData = new StakingScriptData(
-        Buffer.from(this.stakerInfo.publicKeyNoCoordHex, "hex"),
-        [Buffer.from(this.finalityProviderPkNoCoordHex, "hex")],
+        Buffer.from(publicKeyNoCoordHex, "hex"),
+        [Buffer.from(finalityProviderPkNoCoordHex, "hex")],
         toBuffers(covenantNoCoordPks),
         covenantQuorum,
-        this.stakingTimelock,
+        stakingTimelock,
         unbondingTime
       );
     } catch (error: unknown) {
@@ -114,95 +375,185 @@ export class Staking {
   }
 
   /**
-   * Create a staking transaction for staking.
+   * Create an unbonding psbt hex.
    * 
-   * @param {number} stakingAmountSat - The amount to stake in satoshis.
-   * @param {UTXO[]} inputUTXOs - The UTXOs to use as inputs for the staking 
-   * transaction.
-   * @param {number} feeRate - The fee rate for the transaction in satoshis per byte.
-   * @returns {TransactionResult} - An object containing the unsigned
-   * transaction, and fee
-   * @throws {StakingError} - If the transaction cannot be built
+   * @param params - The staking parameters.
+   * @param unbondingTxHex - The unbonding transaction hex.
+   * @param stakingTxHex - The staking transaction hex.
+   * @returns The unbonding psbt hex.
    */
-  public createStakingTransaction(
-    stakingAmountSat: number,
-    inputUTXOs: UTXO[],
-    feeRate: number,
-  ): TransactionResult {
-    validateStakingTxInputData(
-      stakingAmountSat,
-      this.stakingTimelock,
-      this.params,
-      inputUTXOs,
-      feeRate,
-    );
-
+  public toUnbondingPsbtHex(
+    unbondingTxHex: string,
+    stakingTxHex: string,
+  ): string {
     const scripts = this.buildScripts();
 
-    try {
-      const { transaction, fee } = stakingTransaction(
-        scripts,
-        stakingAmountSat,
-        this.stakerInfo.address,
-        inputUTXOs,
-        this.network,
-        feeRate,
-      );
-      return {
-        transaction,
-        fee,
-      };
-    } catch (error: unknown) {
-      throw StakingError.fromUnknown(
-        error, StakingErrorCode.BUILD_TRANSACTION_FAILURE,
-        "Cannot build unsigned staking transaction",
-      );
-    }
-  };
+    return unbondingPsbt(
+      scripts,
+      Transaction.fromHex(unbondingTxHex),
+      Transaction.fromHex(stakingTxHex),
+      this.network,
+    ).toHex();
+  }
 
   /**
-   * Create a staking psbt based on the existing staking transaction.
+   * Attach covenant signatures to the unbonding transaction.
    * 
-   * @param {Transaction} stakingTx - The staking transaction.
-   * @param {UTXO[]} inputUTXOs - The UTXOs to use as inputs for the staking 
-   * transaction. The UTXOs that were used to create the staking transaction should
-   * be included in this array.
-   * @returns {Psbt} - The psbt.
+   * @param params - The staking parameters.
+   * @param signedUnbondingPsbtHex - The signed unbonding psbt hex.
+   * @param covenantUnbondingSignatures - The covenant unbonding signatures.
+   * This value can be obtained from Babylon API or from the Babylon chain.
+   * @returns The unbonding transaction hex with the covenant signatures attached.
    */
-  public toStakingPsbt(
-    stakingTx: Transaction,
-    inputUTXOs: UTXO[],
-  ): Psbt {
-    // Check the staking output index can be found
+  public attachCovenantSignaturesToUnbondingTx(
+    signedUnbondingPsbtHex: string,
+    covenantUnbondingSignatures: {
+      btcPkHex: string;
+      sigHex: string;
+    }[],
+  ): string {
+    const signedUnbondingTx = Psbt
+      .fromHex(signedUnbondingPsbtHex).extractTransaction();
+
+    // Add covenant unbonding signatures
+    // Convert the params of covenants to buffer
+    const covenantBuffers = this.params.covenantNoCoordPks.map((covenant) =>
+      Buffer.from(covenant, "hex"),
+    );
+    const witness = createCovenantWitness(
+      // UnbondingTx has only one input
+      signedUnbondingTx.ins[0].witness,
+      covenantBuffers,
+      covenantUnbondingSignatures,
+      this.params.covenantQuorum,
+    );
+    // Overwrite the witness to include the covenant unbonding signatures
+    signedUnbondingTx.ins[0].witness = witness;
+    return signedUnbondingTx.toHex();
+  }
+
+  public createWithdrawEarlyUnbondedPsbt(
+    earlyUnbondingTxHex: string,
+    feeRate: number,
+  ): PsbtResultHex {
     const scripts = this.buildScripts();
-    const stakingOutputInfo = deriveStakingOutputInfo(scripts, this.network);
-    findMatchingTxOutputIndex(
+
+     // Create the withdraw early unbonded transaction
+     try {
+      const { psbt, fee } = withdrawEarlyUnbondedTransaction(
+        scripts,
+        Transaction.fromHex(earlyUnbondingTxHex),
+        this.stakerBtcInfo!.address,
+        this.network,
+        feeRate,
+      );  
+      return {
+        psbtHex: psbt.toHex(),
+        fee,
+      };
+    } catch (error) {
+      throw StakingError.fromUnknown(
+        error, StakingErrorCode.BUILD_TRANSACTION_FAILURE,
+        "Cannot build unsigned withdraw early unbonded transaction",
+      );
+    }
+  }
+
+
+  public createWithdrawStakingExpiredPsbt(
+    stakingTxHex: string,
+    feeRate: number,
+  ): PsbtResultHex {
+    // Build scripts
+    const scripts = this.buildScripts();
+    const { outputAddress } = deriveStakingOutputInfo(scripts, this.network);
+    // Reconstruct the stakingOutputIndex
+    const stakingTx = Transaction.fromHex(stakingTxHex);
+    const stakingOutputIndex = findMatchingTxOutputIndex(
       stakingTx,
-      stakingOutputInfo.outputAddress,
+      outputAddress,
       this.network,
     )
-    
-    return stakingPsbt(
-      stakingTx,
+
+    // Create the timelock unbonded transaction
+    try {
+      const { psbt, fee } = withdrawTimelockUnbondedTransaction(
+        scripts,
+        stakingTx,
+        this.stakerBtcInfo!.address,
+        this.network,
+        feeRate,
+        stakingOutputIndex,
+      );  
+      return {
+        psbtHex: psbt.toHex(),
+        fee,
+      };
+    } catch (error) {
+      throw StakingError.fromUnknown(
+        error, StakingErrorCode.BUILD_TRANSACTION_FAILURE,
+        "Cannot build unsigned timelock unbonded transaction",
+      );
+    }
+  }
+
+  /**
+   * Create a withdraw slashing psbt that spends a slashing transaction from the
+   * staking output.
+   * 
+   * @param slashingTxHex - The slashing transaction hex.
+   * @param feeRate - The fee rate for the transaction in satoshis per byte.
+   * @returns An object containing the unsigned psbt and fee
+   */
+  public createWithdrawSlashingPsbt(
+    slashingTxHex: string,
+    feeRate: number,
+  ): PsbtResultHex {
+    // Build scripts
+    const scripts = this.buildScripts();
+    const slashingOutputInfo = deriveSlashingOutput(scripts, this.network);
+
+    // Reconstruct the slashing transaction
+    const slashingTx = Transaction.fromHex(slashingTxHex);
+    // Reconstruct and validate the slashingOutputIndex
+    const slashingOutputIndex = findMatchingTxOutputIndex(
+      slashingTx,
+      slashingOutputInfo.outputAddress,
       this.network,
-      inputUTXOs,
-      isTaproot(
-        this.stakerInfo.address, this.network
-      ) ? Buffer.from(this.stakerInfo.publicKeyNoCoordHex, "hex") : undefined,
-    );
+    )
+
+    // Create the withdraw slashed transaction
+    try {
+      const { psbt, fee } = withdrawSlashingTransaction(
+        scripts,
+        slashingTx,
+        this.stakerBtcInfo!.address,
+        this.network,
+        feeRate,
+        slashingOutputIndex,
+      );  
+      return {
+        psbtHex: psbt.toHex(),
+        fee,
+      };
+    } catch (error) {
+      throw StakingError.fromUnknown(
+        error, StakingErrorCode.BUILD_TRANSACTION_FAILURE,
+        "Cannot build withdraw slashing transaction",
+      );
+    }
   }
 
   /**
    * Create an unbonding transaction for staking.
    * 
-   * @param {Transaction} stakingTx - The staking transaction to unbond.
-   * @returns {TransactionResult} - An object containing the unsigned
-   * transaction, and fee
-   * @throws {StakingError} - If the transaction cannot be built
+   * @param stakingTx - The staking transaction.
+   * @param params - The staking parameters.
+   * @returns The unbonding transaction.
    */
-  public createUnbondingTransaction(
+  private createUnbondingTransaction(
     stakingTx: Transaction,
-  ) : TransactionResult {    
+  ) {
     // Build scripts
     const scripts = this.buildScripts();
     const { outputAddress } = deriveStakingOutputInfo(scripts, this.network);
@@ -214,7 +565,7 @@ export class Staking {
     )
     // Create the unbonding transaction
     try {
-      const { transaction } = unbondingTransaction(
+      const { transaction, fee } = unbondingTransaction(
         scripts,
         stakingTx,
         this.params.unbondingFeeSat,
@@ -234,114 +585,15 @@ export class Staking {
   }
 
   /**
-   * Create an unbonding psbt based on the existing unbonding transaction and
-   * staking transaction.
-   * 
-   * @param {Transaction} unbondingTx - The unbonding transaction.
-   * @param {Transaction} stakingTx - The staking transaction.
-   * 
-   * @returns {Psbt} - The psbt.
-   */
-  public toUnbondingPsbt(
-    unbondingTx: Transaction,
-    stakingTx: Transaction,
-  ): Psbt {
-    return unbondingPsbt(
-      this.buildScripts(),
-      unbondingTx,
-      stakingTx,
-      this.network,
-    );
-  }
-
-  /**
-   * Creates a withdrawal transaction that spends from an unbonding or slashing
-   * transaction. The timelock on the input transaction must have expired before
-   * this withdrawal can be valid.
-   * 
-   * @param {Transaction} earlyUnbondedTx - The unbonding or slashing
-   * transaction to withdraw from
-   * @param {number} feeRate - Fee rate in satoshis per byte for the withdrawal
-   * transaction
-   * @returns {PsbtResult} - Contains the unsigned PSBT and fee amount
-   * @throws {StakingError} - If the input transaction is invalid or withdrawal
-   * transaction cannot be built
-   */
-  public createWithdrawEarlyUnbondedTransaction (
-    earlyUnbondedTx: Transaction,
-    feeRate: number,
-  ): PsbtResult {
-    // Build scripts
-    const scripts = this.buildScripts();
-
-    // Create the withdraw early unbonded transaction
-    try {
-      return withdrawEarlyUnbondedTransaction(
-        scripts,
-        earlyUnbondedTx,
-        this.stakerInfo.address,
-        this.network,
-        feeRate,
-      );  
-    } catch (error) {
-      throw StakingError.fromUnknown(
-        error, StakingErrorCode.BUILD_TRANSACTION_FAILURE,
-        "Cannot build unsigned withdraw early unbonded transaction",
-      );
-    }
-  }
-
-  /**
-   * Create a withdrawal psbt that spends a naturally expired staking 
-   * transaction.
-   * 
-   * @param {Transaction} stakingTx - The staking transaction to withdraw from.
-   * @param {number} feeRate - The fee rate for the transaction in satoshis per byte.
-   * @returns {PsbtResult} - An object containing the unsigned psbt and fee
-   * @throws {StakingError} - If the delegation is invalid or the transaction cannot be built
-   */
-  public createWithdrawStakingExpiredPsbt(
-    stakingTx: Transaction,
-    feeRate: number,
-  ): PsbtResult {
-    // Build scripts
-    const scripts = this.buildScripts();
-    const { outputAddress } = deriveStakingOutputInfo(scripts, this.network);
-    // Reconstruct the stakingOutputIndex
-    const stakingOutputIndex = findMatchingTxOutputIndex(
-      stakingTx,
-      outputAddress,
-      this.network,
-    )
-
-    // Create the timelock unbonded transaction
-    try {
-      return withdrawTimelockUnbondedTransaction(
-        scripts,
-        stakingTx,
-        this.stakerInfo.address,
-        this.network,
-        feeRate,
-        stakingOutputIndex,
-      );  
-    } catch (error) {
-      throw StakingError.fromUnknown(
-        error, StakingErrorCode.BUILD_TRANSACTION_FAILURE,
-        "Cannot build unsigned timelock unbonded transaction",
-      );
-    }
-  }
-
-  /**
    * Create a slashing psbt spending from the staking output.
    * 
-   * @param {Transaction} stakingTx - The staking transaction to slash.
-   * @returns {PsbtResult} - An object containing the unsigned psbt and fee
-   * @throws {StakingError} - If the delegation is invalid or the transaction cannot be built
+   * @param stakingTx - The staking transaction to slash.
+   * @param params - The staking parameters.
+   * @returns An object containing the unsigned slashing psbt and its fee
    */
-  public createStakingOutputSlashingPsbt(
+  private createStakingOutputSlashingPsbt(
     stakingTx: Transaction,
-  ) : PsbtResult {
+  ) {
     if (!this.params.slashing) {
       throw new StakingError(
         StakingErrorCode.INVALID_PARAMS,
@@ -349,6 +601,12 @@ export class Staking {
       );
     }
     
+    const {
+      slashingPkScriptHex,
+      slashingRate,
+      minSlashingTxFeeSat
+    } = this.params.slashing;
+
     // Build scripts
     const scripts = this.buildScripts();
 
@@ -357,14 +615,14 @@ export class Staking {
       const { psbt } = slashTimelockUnbondedTransaction(
         scripts,
         stakingTx,
-        this.params.slashing.slashingPkScriptHex,
-        this.params.slashing.slashingRate,
-        this.params.slashing.minSlashingTxFeeSat,
+        slashingPkScriptHex,
+        slashingRate,
+        minSlashingTxFeeSat,
         this.network,
       );
       return {
         psbt,
-        fee: this.params.slashing.minSlashingTxFeeSat,
+        fee: minSlashingTxFeeSat,
       };
     } catch (error) {
       throw StakingError.fromUnknown(
@@ -377,13 +635,13 @@ export class Staking {
   /**
    * Create a slashing psbt for an unbonding output.
    * 
-   * @param {Transaction} unbondingTx - The unbonding transaction to slash.
-   * @returns {PsbtResult} - An object containing the unsigned psbt and fee
-   * @throws {StakingError} - If the delegation is invalid or the transaction cannot be built
+   * @param unbondingTx - The unbonding transaction to slash.
+   * @param params - The staking parameters.
+   * @returns An object containing the unsigned slashing psbt and its fee
    */
-  public createUnbondingOutputSlashingPsbt(
+  private createUnbondingOutputSlashingPsbt(
     unbondingTx: Transaction,
-  ): PsbtResult {
+  ) {
     if (!this.params.slashing) {
       throw new StakingError(
         StakingErrorCode.INVALID_PARAMS,
@@ -393,19 +651,25 @@ export class Staking {
     // Build scripts
     const scripts = this.buildScripts();
 
+    const {
+      slashingPkScriptHex,
+      slashingRate,
+      minSlashingTxFeeSat
+    } = this.params.slashing;
+
     // create the slash timelock unbonded transaction
     try {
       const { psbt } = slashEarlyUnbondedTransaction(
         scripts,
         unbondingTx,
-        this.params.slashing.slashingPkScriptHex,
-        this.params.slashing.slashingRate,
-        this.params.slashing.minSlashingTxFeeSat,
+        slashingPkScriptHex,
+        slashingRate,
+        minSlashingTxFeeSat,
         this.network,
       );
       return {
         psbt,
-        fee: this.params.slashing.minSlashingTxFeeSat,
+        fee: minSlashingTxFeeSat,
       };
     } catch (error) {
       throw StakingError.fromUnknown(
@@ -415,45 +679,60 @@ export class Staking {
     }
   }
 
-  /**
-   * Create a withdraw slashing psbt that spends a slashing transaction from the
-   * staking output.
-   * 
-   * @param {Transaction} slashingTx - The slashing transaction.
-   * @param {number} feeRate - The fee rate for the transaction in satoshis per byte.
-   * @returns {PsbtResult} - An object containing the unsigned psbt and fee
-   * @throws {StakingError} - If the delegation is invalid or the transaction cannot be built
-   */
-  public createWithdrawSlashingPsbt(
-    slashingTx: Transaction,
-    feeRate: number,
-  ): PsbtResult {
-    // Build scripts
-    const scripts = this.buildScripts();
-    const slashingOutputInfo = deriveSlashingOutput(scripts, this.network);
 
-    // Reconstruct and validate the slashingOutputIndex
-    const slashingOutputIndex = findMatchingTxOutputIndex(
-      slashingTx,
-      slashingOutputInfo.outputAddress,
-      this.network,
-    )
 
-    // Create the withdraw slashed transaction
-    try {
-      return withdrawSlashingTransaction(
-        scripts,
-        slashingTx,
-        this.stakerInfo.address,
-        this.network,
-        feeRate,
-        slashingOutputIndex,
-      );  
-    } catch (error) {
-      throw StakingError.fromUnknown(
-        error, StakingErrorCode.BUILD_TRANSACTION_FAILURE,
-        "Cannot build withdraw slashing transaction",
-      );
+}
+
+
+/**
+ * Extracts the first valid Schnorr signature from a signed transaction.
+ * @param singedTransaction - The signed transaction.
+ * @returns The first valid Schnorr signature or undefined if no valid signature is found.
+ */
+const extractFirstSchnorrSignatureFromTransaction = (
+  singedTransaction: Transaction,
+): Buffer | undefined => {
+  // Loop through each input to extract the witness signature
+  for (const input of singedTransaction.ins) {
+    if (input.witness && input.witness.length > 0) {
+      const schnorrSignature = input.witness[0];
+
+      // Check that it's a 64-byte Schnorr signature
+      if (schnorrSignature.length === 64) {
+        return schnorrSignature; // Return the first valid signature found
+      }
     }
   }
-}
+  return undefined;
+};
+
+/**
+ * Strips all signatures from a transaction by clearing both the script and 
+ * witness data. This is due to the fact that we only need the raw unsigned 
+ * transaction structure. The signatures are sent in a separate protobuf field 
+ * when creating the delegation message in the Babylon.
+ * @param tx - The transaction to strip signatures from
+ * @returns A copy of the transaction with all signatures removed
+ */
+const clearTxSignatures = (tx: Transaction): Transaction => {
+  tx.ins.forEach((input) => {
+    input.script = Buffer.alloc(0);
+    input.witness = [];
+  });
+  return tx;
+};
+
+/**
+ * Validates a Babylon address. Babylon addresses are encoded in Bech32 format 
+ * and have a prefix of "bbn".
+ * @param address - The address to validate.
+ * @returns True if the address is valid, false otherwise.
+ */
+const isValidBabylonAddress = (address: string): boolean => {
+  try {
+    const { prefix } = fromBech32(address);
+    return prefix === "bbn";
+  } catch (error) {
+    return false;
+  }
+};

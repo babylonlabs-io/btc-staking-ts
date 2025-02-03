@@ -10,6 +10,12 @@ export const getBabylonParamByBtcHeight = (
   height: number,
   babylonParamsVersions: VersionedStakingParams[],
 ): StakingParams => {
+  if (babylonParamsVersions.length === 0) {
+    throw new Error("Babylon params versions cannot be empty");
+  } else if (height === 0) {
+    throw new Error("BTC height cannot be 0");
+  }
+
   // Sort by btcActivationHeight in ascending order
   const sortedParams = [...babylonParamsVersions].sort(
     (a, b) => b.btcActivationHeight - a.btcActivationHeight,
