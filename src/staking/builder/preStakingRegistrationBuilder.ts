@@ -21,6 +21,8 @@ export class PreStakingRegistrationBuilder extends StakingBuilder {
   constructor(
     network: networks.Network,
     versionedStakingParams: VersionedStakingParams[],
+    // The height of BTC tip block on the Babylon chain. This value should be
+    // obtained from the Babylon chain.
     babylonBtcTipHeight: number,
   ) {
     super(network, versionedStakingParams, babylonBtcTipHeight);

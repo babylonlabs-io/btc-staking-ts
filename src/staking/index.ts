@@ -31,8 +31,7 @@ import {
 } from "./transactions";
 import { unbondingPsbt } from "./psbt";
 import { getBabylonParamByBtcHeight } from "../utils/staking/param";
-import { StakingScriptData } from "./stakingScript";
-import { StakingScripts } from "./stakingScript";
+import { StakingScriptData, StakingScripts } from "./stakingScript";
 
 interface StakingInputs {
   finalityProviderPkNoCoordHex: string;
@@ -702,6 +701,7 @@ export abstract class StakingBuilder {
     }
   }
 }
+
 /**
  * Extracts the first valid Schnorr signature from a signed transaction.
  * 
