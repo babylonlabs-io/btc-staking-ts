@@ -11,11 +11,9 @@ import { reverseBuffer } from "../../utils";
 import { BABYLON_REGISTRY_TYPE_URLS } from "../../constants/registry";
 import { VersionedStakingParams } from "../../types";
 import { StakingBuilder, TransactionResults } from "..";
+import { StakingError } from "../../error";
+import { StakingErrorCode } from "../../error";
 
-// Inclusion proof for a BTC staking transaction that is included in a BTC block
-// This is used for post-staking registration on the Babylon chain
-// You can refer to https://electrumx.readthedocs.io/en/latest/protocol-methods.html#blockchain-transaction-get-merkle
-// for more information on the inclusion proof format.
 interface InclusionProof {
   // The 0-based index of the position of the transaction in the ordered list 
   // of transactions in the block.
@@ -29,10 +27,11 @@ interface InclusionProof {
 
 /**
  * Builder class for post-staking registration transactions.
+ * This refers to the process of registering a staking on the Babylon
+ * chain after the staking transaction has been included in a BTC block.
  */
 export class PostStakingRegistrationBuilder extends StakingBuilder {
   private existingStakingTx?: Transaction;
-  private inclusionProof?: btcstaking.InclusionProof;
 
   constructor(
     network: networks.Network,
@@ -43,7 +42,7 @@ export class PostStakingRegistrationBuilder extends StakingBuilder {
   }
 
   /**
-   * Sets the existing staking transaction.
+   * Sets the existing staking transaction that has been included in a BTC block.
    * @param tx - The existing staking transaction.
    * @returns The builder instance.
    */
@@ -57,11 +56,6 @@ export class PostStakingRegistrationBuilder extends StakingBuilder {
       stakingOutputInfo.outputAddress,
       this.network
     );
-    return this;
-  }
-
-  withInclusionProof(proof: btcstaking.InclusionProof): this {
-    this.inclusionProof = proof;
     return this;
   }
 
@@ -94,6 +88,8 @@ export class PostStakingRegistrationBuilder extends StakingBuilder {
    * @param signedSlashingTx - The signed slashing transaction.
    * @param signedUnbondingSlashingTx - The signed unbonding slashing transaction.
    * @param proofOfPossession - The proof of possession.
+   * @param inclusionProof - The inclusion proof for the staking transaction.
+   * This can be derived from `buildInclusionProof` method.
    * @returns The Babylon delegation message.
    */
   buildBabylonDelegationMessage(
@@ -101,6 +97,7 @@ export class PostStakingRegistrationBuilder extends StakingBuilder {
     signedSlashingTxHex: string,
     signedUnbondingSlashingTxHex: string,
     proofOfPossession: btcstakingpop.ProofOfPossessionBTC,
+    inclusionProof: btcstaking.InclusionProof,
   ): {
     typeUrl: BABYLON_REGISTRY_TYPE_URLS.MsgCreateBTCDelegation;
     value: btcstakingtx.MsgCreateBTCDelegation;
@@ -111,15 +108,23 @@ export class PostStakingRegistrationBuilder extends StakingBuilder {
       signedSlashingTxHex,
       signedUnbondingSlashingTxHex,
       proofOfPossession,
-      this.inclusionProof
+      inclusionProof,
     );
   }
 
   /**
-   * Helper method to build a inclusion proof for the Babylon BTC Staking
-   * transaction.
-   * @param inclusionProof - The BTC inclusion proof data.
-   * @returns The Babylon BTC Staking compatible inclusion proof.
+   * Builds an inclusion proof for a BTC staking transaction that has been 
+   * included in a BTC block. The inclusion proof is required for 
+   * post-staking registration on the Babylon chain to verify that the staking 
+   * transaction exists in the Bitcoin blockchain.
+   * 
+   * The proof format follows the Electrum merkle proof specification described 
+   * at: https://electrumx.readthedocs.io/en/latest/protocol-methods.html#blockchain-transaction-get-merkle
+   * 
+   * @param inclusionProof - The BTC inclusion proof data. See `InclusionProof`
+   * interface for more details.
+   * @returns A Babylon-compatible inclusion proof containing the transaction 
+   * position, block hash, and merkle proof bytes
    */
   public buildInclusionProof(
     inclusionProof: InclusionProof,
@@ -150,8 +155,10 @@ export class PostStakingRegistrationBuilder extends StakingBuilder {
    */
   private validateRequiredFields() {
     this.validateCommonFields();
-    if (!this.existingStakingTx) throw new Error("Existing staking transaction required");
-    if (!this.inclusionProof) throw new Error("Inclusion proof required");
+    if (!this.existingStakingTx) throw new StakingError(
+      StakingErrorCode.INVALID_INPUT,
+      "Existing staking transaction required",
+    );
   }
 }
 

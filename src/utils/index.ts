@@ -5,13 +5,10 @@
  */
 export const reverseBuffer = (buffer: Uint8Array): Uint8Array => {
   if (buffer.length < 1) return buffer;
-  let j = buffer.length - 1;
-  let tmp = 0;
-  for (let i = 0; i < buffer.length / 2; i++) {
-    tmp = buffer[i];
+  for (let i = 0, j = buffer.length - 1; i < buffer.length / 2; i++, j--) {
+    let tmp = buffer[i];
     buffer[i] = buffer[j];
     buffer[j] = tmp;
-    j--;
   }
   return buffer;
 };

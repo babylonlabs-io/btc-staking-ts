@@ -12,6 +12,8 @@ import { StakingBuilder, TransactionResults } from "..";
 
 /**
  * Builder class for pre-staking registration transactions.
+ * This refers to the process of registering a staking on the Babylon
+ * chain before the staking transaction has been included in a BTC block.
  */
 export class PreStakingRegistrationBuilder extends StakingBuilder {
   private inputUTXOs?: UTXO[];

@@ -145,6 +145,12 @@ export abstract class StakingBuilder {
     return this;
   }
 
+  /**
+   * Sets the Babylon address.
+   * 
+   * @param bech32Address - The Babylon address. Start with "bbn"
+   * @returns The builder instance.
+   */
   withBabylonAddress(bech32Address: string): this {
     if (!isValidBabylonAddress(bech32Address)) {
       throw new StakingError(
@@ -254,7 +260,7 @@ export abstract class StakingBuilder {
    * @param signedSlashingTxHex - The signed slashing transaction hex.
    * @param signedUnbondingSlashingTxHex - The signed unbonding slashing transaction hex.
    * @param proofOfPossession - The proof of possession.
-   * @param inclusionProof - The inclusion proof.
+   * @param inclusionProof - The inclusion proof. This is optional.
    * @returns The delegation message.
    */
   protected createDelegationMessage(
@@ -432,6 +438,14 @@ export abstract class StakingBuilder {
     return signedUnbondingTx.toHex();
   }
 
+  /**
+   * Create a withdraw psbt on the unbonding output expiry path that is ready to
+   * be signed and broadcasted to the network.
+   * 
+   * @param earlyUnbondingTxHex - The early unbonding transaction hex.
+   * @param feeRate - The fee rate for the transaction in satoshis per byte.
+   * @returns The withdraw early unbonded psbt hex.
+   */
   public createWithdrawEarlyUnbondedPsbt(
     earlyUnbondingTxHex: string,
     feeRate: number,
@@ -460,6 +474,14 @@ export abstract class StakingBuilder {
   }
 
 
+  /**
+   * Create a withdraw psbt on the staking output expiry path that is ready to
+   * be signed and broadcasted to the network.
+   * 
+   * @param stakingTxHex - The staking transaction hex.
+   * @param feeRate - The fee rate for the transaction in satoshis per byte.
+   * @returns The withdraw staking expired psbt hex.
+   */
   public createWithdrawStakingExpiredPsbt(
     stakingTxHex: string,
     feeRate: number,
@@ -498,8 +520,9 @@ export abstract class StakingBuilder {
   }
 
   /**
-   * Create a withdraw slashing psbt that spends a slashing transaction from the
-   * staking output.
+   * Create a withdraw slashing psbt that spends a expired change output of a 
+   * slashing transaction. This psbt is ready to be signed and broadcasted to the
+   * network.
    * 
    * @param slashingTxHex - The slashing transaction hex.
    * @param feeRate - The fee rate for the transaction in satoshis per byte.
@@ -678,16 +701,17 @@ export abstract class StakingBuilder {
       );
     }
   }
-
-
-
 }
-
-
 /**
  * Extracts the first valid Schnorr signature from a signed transaction.
- * @param singedTransaction - The signed transaction.
- * @returns The first valid Schnorr signature or undefined if no valid signature is found.
+ * 
+ * Since we only handle transactions with a single input and request a signature
+ * for one public key, there can be at most one signature from the Bitcoin node.
+ * A valid Schnorr signature is exactly 64 bytes in length.
+ * 
+ * @param singedTransaction - The signed Bitcoin transaction to extract the signature from
+ * @returns The first valid 64-byte Schnorr signature found in the transaction witness data,
+ *          or undefined if no valid signature exists
  */
 const extractFirstSchnorrSignatureFromTransaction = (
   singedTransaction: Transaction,
