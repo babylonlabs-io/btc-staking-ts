@@ -14,7 +14,7 @@ describe.each(testingNetworks)("Transactions - ", (
     });
     const stakerKeyPair = dataGenerator.generateRandomKeyPair();
     const { stakingTx, stakingAmountSat } = dataGenerator.generateRandomStakingTransaction(
-      network, 1, stakerKeyPair
+      1, stakerKeyPair
     );
     const stakingScripts =
       dataGenerator.generateMockStakingScripts(stakerKeyPair);

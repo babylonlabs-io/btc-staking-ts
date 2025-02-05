@@ -1,14 +1,10 @@
 import * as bitcoin from "bitcoinjs-lib";
-import { ObservableStakingDatagen } from "./datagen/observable";
 import { StakingDataGenerator } from "./datagen/base";
 
 export interface NetworkConfig {
   networkName: string;
   network: bitcoin.Network;
-  datagen: {
-    observableStakingDatagen: ObservableStakingDatagen;
-    stakingDatagen: StakingDataGenerator;
-  }
+  datagen: StakingDataGenerator
 }
 
 const createNetworkConfig = (
@@ -17,10 +13,7 @@ const createNetworkConfig = (
 ): NetworkConfig => ({
   networkName,
   network,
-  datagen: {
-    observableStakingDatagen: new ObservableStakingDatagen(network),
-    stakingDatagen: new StakingDataGenerator(network),
-  },
+  datagen: new StakingDataGenerator(network),
 });
 
 const testingNetworks: NetworkConfig[] = [

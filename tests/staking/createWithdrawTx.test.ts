@@ -2,27 +2,34 @@ import * as stakingScript from "../../src/staking/stakingScript";
 import { testingNetworks } from "../helper";
 import * as transaction from "../../src/staking/transactions";
 import { getWithdrawTxFee } from "../../src/utils/fee";
+import { Psbt } from "bitcoinjs-lib";
 
 describe.each(testingNetworks)("Create withdrawal transactions", ({
-  network, networkName, datagen: { stakingDatagen: dataGenerator }
+  network, networkName, datagen: dataGenerator
 }) => {
   const feeRate = 1;
-  const {
-    stakingTx,
-    stakerInfo,
-    stakingInstance,
-  } = dataGenerator.generateRandomStakingTransaction(
-    network, feeRate,
-  );
+  let stakingTx: any;
+  let stakerInfo: any;
+  let stakingInstance: any;
+  let unbondingTx: any;
   
-  const { transaction: unbondingTx } = stakingInstance.createUnbondingTransaction(
-    stakingTx,
-  );
-
   beforeEach(() => {
     jest.clearAllMocks();
     jest.resetAllMocks();
     jest.restoreAllMocks();
+
+    // Generate new instances for each test
+    const generated = dataGenerator.generateRandomStakingTransaction(
+      feeRate,
+    );
+    stakingTx = generated.stakingTx;
+    stakerInfo = generated.stakerInfo;
+    stakingInstance = generated.stakingInstance;
+
+    const unbondingResult = stakingInstance.createUnbondingTransaction(
+      stakingTx,
+    );
+    unbondingTx = unbondingResult.transaction;
   });
 
   describe("Create withdraw early unbonded transaction", () => {
@@ -31,8 +38,8 @@ describe.each(testingNetworks)("Create withdrawal transactions", ({
         throw new Error("withdraw early unbonded delegation build script error");
       });
       
-      expect(() => stakingInstance.createWithdrawEarlyUnbondedTransaction(
-        unbondingTx,
+      expect(() => stakingInstance.createWithdrawEarlyUnbondedPsbt(
+        unbondingTx.toHex(),
         feeRate,
       )).toThrow("withdraw early unbonded delegation build script error");
     });
@@ -41,29 +48,31 @@ describe.each(testingNetworks)("Create withdrawal transactions", ({
       jest.spyOn(transaction, "withdrawEarlyUnbondedTransaction").mockImplementation(() => {
         throw new Error("fail to build withdraw tx");
       });
-      expect(() => stakingInstance.createWithdrawEarlyUnbondedTransaction(
-        unbondingTx,
+      expect(() => stakingInstance.createWithdrawEarlyUnbondedPsbt(
+        unbondingTx.toHex(),
         feeRate,
       )).toThrow("fail to build withdraw tx");
     });
 
     it(`${networkName} should create withdraw early unbonded transaction`, () => {
-      const withdrawTx = stakingInstance.createWithdrawEarlyUnbondedTransaction(
-        unbondingTx,
+      const { psbtHex } = stakingInstance.createWithdrawEarlyUnbondedPsbt(
+        unbondingTx.toHex(),
         feeRate,
       );
-      expect(withdrawTx.psbt.txInputs.length).toBe(1)
-      expect(withdrawTx.psbt.txInputs[0].hash.toString("hex")).
+
+      const psbt = Psbt.fromHex(psbtHex, { network});
+      expect(psbt.txInputs.length).toBe(1)
+      expect(psbt.txInputs[0].hash.toString("hex")).
         toBe(unbondingTx.getHash().toString("hex"));
-      expect(withdrawTx.psbt.txInputs[0].index).toBe(0);
-      expect(withdrawTx.psbt.txOutputs.length).toBe(1);
+      expect(psbt.txInputs[0].index).toBe(0);
+      expect(psbt.txOutputs.length).toBe(1);
       const fee = getWithdrawTxFee(feeRate);
-      expect(withdrawTx.psbt.txOutputs[0].value).toBe(
+      expect(psbt.txOutputs[0].value).toBe(
         unbondingTx.outs[0].value - fee,
       );
-      expect(withdrawTx.psbt.txOutputs[0].address).toBe(stakerInfo.address);
-      expect(withdrawTx.psbt.locktime).toBe(0);
-      expect(withdrawTx.psbt.version).toBe(2);
+      expect(psbt.txOutputs[0].address).toBe(stakerInfo.address);
+      expect(psbt.locktime).toBe(0);
+      expect(psbt.version).toBe(2);
     });
   });
 
@@ -73,7 +82,7 @@ describe.each(testingNetworks)("Create withdrawal transactions", ({
         throw new Error("withdraw timelock unbonded delegation build script error");
       });
       expect(() => stakingInstance.createWithdrawStakingExpiredPsbt(
-        stakingTx,
+        stakingTx.toHex(),
         feeRate,
       )).toThrow("withdraw timelock unbonded delegation build script error");
     });
@@ -84,28 +93,30 @@ describe.each(testingNetworks)("Create withdrawal transactions", ({
       });
 
       expect(() => stakingInstance.createWithdrawStakingExpiredPsbt(
-        stakingTx,
+        stakingTx.toHex(),
         feeRate,
       )).toThrow("fail to build withdraw tx");
     });
 
     it(`${networkName} should create withdraw timelock unbonded transaction`, async () => {
-      const withdrawTx = stakingInstance.createWithdrawStakingExpiredPsbt(
-        stakingTx,
+      const { psbtHex } = stakingInstance.createWithdrawStakingExpiredPsbt(
+        stakingTx.toHex(),
         feeRate,
       );
-      expect(withdrawTx.psbt.txInputs.length).toBe(1)
-      expect(withdrawTx.psbt.txInputs[0].hash.toString("hex")).
+
+      const psbt = Psbt.fromHex(psbtHex, { network });
+      expect(psbt.txInputs.length).toBe(1)
+      expect(psbt.txInputs[0].hash.toString("hex")).
         toBe(stakingTx.getHash().toString("hex"));
-      expect(withdrawTx.psbt.txInputs[0].index).toBe(0);
-      expect(withdrawTx.psbt.txOutputs.length).toBe(1);
+      expect(psbt.txInputs[0].index).toBe(0);
+      expect(psbt.txOutputs.length).toBe(1);
       const fee = getWithdrawTxFee(feeRate);
-      expect(withdrawTx.psbt.txOutputs[0].value).toBe(
+      expect(psbt.txOutputs[0].value).toBe(
         stakingTx.outs[0].value - fee,
       );
-      expect(withdrawTx.psbt.txOutputs[0].address).toBe(stakerInfo.address);
-      expect(withdrawTx.psbt.locktime).toBe(0);
-      expect(withdrawTx.psbt.version).toBe(2);
+      expect(psbt.txOutputs[0].address).toBe(stakerInfo.address);
+      expect(psbt.locktime).toBe(0);
+      expect(psbt.version).toBe(2);
     });
   });
 });

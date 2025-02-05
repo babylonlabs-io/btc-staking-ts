@@ -11,7 +11,7 @@ describe.each(testingNetworks)("Create slashing transactions", ({
     stakingTx, timelock, stakingInstance, finalityProviderPkNoCoordHex,
     stakerInfo, params, stakingAmountSat,
   } = dataGenerator.generateRandomStakingTransaction(
-    network, 1
+    1
   );
   
   const { transaction: unbondingTx } = stakingInstance.createUnbondingTransaction(

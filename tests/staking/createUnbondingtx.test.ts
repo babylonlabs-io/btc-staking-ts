@@ -19,7 +19,6 @@ describe.each(testingNetworks)("Create unbonding transaction", ({
     finalityProviderPkNoCoordHex,
     stakingAmountSat,
   } = dataGenerator.generateRandomStakingTransaction(
-    network,
     feeRate,
   );
   let staking: Staking;

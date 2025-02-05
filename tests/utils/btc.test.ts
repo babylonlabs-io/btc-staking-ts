@@ -105,14 +105,12 @@ describe.each(testingNetworks)('public keys', ({ datagen: {
 
 describe.each(testingNetworks)('Derive staking output address', ({
   network,
-  datagen: {
-    stakingDatagen: dataGenerator
-  }
+  datagen: dataGenerator
 }) => {
   const feeRate = 1;
   const finalityProviderPkNoCoordHex = dataGenerator.generateRandomKeyPair().publicKeyNoCoord;
   const { timelock, stakerInfo, params } = dataGenerator.generateRandomStakingTransaction(
-    network, feeRate
+    feeRate
   );
 
   describe("should derive the staking output address from the scripts", () => {

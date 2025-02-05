@@ -9,10 +9,10 @@ import { NON_RBF_SEQUENCE } from "../../src/constants/psbt";
 import * as stakingUtils from "../../src/utils/staking";
 import * as stakingTx from "../../src/staking/transactions";
 import { transactionIdToHash } from "../../src";
-import { Staking } from "../../src/staking";
+import { StakingBuilder } from "../../src/staking";
 
 describe.each(testingNetworks)("Create staking transaction", ({
-  network, networkName, datagen: { stakingDatagen: dataGenerator }
+  network, networkName, datagen: dataGenerator
 }) => {
   let stakerInfo: { address: string, publicKeyNoCoordHex: string, publicKeyWithCoord: string };
   let finalityProviderPublicKey: string;
@@ -51,9 +51,8 @@ describe.each(testingNetworks)("Create staking transaction", ({
       address: stakerInfo.address,
       publicKeyNoCoordHex: stakerInfo.publicKeyWithCoord,
     };
-    expect(() => new Staking(
-      network, stakerInfoWithCoordPk,
-      params, finalityProviderPublicKey, timelock,
+    expect(() => new StakingBuilder(
+      network, params, timelock,
     )).toThrow(
       "Invalid staker public key"
     );

@@ -4,11 +4,12 @@ import ECPairFactory from "ecpair";
 import {
   slashEarlyUnbondedTransaction,
   slashTimelockUnbondedTransaction,
+  stakingTransaction,
   unbondingTransaction,
 } from "../../../src";
-import { Staking } from "../../../src/staking";
+import { StakingBuilder } from "../../../src/staking/index";
 import { UTXO } from "../../../src/types/UTXO";
-import { StakingParams } from "../../../src/types/params";
+import { StakingParams, VersionedStakingParams } from "../../../src/types/params";
 import { generateRandomAmountSlices } from "../math";
 import { StakingScriptData, StakingScripts } from "../../../src/index";
 import { MIN_UNBONDING_OUTPUT_VALUE } from "../../../src/constants/unbonding";
@@ -41,10 +42,12 @@ export class StakingDataGenerator {
   generateStakingParams(
     fixedTerm: boolean = false, committeeSize?: number,
     minStakingAmount?: number
-  ): StakingParams {
+  ): VersionedStakingParams {
     if (!committeeSize) {
       committeeSize = this.getRandomIntegerBetween(5, 50);
     }
+    const version = this.getRandomIntegerBetween(1, 100);
+    const btcActivationHeight = this.getRandomIntegerBetween(100000, 1000000);
     const covenantNoCoordPks = this.generateRandomCovenantCommittee(committeeSize).map(
       (buffer) => buffer.toString("hex"),
     );
@@ -74,7 +77,9 @@ export class StakingDataGenerator {
         slashingRate,
         slashingPkScriptHex: getRandomPaymentScriptHex(this.generateRandomKeyPair().publicKey),
         minSlashingTxFeeSat,
-      }
+      },
+      version,
+      btcActivationHeight,
     };
   }
 
@@ -237,12 +242,11 @@ export class StakingDataGenerator {
    * @returns {Object} - A random staking transaction
    */
   generateRandomStakingTransaction = (
-    network: bitcoin.networks.Network,
     feeRate: number = DEFAULT_TEST_FEE_RATE,
     stakerKeyPair?: KeyPair,
     stakingAmount?: number,
     addressType?: "taproot" | "nativeSegwit",
-    param?: StakingParams,
+    versionedStakingParams?: VersionedStakingParams,
   ) => {
     if (!stakerKeyPair) {
       stakerKeyPair = this.generateRandomKeyPair();
@@ -252,13 +256,14 @@ export class StakingDataGenerator {
       publicKeyNoCoordHex: stakerKeyPair.publicKeyNoCoord,
       publicKeyWithCoord: stakerKeyPair.publicKey,
     }
-    const params = param ? param : this.generateStakingParams();
+    const params = versionedStakingParams ? versionedStakingParams : this.generateStakingParams();
     const timelock = this.generateRandomTimelock(params);
     const finalityProviderPkNoCoordHex = this.generateRandomKeyPair().publicKeyNoCoord;
 
-    const staking = new Staking(
-      network, stakerInfo,
-      params, finalityProviderPkNoCoordHex, timelock,
+    const stakingBuilder = new StakingBuilder(
+      this.network,
+      [params],
+      params.btcActivationHeight + 1,
     );
 
     const stakingAmountSat = stakingAmount ? 
@@ -279,9 +284,22 @@ export class StakingDataGenerator {
       scriptPubKey,
     );
 
-    const { transaction: stakingTx, fee: stakingTxFee } = staking.createStakingTransaction(
+    const staking = stakingBuilder
+      .withStakerBtcInfo(stakerInfo)
+      .withStakingInput({
+        stakingAmountSat,
+        stakingTimelock: timelock,
+        finalityProviderPkNoCoordHex,
+      });
+
+    // Manual build the staking scripts and create the staking transaction
+    const stakingScripts = stakingBuilder.buildScripts();
+    const { transaction: stakingTx, fee: stakingTxFee } = stakingTransaction(
+      stakingScripts,
       stakingAmountSat,
+      stakerInfo.address,
       utxos,
+      this.network,
       feeRate,
     );
     

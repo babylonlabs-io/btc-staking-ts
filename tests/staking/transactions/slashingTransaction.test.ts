@@ -20,7 +20,6 @@ describe.each(testingNetworks)("Transactions - ", (
     const stakingScripts =
       dataGenerator.generateMockStakingScripts(stakerKeyPair);
     const { stakingTx, stakingAmountSat} = dataGenerator.generateRandomStakingTransaction(
-      network,
       DEFAULT_TEST_FEE_RATE,
       stakerKeyPair,
     );

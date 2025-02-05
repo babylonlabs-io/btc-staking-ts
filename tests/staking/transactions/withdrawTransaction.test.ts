@@ -35,7 +35,7 @@ const setupTestData = (
   const stakingScripts =
     dataGenerator.generateMockStakingScripts(stakerKeyPair);
   const { stakingTx, stakerInfo, params, stakingAmountSat } = dataGenerator.generateRandomStakingTransaction(
-    network, 1, stakerKeyPair,
+    1, stakerKeyPair,
   );
 
   return {
@@ -161,9 +161,7 @@ describe.each(testingNetworks)("withdrawTransaction", (
     });
 
     it(`${networkName} - should throw if not enough funds to cover fees`, () => {
-      const { stakingTx, stakerInfo, keyPair, stakingAmountSat } = dataGenerator.generateRandomStakingTransaction(
-        network,
-      );
+      const { stakingTx, stakerInfo, keyPair, stakingAmountSat } = dataGenerator.generateRandomStakingTransaction();
       const stakingScripts = dataGenerator.generateMockStakingScripts(keyPair);
       const unitWithdrawTxFee = getWithdrawTxFee(1);
       const feeRateToExceedAmount = Math.ceil(stakingAmountSat / unitWithdrawTxFee) * 10;
@@ -191,7 +189,6 @@ describe.each(testingNetworks)("withdrawTransaction", (
       const amountToNotCoverDustLimit = BTC_DUST_SAT + estimatedFee - 1 + params.unbondingFeeSat;
       
       const { stakingTx, stakerInfo, stakingInstance, stakingTxFee } = dataGenerator.generateRandomStakingTransaction(
-        network,
         DEFAULT_TEST_FEE_RATE,
         undefined,
         amountToNotCoverDustLimit,

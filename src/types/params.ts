@@ -27,10 +27,3 @@ export interface VersionedStakingParams extends StakingParams {
   btcActivationHeight: number;
   version: number;
 }
-
-/**
- * Extension of VersionedStakingParams that includes a tag field for observability.
- */
-export interface ObservableVersionedStakingParams extends VersionedStakingParams {
-  tag: string;
-}

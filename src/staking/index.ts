@@ -17,12 +17,16 @@ import {
   deriveSlashingOutput,
   deriveStakingOutputInfo,
   findMatchingTxOutputIndex,
-  toBuffers
+  toBuffers,
+  validateStakingTimelock,
+  validateParams,
+  validateStakingTxInputData
 } from "../utils/staking";
 import { StakingError, StakingErrorCode } from "../error";
 import {
   createCovenantWitness,
   slashEarlyUnbondedTransaction,
+  stakingTransaction,
   slashTimelockUnbondedTransaction,
   unbondingTransaction,
   withdrawEarlyUnbondedTransaction,
@@ -32,6 +36,7 @@ import {
 import { unbondingPsbt } from "./psbt";
 import { getBabylonParamByBtcHeight } from "../utils/staking/param";
 import { StakingScriptData, StakingScripts } from "./stakingScript";
+import { UTXO } from "../types";
 
 interface StakingInputs {
   finalityProviderPkNoCoordHex: string;
@@ -62,7 +67,7 @@ export interface TransactionResults {
 }
 
 /**
- * Base abstract class with common functionality for staking registration builders.
+ * Base class with common functionality for staking registration builders.
  * 
  * @param network - The network to use for the staking registration.
  * @param stakingParams - The staking parameters to use for the staking registration.
@@ -89,6 +94,10 @@ export abstract class StakingBuilder {
         "No staking parameters provided",
       );
     }
+    // Validate all versioned staking parameters
+    versionedStakingParams.forEach((params) => {
+      validateParams(params);
+    });
 
     this.params = getBabylonParamByBtcHeight(
       btcHeightForBabylonParams, versionedStakingParams
@@ -129,17 +138,13 @@ export abstract class StakingBuilder {
         StakingErrorCode.INVALID_INPUT,
         "Staking amount must be greater than 0",
       );
-    } else if (input.stakingTimelock <= 0) {
-      throw new StakingError(
-        StakingErrorCode.INVALID_INPUT,
-        "Staking timelock must be greater than 0",
-      );
     } else if (!isValidNoCoordPublicKey(input.finalityProviderPkNoCoordHex)) {
       throw new StakingError(
         StakingErrorCode.INVALID_INPUT,
         "Invalid finality provider no-coord public key",
       );
     }
+    validateStakingTimelock(input.stakingTimelock, this.params);
     this.stakingInput = input;
     return this;
   }
@@ -159,6 +164,47 @@ export abstract class StakingBuilder {
     }
     this.babylonAddress = bech32Address;
     return this;
+  }
+
+  /**
+   * Builds the staking scripts based on the staking parameters, staker BTC info,
+   * and staking input.
+   * 
+   * @returns The staking scripts.
+   */
+  buildScripts(): StakingScripts {
+    const { covenantQuorum, covenantNoCoordPks, unbondingTime } = this.params;
+    const { publicKeyNoCoordHex } = this.stakerBtcInfo!;
+    const { finalityProviderPkNoCoordHex, stakingTimelock } = this.stakingInput!;
+    // Create staking script data
+    let stakingScriptData;
+    try {
+      stakingScriptData = new StakingScriptData(
+        Buffer.from(publicKeyNoCoordHex, "hex"),
+        [Buffer.from(finalityProviderPkNoCoordHex, "hex")],
+        toBuffers(covenantNoCoordPks),
+        covenantQuorum,
+        stakingTimelock,
+        unbondingTime
+      );
+    } catch (error: unknown) {
+      throw StakingError.fromUnknown(
+        error, StakingErrorCode.SCRIPT_FAILURE, 
+        "Cannot build staking script data",
+      );
+    }
+
+    // Build scripts
+    let scripts;
+    try {
+      scripts = stakingScriptData.buildScripts();
+    } catch (error: unknown) {
+      throw StakingError.fromUnknown(
+        error, StakingErrorCode.SCRIPT_FAILURE,
+        "Cannot build staking scripts",
+      );
+    }
+    return scripts;
   }
 
   /**
@@ -344,50 +390,14 @@ export abstract class StakingBuilder {
     };
   }
 
-  protected buildScripts(): StakingScripts {
-    const { covenantQuorum, covenantNoCoordPks, unbondingTime } = this.params;
-    const { publicKeyNoCoordHex } = this.stakerBtcInfo!;
-    const { finalityProviderPkNoCoordHex, stakingTimelock } = this.stakingInput!;
-    // Create staking script data
-    let stakingScriptData;
-    try {
-      stakingScriptData = new StakingScriptData(
-        Buffer.from(publicKeyNoCoordHex, "hex"),
-        [Buffer.from(finalityProviderPkNoCoordHex, "hex")],
-        toBuffers(covenantNoCoordPks),
-        covenantQuorum,
-        stakingTimelock,
-        unbondingTime
-      );
-    } catch (error: unknown) {
-      throw StakingError.fromUnknown(
-        error, StakingErrorCode.SCRIPT_FAILURE, 
-        "Cannot build staking script data",
-      );
-    }
-
-    // Build scripts
-    let scripts;
-    try {
-      scripts = stakingScriptData.buildScripts();
-    } catch (error: unknown) {
-      throw StakingError.fromUnknown(
-        error, StakingErrorCode.SCRIPT_FAILURE,
-        "Cannot build staking scripts",
-      );
-    }
-    return scripts;
-  }
-
   /**
-   * Create an unbonding psbt hex.
+   * Create an unbonding psbt hex base on existing unbonding and staking transactions.
    * 
-   * @param params - The staking parameters.
    * @param unbondingTxHex - The unbonding transaction hex.
    * @param stakingTxHex - The staking transaction hex.
    * @returns The unbonding psbt hex.
    */
-  public toUnbondingPsbtHex(
+  toUnbondingPsbtHex(
     unbondingTxHex: string,
     stakingTxHex: string,
   ): string {
@@ -404,13 +414,12 @@ export abstract class StakingBuilder {
   /**
    * Attach covenant signatures to the unbonding transaction.
    * 
-   * @param params - The staking parameters.
    * @param signedUnbondingPsbtHex - The signed unbonding psbt hex.
    * @param covenantUnbondingSignatures - The covenant unbonding signatures.
    * This value can be obtained from Babylon API or from the Babylon chain.
    * @returns The unbonding transaction hex with the covenant signatures attached.
    */
-  public attachCovenantSignaturesToUnbondingTx(
+  attachCovenantSignaturesToUnbondingTx(
     signedUnbondingPsbtHex: string,
     covenantUnbondingSignatures: {
       btcPkHex: string;
@@ -445,7 +454,7 @@ export abstract class StakingBuilder {
    * @param feeRate - The fee rate for the transaction in satoshis per byte.
    * @returns The withdraw early unbonded psbt hex.
    */
-  public createWithdrawEarlyUnbondedPsbt(
+  createWithdrawEarlyUnbondedPsbt(
     earlyUnbondingTxHex: string,
     feeRate: number,
   ): PsbtResultHex {
@@ -472,7 +481,6 @@ export abstract class StakingBuilder {
     }
   }
 
-
   /**
    * Create a withdraw psbt on the staking output expiry path that is ready to
    * be signed and broadcasted to the network.
@@ -481,7 +489,7 @@ export abstract class StakingBuilder {
    * @param feeRate - The fee rate for the transaction in satoshis per byte.
    * @returns The withdraw staking expired psbt hex.
    */
-  public createWithdrawStakingExpiredPsbt(
+  createWithdrawStakingExpiredPsbt(
     stakingTxHex: string,
     feeRate: number,
   ): PsbtResultHex {
@@ -567,13 +575,58 @@ export abstract class StakingBuilder {
   }
 
   /**
+   * Create a staking transaction for staking.
+   * 
+   * @param stakingTimelock - The staking timelock.
+   * @param stakingAmountSat - The amount to stake in satoshis.
+   * @param inputUTXOs - The UTXOs to use as inputs for the staking 
+   * transaction.
+   * @param feeRate - The fee rate for the transaction in satoshis per byte.
+   * @returns The staking transaction and its fee
+   */
+  protected createStakingTransaction(
+    inputUTXOs: UTXO[],
+    feeRate: number,
+  ) {
+    const { stakingAmountSat, stakingTimelock } = this.stakingInput!;
+    validateStakingTxInputData(
+      stakingAmountSat,
+      stakingTimelock,
+      this.params,
+      inputUTXOs,
+      feeRate,
+    );
+    const scripts = this.buildScripts();
+
+    try {
+      const { transaction, fee } = stakingTransaction(
+        scripts,
+        stakingAmountSat,
+        this.stakerBtcInfo!.address,
+        inputUTXOs,
+        this.network,
+        feeRate,
+      );
+      return {
+        transaction,
+        fee,
+      };
+    } catch (error: unknown) {
+      throw StakingError.fromUnknown(
+        error, StakingErrorCode.BUILD_TRANSACTION_FAILURE,
+        "Cannot build unsigned staking transaction",
+      );
+    }
+  };
+
+  /**
    * Create an unbonding transaction for staking.
    * 
    * @param stakingTx - The staking transaction.
    * @param params - The staking parameters.
-   * @returns The unbonding transaction.
+   * @returns The unbonding transaction and its fee
    */
-  private createUnbondingTransaction(
+  protected createUnbondingTransaction(
     stakingTx: Transaction,
   ) {
     // Build scripts
@@ -596,7 +649,7 @@ export abstract class StakingBuilder {
       );
       return {
         transaction,
-        fee: this.params.unbondingFeeSat,
+        fee,
       };
     } catch (error) {
       throw StakingError.fromUnknown(
@@ -613,7 +666,7 @@ export abstract class StakingBuilder {
    * @param params - The staking parameters.
    * @returns An object containing the unsigned slashing psbt and its fee
    */
-  private createStakingOutputSlashingPsbt(
+  protected createStakingOutputSlashingPsbt(
     stakingTx: Transaction,
   ) {
     if (!this.params.slashing) {
@@ -661,7 +714,7 @@ export abstract class StakingBuilder {
    * @param params - The staking parameters.
    * @returns An object containing the unsigned slashing psbt and its fee
    */
-  private createUnbondingOutputSlashingPsbt(
+  protected createUnbondingOutputSlashingPsbt(
     unbondingTx: Transaction,
   ) {
     if (!this.params.slashing) {

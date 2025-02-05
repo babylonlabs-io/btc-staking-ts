@@ -239,6 +239,13 @@ export const validateStakingTxInputData = (
       StakingErrorCode.INVALID_INPUT, "No input UTXOs provided",
     );
   }
+  // Sum of inputUTXOs value must be greater than the staking amount
+  if (inputUTXOs.reduce((acc, utxo) => acc + utxo.value, 0) <= stakingAmountSat) {
+    throw new StakingError(
+      StakingErrorCode.INVALID_INPUT, 
+      "Input UTXOs value must be greater than the staking amount to cover fees",
+    );
+  }
   if (feeRate <= 0) {
     throw new StakingError(
       StakingErrorCode.INVALID_INPUT, "Invalid fee rate",
