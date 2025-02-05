@@ -349,6 +349,7 @@ export class BabylonBtcStakingManager extends EventEmitter {
    * @param stakingTx - The staking transaction.
    * @param unsignedUnbondingTx - The unsigned unbonding transaction.
    * @param covenantUnbondingSignatures - The covenant unbonding signatures.
+   * It can be retrieved from the Babylon chain or API.
    * @returns The signed unbonding transaction.
    */
   async createSignedBtcUnbondingTransaction(
@@ -376,7 +377,6 @@ export class BabylonBtcStakingManager extends EventEmitter {
       );
     }
 
-
     const staking = new Staking(
       this.network,
       stakerInfo,
@@ -401,7 +401,9 @@ export class BabylonBtcStakingManager extends EventEmitter {
       Buffer.from(covenant, "hex"),
     );
     const witness = createCovenantWitness(
-      // UnbondingTx has only one input
+      // Since unbonding transactions always have a single input and output,
+      // we expect exactly one signature in TaprootScriptSpendSig when the
+      // signing is successful
       signedUnbondingTx.ins[0].witness,
       covenantBuffers,
       covenantUnbondingSignatures,
@@ -423,7 +425,7 @@ export class BabylonBtcStakingManager extends EventEmitter {
    * @param feeRate - The fee rate in satoshis per byte.
    * @returns The signed withdrawal transaction.
    */
-  async createWithdrawEarlyUnbondedBtcTransaction(
+  async createSignedWithdrawEarlyUnbondedBtcTransaction(
     stakingInput: StakingInputs,
     stakingParamVersion: number,
     earlyUnbondingTx: Transaction,
@@ -449,9 +451,7 @@ export class BabylonBtcStakingManager extends EventEmitter {
       stakingInput.stakingTimelock,
     );
 
-    
-    const { psbt: unbondingPsbt } =
-    staking.createWithdrawEarlyUnbondedTransaction(
+    const { psbt: unbondingPsbt } = staking.createWithdrawEarlyUnbondedTransaction(
       earlyUnbondingTx,
       feeRate,
     );
@@ -471,7 +471,7 @@ export class BabylonBtcStakingManager extends EventEmitter {
    * @param feeRate - The fee rate in satoshis per byte.
    * @returns The signed withdrawal transaction.
    */
-  async createWithdrawStakingExpiredBtcTransaction(
+  async createSignedWithdrawStakingExpiredBtcTransaction(
     stakingInput: StakingInputs,
     stakingParamVersion: number,
     stakingTx: Transaction,
@@ -515,7 +515,7 @@ export class BabylonBtcStakingManager extends EventEmitter {
    * @param feeRate - The fee rate in satoshis per byte.
    * @returns The signed withdrawal transaction.
    */
-  async createWithdrawSlashingBtcTransaction(
+  async createSignedWithdrawSlashingBtcTransaction(
     stakingInput: StakingInputs,
     stakingParamVersion: number,
     slashingTx: Transaction,
@@ -634,8 +634,9 @@ export class BabylonBtcStakingManager extends EventEmitter {
    * @param stakingInstance - The staking instance.
    * @param stakingInput - The staking inputs.
    * @param stakingTx - The staking transaction.
-   * @param bech32Address - The staker's bech32 address.
-   * @param stakerInfo - The staker's info.
+   * @param bech32Address - The staker's babylon chain bech32 address
+   * @param stakerBtcInfo - The staker's BTC information such as address and 
+   * public key
    * @param param - The staking parameters.
    * @param inclusionProof - The inclusion proof of the staking transaction.
    * @returns The protobuf message.
@@ -645,7 +646,7 @@ export class BabylonBtcStakingManager extends EventEmitter {
     stakingInput: StakingInputs,
     stakingTx: Transaction,
     bech32Address: string,
-    stakerInfo: StakerInfo,
+    stakerBtcInfo: StakerInfo,
     param: StakingParams,
     inclusionProof?: btcstaking.InclusionProof,
   ) {
@@ -695,7 +696,7 @@ export class BabylonBtcStakingManager extends EventEmitter {
         stakerAddr: bech32Address,
         pop: proofOfPossession,
         btcPk: Uint8Array.from(
-          Buffer.from(stakerInfo.publicKeyNoCoordHex, "hex"),
+          Buffer.from(stakerBtcInfo.publicKeyNoCoordHex, "hex"),
         ),
         fpBtcPkList: [
           Uint8Array.from(
@@ -728,6 +729,12 @@ export class BabylonBtcStakingManager extends EventEmitter {
     };
   };
 
+  /**
+   * Gets the inclusion proof for the staking transaction.
+   * See the type `InclusionProof` for more information
+   * @param inclusionProof - The inclusion proof.
+   * @returns The inclusion proof.
+   */
   private getInclusionProof(
     inclusionProof: InclusionProof,
   ): btcstaking.InclusionProof {
@@ -753,8 +760,14 @@ export class BabylonBtcStakingManager extends EventEmitter {
 
 /**
  * Extracts the first valid Schnorr signature from a signed transaction.
- * @param singedTransaction - The signed transaction.
- * @returns The first valid Schnorr signature or undefined if no valid signature is found.
+ * 
+ * Since we only handle transactions with a single input and request a signature
+ * for one public key, there can be at most one signature from the Bitcoin node.
+ * A valid Schnorr signature is exactly 64 bytes in length.
+ * 
+ * @param singedTransaction - The signed Bitcoin transaction to extract the signature from
+ * @returns The first valid 64-byte Schnorr signature found in the transaction witness data,
+ *          or undefined if no valid signature exists
  */
 const extractFirstSchnorrSignatureFromTransaction = (
   singedTransaction: Transaction,
