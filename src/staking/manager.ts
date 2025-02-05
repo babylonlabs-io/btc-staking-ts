@@ -49,11 +49,11 @@ export interface BabylonProvider {
 
 // Event types for the BabylonBtcStakingManager
 export enum StakingEventType {
-  SIGNING = "signing",
+  SIGNING_REGISTRATION = "signing-registration",
 }
 
 // Event types for the Signing event
-export enum SigningType {
+export enum SigningRegistrationType {
   STAKING_SLASHING = "staking-slashing",
   UNBONDING_SLASHING = "unbonding-slashing",
   PROOF_OF_POSSESSION = "proof-of-possession",
@@ -61,7 +61,7 @@ export enum SigningType {
 }
 
 interface StakingEventMap {
-  [StakingEventType.SIGNING]: SigningType;
+  [StakingEventType.SIGNING_REGISTRATION]: SigningRegistrationType;
 }
 
 interface StakingInputs {
@@ -168,7 +168,10 @@ export class BabylonBtcStakingManager extends EventEmitter {
       stakerInfo,
       params,
     );
-
+    this.emit(
+      StakingEventType.SIGNING_REGISTRATION,
+      SigningRegistrationType.CREATE_BTC_DELEGATION_MSG,
+    );
     return {
       signedBabylonTx: await this.babylonProvider.signTransaction(msg),
       stakingTx: transaction,
@@ -241,7 +244,10 @@ export class BabylonBtcStakingManager extends EventEmitter {
       params,
       this.getInclusionProof(inclusionProof),
     );
-
+    this.emit(
+      StakingEventType.SIGNING_REGISTRATION,
+      SigningRegistrationType.CREATE_BTC_DELEGATION_MSG,
+    );
     return {
       signedBabylonTx: await this.babylonProvider.signTransaction(delegationMsg),
     };
@@ -563,6 +569,10 @@ export class BabylonBtcStakingManager extends EventEmitter {
     }
     // Create Proof of Possession
     const bech32AddressHex = uint8ArrayToHex(fromBech32(bech32Address).data);
+    this.emit(
+      StakingEventType.SIGNING_REGISTRATION,
+      SigningRegistrationType.PROOF_OF_POSSESSION,
+    );
     const signedBabylonAddress = await this.btcProvider.signMessage(
       bech32AddressHex,
       "ecdsa",
@@ -660,6 +670,10 @@ export class BabylonBtcStakingManager extends EventEmitter {
     );
 
     // Sign the slashing PSBT
+    this.emit(
+      StakingEventType.SIGNING_REGISTRATION,
+      SigningRegistrationType.STAKING_SLASHING,
+    );
     const signedSlashingPsbtHex = await this.btcProvider.signPsbt(
       slashingPsbt.toHex(),
     );
@@ -674,6 +688,10 @@ export class BabylonBtcStakingManager extends EventEmitter {
     }
 
     // Sign the unbonding slashing PSBT
+    this.emit(
+      StakingEventType.SIGNING_REGISTRATION,
+      SigningRegistrationType.UNBONDING_SLASHING,
+    );
     const signedUnbondingSlashingPsbtHex = await this.btcProvider.signPsbt(
       unbondingSlashingPsbt.toHex(),
     );
