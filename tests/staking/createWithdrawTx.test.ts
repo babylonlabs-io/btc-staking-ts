@@ -72,7 +72,7 @@ describe.each(testingNetworks)("Create withdrawal transactions", ({
       jest.spyOn(stakingScript, "StakingScriptData").mockImplementation(() => {
         throw new Error("withdraw timelock unbonded delegation build script error");
       });
-      expect(() => stakingInstance.createWithdrawStakingExpiredTransaction(
+      expect(() => stakingInstance.createWithdrawStakingExpiredPsbt(
         stakingTx,
         feeRate,
       )).toThrow("withdraw timelock unbonded delegation build script error");
@@ -83,14 +83,14 @@ describe.each(testingNetworks)("Create withdrawal transactions", ({
         throw new Error("fail to build withdraw tx");
       });
 
-      expect(() => stakingInstance.createWithdrawStakingExpiredTransaction(
+      expect(() => stakingInstance.createWithdrawStakingExpiredPsbt(
         stakingTx,
         feeRate,
       )).toThrow("fail to build withdraw tx");
     });
 
     it(`${networkName} should create withdraw timelock unbonded transaction`, async () => {
-      const withdrawTx = stakingInstance.createWithdrawStakingExpiredTransaction(
+      const withdrawTx = stakingInstance.createWithdrawStakingExpiredPsbt(
         stakingTx,
         feeRate,
       );

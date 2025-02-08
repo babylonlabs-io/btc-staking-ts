@@ -1,7 +1,12 @@
 import * as ecc from "@bitcoin-js/tiny-secp256k1-asmjs";
 import * as bitcoin from "bitcoinjs-lib";
 import ECPairFactory from "ecpair";
-import { slashEarlyUnbondedTransaction, slashTimelockUnbondedTransaction, Staking, stakingTransaction, TransactionResult, unbondingTransaction } from "../../../src";
+import {
+  slashEarlyUnbondedTransaction,
+  slashTimelockUnbondedTransaction,
+  unbondingTransaction,
+} from "../../../src";
+import { Staking } from "../../../src/staking";
 import { UTXO } from "../../../src/types/UTXO";
 import { StakingParams } from "../../../src/types/params";
 import { generateRandomAmountSlices } from "../math";

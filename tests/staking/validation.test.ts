@@ -1,6 +1,6 @@
-import { Staking } from '../../src';
 import * as utils from '../../src/utils/staking';
 import { testingNetworks } from '../helper';
+import { Staking } from "../../src/staking";
 
 describe.each(testingNetworks)("Staking input validations", ({
   network, datagen: { stakingDatagen: dataGenerator }
@@ -43,7 +43,7 @@ describe.each(testingNetworks)("Staking input validations", ({
         throw new Error('Staking transaction output index is out of range');
       });
       expect(() => {
-        stakingInstance.createWithdrawStakingExpiredTransaction(
+        stakingInstance.createWithdrawStakingExpiredPsbt(
           stakingTx, feeRate,
         );
       }).toThrow('Staking transaction output index is out of range');

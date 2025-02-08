@@ -1,4 +1,4 @@
-export { Staking, StakingScriptData } from "./staking";
+export { StakingScriptData } from "./staking";
 export type { StakingScripts } from "./staking";
 export {
   ObservableStaking,
@@ -10,3 +10,4 @@ export * from "./utils/btc";
 export * from "./utils/utxo/findInputUTXO";
 export * from "./utils/utxo/getPsbtInputFields";
 export * from "./utils/utxo/getScriptType";
+export * from "./staking/manager";

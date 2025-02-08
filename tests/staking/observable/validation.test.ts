@@ -50,8 +50,8 @@ describe.each(testingNetworks)("Observable", ({
       );
     });
 
-    it('should throw an error if no activationHeight', () => {
-      const params = { ...validParams, activationHeight: 0 };
+    it('should throw an error if no btcActivationHeight', () => {
+      const params = { ...validParams, btcActivationHeight: 0 };
 
       expect(() => new ObservableStaking(
         network,
