@@ -1,5 +1,4 @@
 import { networks, Psbt, Transaction } from "bitcoinjs-lib";
-import { EventEmitter } from "events";
 import { StakingParams, VersionedStakingParams } from "../types/params";
 import { TransactionResult, UTXO } from "../types";
 import { StakerInfo, Staking } from ".";
@@ -25,27 +24,25 @@ import { StakingErrorCode } from "../error";
 
 export interface BtcProvider {
   // Sign a PSBT
-  signPsbt(psbtHex: string): Promise<string>;
+  signPsbt(signingStep: SigningStep, psbtHex: string): Promise<string>;
   // Sign a message using the ECDSA type
   // This is optional and only required if you would like to use the 
   // `createProofOfPossession` function
-  signMessage?: (message: string, type: "ecdsa") => Promise<string>;
+  signMessage?: (signingStep: SigningStep, message: string, type: "ecdsa") => Promise<string>;
 }
 
 export interface BabylonProvider {
-  signTransaction: <T extends object>(msg: {
-    typeUrl: string;
-    value: T;
-  }) => Promise<Uint8Array>
-}
-
-// Event types for the BabylonBtcStakingManager
-export enum StakingEventType {
-  SIGNING = "signing",
+  signTransaction: <T extends object>(
+    signingStep: SigningStep,
+    msg: {
+      typeUrl: string;
+      value: T;
+    }
+  ) => Promise<Uint8Array>
 }
 
 // Event types for the Signing event
-export enum SigningType {
+export enum SigningStep {
   STAKING_SLASHING = "staking-slashing",
   UNBONDING_SLASHING = "unbonding-slashing",
   PROOF_OF_POSSESSION = "proof-of-possession",
@@ -55,10 +52,6 @@ export enum SigningType {
   WITHDRAW_STAKING_EXPIRED = "withdraw-staking-expired",
   WITHDRAW_EARLY_UNBONDED = "withdraw-early-unbonded",
   WITHDRAW_SLASHING = "withdraw-slashing",
-}
-
-interface StakingEventMap {
-  [StakingEventType.SIGNING]: SigningType;
 }
 
 interface StakingInputs {
@@ -82,7 +75,7 @@ interface InclusionProof {
   blockHashHex: string;
 }
 
-export class BabylonBtcStakingManager extends EventEmitter {
+export class BabylonBtcStakingManager {
   private stakingParams: VersionedStakingParams[];
   private btcProvider: BtcProvider;
   private network: networks.Network;
@@ -94,7 +87,6 @@ export class BabylonBtcStakingManager extends EventEmitter {
     btcProvider: BtcProvider,
     babylonProvider: BabylonProvider,
   ) {
-    super(); // Initialize EventEmitter
     this.network = network;
     this.btcProvider = btcProvider;
     this.babylonProvider = babylonProvider;
@@ -170,12 +162,11 @@ export class BabylonBtcStakingManager extends EventEmitter {
       stakerBtcInfo,
       params,
     );
-    this.emit(
-      StakingEventType.SIGNING,
-      SigningType.CREATE_BTC_DELEGATION_MSG,
-    );
     return {
-      signedBabylonTx: await this.babylonProvider.signTransaction(msg),
+      signedBabylonTx: await this.babylonProvider.signTransaction(
+        SigningStep.CREATE_BTC_DELEGATION_MSG,
+        msg,
+      ),
       stakingTx: transaction,
     };
   }
@@ -241,12 +232,11 @@ export class BabylonBtcStakingManager extends EventEmitter {
       params,
       this.getInclusionProof(inclusionProof),
     );
-    this.emit(
-      StakingEventType.SIGNING,
-      SigningType.CREATE_BTC_DELEGATION_MSG,
-    );
     return {
-      signedBabylonTx: await this.babylonProvider.signTransaction(delegationMsg),
+      signedBabylonTx: await this.babylonProvider.signTransaction(
+        SigningStep.CREATE_BTC_DELEGATION_MSG,
+        delegationMsg,
+      ),
     };
   }
 
@@ -333,11 +323,8 @@ export class BabylonBtcStakingManager extends EventEmitter {
       inputUTXOs,
     );
 
-    this.emit(
-      StakingEventType.SIGNING,
-      SigningType.STAKING,
-    );
     const signedStakingPsbtHex = await this.btcProvider.signPsbt(
+      SigningStep.STAKING,
       stakingPsbt.toHex()
     );
     return Psbt.fromHex(signedStakingPsbtHex).extractTransaction();
@@ -382,11 +369,8 @@ export class BabylonBtcStakingManager extends EventEmitter {
     } = staking.createUnbondingTransaction(stakingTx);
 
     const psbt = staking.toUnbondingPsbt(unbondingTx, stakingTx);
-    this.emit(
-      StakingEventType.SIGNING,
-      SigningType.UNBONDING,
-    );
     const signedUnbondingPsbtHex = await this.btcProvider.signPsbt(
+      SigningStep.UNBONDING,
       psbt.toHex(),
     );
     const signedUnbondingTx = Psbt.fromHex(
@@ -506,11 +490,8 @@ export class BabylonBtcStakingManager extends EventEmitter {
       feeRate,
     );
 
-    this.emit(
-      StakingEventType.SIGNING,
-      SigningType.WITHDRAW_EARLY_UNBONDED,
-    );
     const signedWithdrawalPsbtHex = await this.btcProvider.signPsbt(
+      SigningStep.WITHDRAW_EARLY_UNBONDED,
       unbondingPsbt.toHex()
     );
     return {
@@ -556,11 +537,8 @@ export class BabylonBtcStakingManager extends EventEmitter {
       feeRate,
     );
 
-    this.emit(
-      StakingEventType.SIGNING,
-      SigningType.WITHDRAW_STAKING_EXPIRED,
-    );
     const signedWithdrawalPsbtHex = await this.btcProvider.signPsbt(
+      SigningStep.WITHDRAW_STAKING_EXPIRED,
       psbt.toHex()
     );
     return {
@@ -606,11 +584,8 @@ export class BabylonBtcStakingManager extends EventEmitter {
       feeRate,
     );
 
-    this.emit(
-      StakingEventType.SIGNING,
-      SigningType.WITHDRAW_SLASHING,
-    );
     const signedSlashingPsbtHex = await this.btcProvider.signPsbt(
+      SigningStep.WITHDRAW_SLASHING,
       psbt.toHex()
     );
     return {
@@ -632,11 +607,9 @@ export class BabylonBtcStakingManager extends EventEmitter {
     }
     // Create Proof of Possession
     const bech32AddressHex = uint8ArrayToHex(fromBech32(bech32Address).data);
-    this.emit(
-      StakingEventType.SIGNING,
-      SigningType.PROOF_OF_POSSESSION,
-    );
+ 
     const signedBabylonAddress = await this.btcProvider.signMessage(
+      SigningStep.PROOF_OF_POSSESSION,
       bech32AddressHex,
       "ecdsa",
     );
@@ -645,32 +618,6 @@ export class BabylonBtcStakingManager extends EventEmitter {
       btcSigType: BTCSigType.ECDSA,
       btcSig: ecdsaSig,
     };
-  }
-
-  /**
-   * Adds an event listener for a specific event type.
-   * @param event - The event type to listen for.
-   * @param listener - The listener function to be called when the event occurs.
-   * @returns The current event emitter instance.
-   */
-  on<K extends keyof StakingEventMap>(
-    event: K,
-    listener: (message: StakingEventMap[K]) => void
-  ): this {
-    return super.on(event, listener);
-  }
-
-  /**
-   * Removes an event listener for a specific event type.
-   * @param event - The event type to stop listening for.
-   * @param listener - The listener function to remove.
-   * @returns The current event emitter instance.
-   */
-  off<K extends keyof StakingEventMap>(
-    event: K,
-    listener: (message: StakingEventMap[K]) => void
-  ): this {
-    return super.off(event, listener);
   }
 
   /**
@@ -733,11 +680,8 @@ export class BabylonBtcStakingManager extends EventEmitter {
     );
 
     // Sign the slashing PSBT
-    this.emit(
-      StakingEventType.SIGNING,
-      SigningType.STAKING_SLASHING,
-    );
     const signedSlashingPsbtHex = await this.btcProvider.signPsbt(
+      SigningStep.STAKING_SLASHING,
       slashingPsbt.toHex(),
     );
     const signedSlashingTx = Psbt.fromHex(
@@ -751,11 +695,8 @@ export class BabylonBtcStakingManager extends EventEmitter {
     }
 
     // Sign the unbonding slashing PSBT
-    this.emit(
-      StakingEventType.SIGNING,
-      SigningType.UNBONDING_SLASHING,
-    );
     const signedUnbondingSlashingPsbtHex = await this.btcProvider.signPsbt(
+      SigningStep.UNBONDING_SLASHING,
       unbondingSlashingPsbt.toHex(),
     );
     const signedUnbondingSlashingTx = Psbt.fromHex(
