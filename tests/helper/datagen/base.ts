@@ -233,7 +233,7 @@ export class StakingDataGenerator {
    * @param stakerKeyPair - The staker key pair to use
    * @param stakingAmount - The staking amount to use
    * @param addressType - The address type to use
-   * @param param - The staking parameters to use
+   * @param params - The staking parameters to use
    * @returns {Object} - A random staking transaction
    */
   generateRandomStakingTransaction = (
@@ -242,7 +242,7 @@ export class StakingDataGenerator {
     stakerKeyPair?: KeyPair,
     stakingAmount?: number,
     addressType?: "taproot" | "nativeSegwit",
-    param?: StakingParams,
+    params?: StakingParams,
   ) => {
     if (!stakerKeyPair) {
       stakerKeyPair = this.generateRandomKeyPair();
@@ -252,7 +252,7 @@ export class StakingDataGenerator {
       publicKeyNoCoordHex: stakerKeyPair.publicKeyNoCoord,
       publicKeyWithCoord: stakerKeyPair.publicKey,
     }
-    const params = param ? param : this.generateStakingParams();
+    params = params ? params : this.generateStakingParams();
     const timelock = this.generateRandomTimelock(params);
     const finalityProviderPkNoCoordHex = this.generateRandomKeyPair().publicKeyNoCoord;
 
@@ -304,7 +304,7 @@ export class StakingDataGenerator {
    * @param network - The network to use
    * @param stakingScripts - The staking scripts to use
    * @param stakingTx - The staking transaction to use
-   * @param param - The param used in the staking transaction
+   * @param params - The params used in the staking transaction
    * @param keyPair - The key pair to use. This is used to sign the slashing 
    * psbt to derive the transaction.
    * @param type - The type of slashing to use.
@@ -314,7 +314,7 @@ export class StakingDataGenerator {
     network: bitcoin.networks.Network,
     stakingScripts: StakingScripts,
     stakingTx: Transaction,
-    param: {
+    params: {
       minSlashingTxFeeSat: number,
       slashingPkScriptHex: string,
       slashingRate: number,
@@ -335,9 +335,9 @@ export class StakingDataGenerator {
       const { psbt } = slashEarlyUnbondedTransaction(
         stakingScripts,
         unbondingTx,
-        param.slashingPkScriptHex,
-        param.slashingRate,
-        param.minSlashingTxFeeSat,
+        params.slashingPkScriptHex,
+        params.slashingRate,
+        params.minSlashingTxFeeSat,
         network,
       );
       slashingPsbt = psbt;
@@ -346,9 +346,9 @@ export class StakingDataGenerator {
       const { psbt } = slashTimelockUnbondedTransaction(
         stakingScripts,
         stakingTx,
-        param.slashingPkScriptHex,
-        param.slashingRate,
-        param.minSlashingTxFeeSat,
+        params.slashingPkScriptHex,
+        params.slashingRate,
+        params.minSlashingTxFeeSat,
         network,
       );
       slashingPsbt = psbt;
@@ -359,10 +359,10 @@ export class StakingDataGenerator {
     expect(slashingPsbt.txOutputs.length).toBe(2);
     // first output shall send slashed amount to the slashing pk script (i.e burn output)
     expect(Buffer.from(slashingPsbt.txOutputs[0].script).toString("hex")).toBe(
-      param.slashingPkScriptHex,
+      params.slashingPkScriptHex,
     );
     expect(slashingPsbt.txOutputs[0].value).toBe(
-      Math.floor(outputValue * param.slashingRate),
+      Math.floor(outputValue * params.slashingRate),
     );
 
      // second output is the change output which send to unbonding timelock script address
@@ -374,8 +374,8 @@ export class StakingDataGenerator {
     expect(slashingPsbt.txOutputs[1].address).toBe(changeOutput.address);
     const expectedChangeOutputValue =
       outputValue -
-      Math.floor(outputValue * param.slashingRate) -
-      param.minSlashingTxFeeSat;
+      Math.floor(outputValue * params.slashingRate) -
+      params.minSlashingTxFeeSat;
     expect(slashingPsbt.txOutputs[1].value).toBe(expectedChangeOutputValue);
 
     expect(slashingPsbt.version).toBe(TRANSACTION_VERSION);

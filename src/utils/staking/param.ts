@@ -4,7 +4,7 @@ import { StakingParams, VersionedStakingParams } from "../../types/params";
   Get the Babylon params version by BTC height
   @param height - The BTC height
   @param babylonParamsVersions - The Babylon params versions
-  @returns The Babylon param
+  @returns The Babylon params
 */
 export const getBabylonParamByBtcHeight = (
   height: number,
@@ -15,25 +15,25 @@ export const getBabylonParamByBtcHeight = (
     (a, b) => b.btcActivationHeight - a.btcActivationHeight,
   );
 
-  // Find first param where height is >= btcActivationHeight
-  const param = sortedParams.find(
-    (param) => height >= param.btcActivationHeight,
+  // Find first params where height is >= btcActivationHeight
+  const params = sortedParams.find(
+    (p) => height >= p.btcActivationHeight,
   );
-  if (!param) throw new Error(`Babylon param not found for height ${height}`);
-  return param;
+  if (!params) throw new Error(`Babylon params not found for height ${height}`);
+  return params;
 };
 
 /*
-  Get the Babylon param by version
-  @param version - The Babylon param version
+  Get the Babylon params by version
+  @param version - The Babylon params version
   @param babylonParams - The Babylon params
-  @returns The Babylon param
+  @returns The Babylon params
 */
 export const getBabylonParamByVersion = (
   version: number,
   babylonParams: VersionedStakingParams[],
 ): StakingParams => {
-  const param = babylonParams.find((param) => param.version === version);
-  if (!param) throw new Error(`Babylon param not found for version ${version}`);
-  return param;
+  const params = babylonParams.find((p) => p.version === version);
+  if (!params) throw new Error(`Babylon params not found for version ${version}`);
+  return params;
 };
