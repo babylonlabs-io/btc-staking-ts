@@ -63,7 +63,7 @@ export const unbondingPsbt = (
   unbondingTx: Transaction,
   stakingTx: Transaction,
   network: networks.Network,
-) => {
+): Psbt => {
   if (unbondingTx.outs.length !== 1) {
     throw new Error("Unbonding transaction must have exactly one output");
   }

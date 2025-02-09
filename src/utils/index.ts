@@ -4,13 +4,14 @@
  * @returns A new buffer with the bytes reversed.
  */
 export const reverseBuffer = (buffer: Uint8Array): Uint8Array => {
-  if (buffer.length < 1) return buffer;
-  for (let i = 0, j = buffer.length - 1; i < buffer.length / 2; i++, j--) {
-    let tmp = buffer[i];
-    buffer[i] = buffer[j];
-    buffer[j] = tmp;
+  const clonedBuffer = new Uint8Array(buffer);
+  if (clonedBuffer.length < 1) return clonedBuffer;
+  for (let i = 0, j = clonedBuffer.length - 1; i < clonedBuffer.length / 2; i++, j--) {
+    let tmp = clonedBuffer[i];
+    clonedBuffer[i] = clonedBuffer[j];
+    clonedBuffer[j] = tmp;
   }
-  return buffer;
+  return clonedBuffer;
 };
 
 /**

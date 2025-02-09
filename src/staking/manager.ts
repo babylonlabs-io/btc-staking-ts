@@ -1,7 +1,7 @@
 import { networks, Psbt, Transaction } from "bitcoinjs-lib";
 import { EventEmitter } from "events";
 import { StakingParams, VersionedStakingParams } from "../types/params";
-import { UTXO } from "../types";
+import { TransactionResult, UTXO } from "../types";
 import { StakerInfo, Staking } from ".";
 import { fromBech32 } from "@cosmjs/encoding";
 import {
@@ -19,6 +19,9 @@ import { getBabylonParamByBtcHeight, getBabylonParamByVersion } from "../utils/s
 import { reverseBuffer, uint8ArrayToHex } from "../utils";
 import { deriveStakingOutputInfo } from "../utils/staking";
 import { findMatchingTxOutputIndex } from "../utils/staking";
+import { isValidBabylonAddress } from "../utils/babylon";
+import { StakingError } from "../error";
+import { StakingErrorCode } from "../error";
 
 export interface BtcProvider {
   // Sign a PSBT
@@ -27,20 +30,9 @@ export interface BtcProvider {
   // This is optional and only required if you would like to use the 
   // `createProofOfPossession` function
   signMessage?: (message: string, type: "ecdsa") => Promise<string>;
-  // Get the staker info
-  getStakerInfo(): Promise<StakerInfo>;
-  // Get the available UTXOs for staking
-  getUTXOs(): Promise<UTXO[]>;
 }
 
 export interface BabylonProvider {
-  // Get the Babylon BTC tip height. Note there might be a delay between
-  // the BTC tip height and the Babylon BTC tip height. You should not use the
-  // BTC tip height to determine the Babylon param.
-  getBabylonBtcTipHeight(): Promise<number>;
-  // Get the Babylon Chain address
-  getBabylonAddress(): Promise<string>;
-  // Sign a babylon transaction.
   signTransaction: <T extends object>(msg: {
     typeUrl: string;
     value: T;
@@ -49,19 +41,24 @@ export interface BabylonProvider {
 
 // Event types for the BabylonBtcStakingManager
 export enum StakingEventType {
-  SIGNING_REGISTRATION = "signing-registration",
+  SIGNING = "signing",
 }
 
 // Event types for the Signing event
-export enum SigningRegistrationType {
+export enum SigningType {
   STAKING_SLASHING = "staking-slashing",
   UNBONDING_SLASHING = "unbonding-slashing",
   PROOF_OF_POSSESSION = "proof-of-possession",
   CREATE_BTC_DELEGATION_MSG = "create-btc-delegation-msg",
+  STAKING = "staking",
+  UNBONDING = "unbonding",
+  WITHDRAW_STAKING_EXPIRED = "withdraw-staking-expired",
+  WITHDRAW_EARLY_UNBONDED = "withdraw-early-unbonded",
+  WITHDRAW_SLASHING = "withdraw-slashing",
 }
 
 interface StakingEventMap {
-  [StakingEventType.SIGNING_REGISTRATION]: SigningRegistrationType;
+  [StakingEventType.SIGNING]: SigningType;
 }
 
 interface StakingInputs {
@@ -109,44 +106,49 @@ export class BabylonBtcStakingManager extends EventEmitter {
   }
 
   /**
-   * Creates an signed Pre-Staking Registration transaction that is ready to be 
+   * Creates a signed Pre-Staking Registration transaction that is ready to be
    * sent to the Babylon chain.
+   * @param stakerBtcInfo - The staker BTC info which includes the BTC address
+   * and the no-coord public key in hex format.
    * @param stakingInput - The staking inputs.
+   * @param babylonBtcTipHeight - The Babylon BTC tip height.
+   * @param inputUTXOs - The UTXOs that will be used to pay for the staking
+   * transaction.
    * @param feeRate - The fee rate in satoshis per byte.
+   * @param babylonAddress - The Babylon bech32 encoded address of the staker.
    * @returns The signed babylon pre-staking registration transaction in base64 
    * format.
    */
-  async preStakeRegistrationBabylondTransaction(
+  async preStakeRegistrationBabylonTransaction(
+    stakerBtcInfo: StakerInfo,
     stakingInput: StakingInputs,
+    babylonBtcTipHeight: number,
+    inputUTXOs: UTXO[],
     feeRate: number,
+    babylonAddress: string,
   ): Promise<{
     signedBabylonTx: Uint8Array;
     stakingTx: Transaction;
   }> {
-    const tipHeight = await this.babylonProvider.getBabylonBtcTipHeight();
-    if (tipHeight === 0) {
+    if (babylonBtcTipHeight === 0) {
       throw new Error("Babylon BTC tip height cannot be 0");
     }
-    const inputUTXOs = await this.btcProvider.getUTXOs();
     if (inputUTXOs.length === 0) {
       throw new Error("No input UTXOs provided");
     }
-    const bech32Address = await this.babylonProvider.getBabylonAddress();
-    if (!bech32Address) {
-      throw new Error("Babylon address cannot be empty");
+    if (!isValidBabylonAddress(babylonAddress)) {
+      throw new Error("Invalid Babylon address");
     }
 
-    // Get the Babylon param based on the BTC tip height from Babylon chain
-    const params = getBabylonParamByBtcHeight(tipHeight, this.stakingParams);
-    if (!params) {
-      throw new Error(`Unable to find staking params for height ${tipHeight}`);
-    }
-    
-    const stakerInfo = await this.btcProvider.getStakerInfo();
+    // Get the Babylon params based on the BTC tip height from Babylon chain
+    const params = getBabylonParamByBtcHeight(
+      babylonBtcTipHeight,
+      this.stakingParams,
+    );
 
     const staking = new Staking(
       this.network,
-      stakerInfo,
+      stakerBtcInfo,
       params,
       stakingInput.finalityProviderPkNoCoordHex,
       stakingInput.stakingTimelock,
@@ -164,13 +166,13 @@ export class BabylonBtcStakingManager extends EventEmitter {
       staking,
       stakingInput,
       transaction,
-      bech32Address,
-      stakerInfo,
+      babylonAddress,
+      stakerBtcInfo,
       params,
     );
     this.emit(
-      StakingEventType.SIGNING_REGISTRATION,
-      SigningRegistrationType.CREATE_BTC_DELEGATION_MSG,
+      StakingEventType.SIGNING,
+      SigningType.CREATE_BTC_DELEGATION_MSG,
     );
     return {
       signedBabylonTx: await this.babylonProvider.signTransaction(msg),
@@ -183,36 +185,31 @@ export class BabylonBtcStakingManager extends EventEmitter {
    * sent to the Babylon chain. This is used when a staking transaction is 
    * already created and included in a BTC block and we want to register it on 
    * the Babylon chain.
+   * @param stakerBtcInfo - The staker BTC info which includes the BTC address
+   * and the no-coord public key in hex format.
    * @param stakingTx - The staking transaction.
    * @param stakingTxHeight - The BTC height in which the staking transaction 
    * is included.
    * @param stakingInput - The staking inputs.
    * @param inclusionProof - The inclusion proof of the staking transaction.
+   * @param babylonAddress - The Babylon bech32 encoded address of the staker.
    * @returns The signed babylon transaction in base64 format.
    */
   async postStakeRegistrationBabylonTransaction(
+    stakerBtcInfo: StakerInfo,
     stakingTx: Transaction,
     stakingTxHeight: number,
     stakingInput: StakingInputs,
     inclusionProof: InclusionProof,
+    babylonAddress: string,
   ): Promise<{
     signedBabylonTx: Uint8Array;
   }> {
-    // Get the Babylon param at the time of the staking transaction
+    // Get the Babylon params at the time of the staking transaction
     const params = getBabylonParamByBtcHeight(stakingTxHeight, this.stakingParams);
-    if (!params)
-      throw new Error(
-        `Unable to find staking params for height ${stakingTxHeight}`,
-      );
-    
-    const stakerBtcInfo = await this.btcProvider.getStakerInfo();
-    if (!stakerBtcInfo) {
-      throw new Error("Staker info not found while registering delegation");
-    }
 
-    const bech32Address = await this.babylonProvider.getBabylonAddress();
-    if (!bech32Address) {
-      throw new Error("Babylon address cannot be empty");
+    if (!isValidBabylonAddress(babylonAddress)) {
+      throw new Error("Invalid Babylon address");
     }
 
     const stakingInstance = new Staking(
@@ -224,7 +221,7 @@ export class BabylonBtcStakingManager extends EventEmitter {
     );
 
     // Validate if the stakingTx is valid based on the retrieved Babylon param
-    const scripts =stakingInstance.buildScripts();
+    const scripts = stakingInstance.buildScripts();
     const stakingOutputInfo = deriveStakingOutputInfo(scripts, this.network);
     // Error will be thrown if the expected staking output address is not found
     // in the stakingTx
@@ -239,14 +236,14 @@ export class BabylonBtcStakingManager extends EventEmitter {
       stakingInstance,
       stakingInput,
       stakingTx,
-      bech32Address,
+      babylonAddress,
       stakerBtcInfo,
       params,
       this.getInclusionProof(inclusionProof),
     );
     this.emit(
-      StakingEventType.SIGNING_REGISTRATION,
-      SigningRegistrationType.CREATE_BTC_DELEGATION_MSG,
+      StakingEventType.SIGNING,
+      SigningType.CREATE_BTC_DELEGATION_MSG,
     );
     return {
       signedBabylonTx: await this.babylonProvider.signTransaction(delegationMsg),
@@ -255,37 +252,35 @@ export class BabylonBtcStakingManager extends EventEmitter {
 
   /**
    * Estimates the BTC fee required for staking.
+   * @param stakerBtcInfo - The staker BTC info which includes the BTC address
+   * and the no-coord public key in hex format.
+   * @param babylonBtcTipHeight - The BTC tip height recorded on the Babylon
+   * chain.
    * @param stakingInput - The staking inputs.
+   * @param inputUTXOs - The UTXOs that will be used to pay for the staking
+   * transaction.
    * @param feeRate - The fee rate in satoshis per byte.
    * @returns The estimated BTC fee in satoshis.
    */
-  async estimateStakingBtcFee(
+  estimateBtcStakingFee(
+    stakerBtcInfo: StakerInfo,
+    babylonBtcTipHeight: number,
     stakingInput: StakingInputs,
+    inputUTXOs: UTXO[],
     feeRate: number,
-  ): Promise<number> {
-    const tipHeight = await this.babylonProvider.getBabylonBtcTipHeight();
-    if (tipHeight === 0) {
+  ): number {
+    if (babylonBtcTipHeight === 0) {
       throw new Error("Babylon BTC tip height cannot be 0");
     }
     // Get the param based on the tip height
-    const params = getBabylonParamByBtcHeight(tipHeight, this.stakingParams);
-    if (!params) {
-      throw new Error(`Unable to find staking params for height ${tipHeight}`);
-    }
-    
-    const stakerInfo = await this.btcProvider.getStakerInfo();
-    if (!stakerInfo) {
-      throw new Error("Staker info not found while estimating staking fee");
-    }
-
-    const inputUTXOs = await this.btcProvider.getUTXOs();
-    if (inputUTXOs.length === 0) {
-      throw new Error("No input UTXOs provided");
-    }
+    const params = getBabylonParamByBtcHeight(
+      babylonBtcTipHeight,
+      this.stakingParams,
+    );
 
     const staking = new Staking(
       this.network,
-      stakerInfo,
+      stakerBtcInfo,
       params,
       stakingInput.finalityProviderPkNoCoordHex,
       stakingInput.stakingTimelock,
@@ -303,33 +298,31 @@ export class BabylonBtcStakingManager extends EventEmitter {
   /**
    * Creates a signed staking transaction that is ready to be sent to the BTC 
    * network.
+   * @param stakerBtcInfo - The staker BTC info which includes the BTC address
+   * and the no-coord public key in hex format.
    * @param stakingInput - The staking inputs.
    * @param unsignedStakingTx - The unsigned staking transaction.
-   * @param stakingParamVersion - The param version that was used to create the EOI
+   * @param inputUTXOs - The UTXOs that will be used to pay for the staking
+   * transaction.
+   * @param stakingParamsVersion - The params version that was used to create the
+   * delegation in Babylon chain
    * @returns The signed staking transaction.
    */
   async createSignedBtcStakingTransaction(
+    stakerBtcInfo: StakerInfo,
     stakingInput: StakingInputs,
     unsignedStakingTx: Transaction,
-    stakingParamVersion: number,
+    inputUTXOs: UTXO[],
+    stakingParamsVersion: number,
   ): Promise<Transaction> {
-    // Get the param based on version from the EOI
-    const params = getBabylonParamByVersion(stakingParamVersion, this.stakingParams);
-    if (!params) {
-      throw new Error(`Unable to find staking params for version ${stakingParamVersion}`);
-    }
-    const stakerInfo = await this.btcProvider.getStakerInfo();
-    if (!stakerInfo) {
-      throw new Error("Staker info not found while creating signed staking transaction");
-    }
-    const inputUTXOs = await this.btcProvider.getUTXOs();
+    const params = getBabylonParamByVersion(stakingParamsVersion, this.stakingParams);
     if (inputUTXOs.length === 0) {
       throw new Error("No input UTXOs provided");
     }
 
     const staking = new Staking(
       this.network,
-      stakerInfo,
+      stakerBtcInfo,
       params,
       stakingInput.finalityProviderPkNoCoordHex,
       stakingInput.stakingTimelock,
@@ -340,6 +333,10 @@ export class BabylonBtcStakingManager extends EventEmitter {
       inputUTXOs,
     );
 
+    this.emit(
+      StakingEventType.SIGNING,
+      SigningType.STAKING,
+    );
     const signedStakingPsbtHex = await this.btcProvider.signPsbt(
       stakingPsbt.toHex()
     );
@@ -347,59 +344,109 @@ export class BabylonBtcStakingManager extends EventEmitter {
   }
 
   /**
+   * Creates a partial signed unbonding transaction that is only signed by the
+   * staker. In order to complete the unbonding transaction, the covenant
+   * unbonding signatures need to be added to the transaction before sending it
+   * to the BTC network.
+   * NOTE: This method should only be used for Babylon phase-1 unbonding.
+   * @param stakerBtcInfo - The staker BTC info which includes the BTC address
+   * and the no-coord public key in hex format.
+   * @param stakingInput - The staking inputs.
+   * @param stakingParamsVersion - The params version that was used to create the
+   * delegation in Babylon chain
+   * @param stakingTx - The staking transaction.
+   * @returns The partial signed unbonding transaction and its fee.
+   */
+  async createPartialSignedBtcUnbondingTransaction(
+    stakerBtcInfo: StakerInfo,
+    stakingInput: StakingInputs,
+    stakingParamsVersion: number,
+    stakingTx: Transaction,
+  ): Promise<TransactionResult> {
+    // Get the staking params at the time of the staking transaction
+    const params = getBabylonParamByVersion(
+      stakingParamsVersion,
+      this.stakingParams,
+    );
+  
+    const staking = new Staking(
+      this.network,
+      stakerBtcInfo,
+      params,
+      stakingInput.finalityProviderPkNoCoordHex,
+      stakingInput.stakingTimelock,
+    );
+    const {
+      transaction: unbondingTx,
+      fee,
+    } = staking.createUnbondingTransaction(stakingTx);
+
+    const psbt = staking.toUnbondingPsbt(unbondingTx, stakingTx);
+    this.emit(
+      StakingEventType.SIGNING,
+      SigningType.UNBONDING,
+    );
+    const signedUnbondingPsbtHex = await this.btcProvider.signPsbt(
+      psbt.toHex(),
+    );
+    const signedUnbondingTx = Psbt.fromHex(
+      signedUnbondingPsbtHex,
+    ).extractTransaction();
+  
+    return {
+      transaction: signedUnbondingTx,
+      fee,
+    };
+  }
+
+  /**
    * Creates a signed unbonding transaction that is ready to be sent to the BTC 
    * network.
+   * @param stakerBtcInfo - The staker BTC info which includes the BTC address
+   * and the no-coord public key in hex format.
    * @param stakingInput - The staking inputs.
-   * @param stakingParamVersion - The param version that was used to create the 
-   * EOI
+   * @param stakingParamsVersion - The params version that was used to create the
+   * delegation in Babylon chain
    * @param stakingTx - The staking transaction.
    * @param unsignedUnbondingTx - The unsigned unbonding transaction.
    * @param covenantUnbondingSignatures - The covenant unbonding signatures.
    * It can be retrieved from the Babylon chain or API.
-   * @returns The signed unbonding transaction.
+   * @returns The signed unbonding transaction and its fee.
    */
   async createSignedBtcUnbondingTransaction(
+    stakerBtcInfo: StakerInfo,
     stakingInput: StakingInputs,
-    stakingParamVersion: number,
+    stakingParamsVersion: number,
     stakingTx: Transaction,
     unsignedUnbondingTx: Transaction,
     covenantUnbondingSignatures: {
       btcPkHex: string;
       sigHex: string;
     }[],
-  ): Promise<Transaction> {
+  ): Promise<TransactionResult> {
     // Get the staking params at the time of the staking transaction
-    const params = getBabylonParamByVersion(stakingParamVersion, this.stakingParams);
-    if (!params) {
-      throw new Error(
-        `Unable to find staking params for version ${stakingParamVersion}`,
-      );
-    }
-
-    const stakerInfo = await this.btcProvider.getStakerInfo();
-    if (!stakerInfo) {
-      throw new Error(
-        "Staker info not found while creating signed unbonding transaction",
-      );
-    }
-
-    const staking = new Staking(
-      this.network,
-      stakerInfo,
-      params,
-      stakingInput.finalityProviderPkNoCoordHex,
-      stakingInput.stakingTimelock,
+    const params = getBabylonParamByVersion(
+      stakingParamsVersion,
+      this.stakingParams,
     );
 
-    const unbondingPsbt = staking.toUnbondingPsbt(
-      unsignedUnbondingTx,
+    const {
+      transaction: signedUnbondingTx,
+      fee,
+    } = await this.createPartialSignedBtcUnbondingTransaction(
+      stakerBtcInfo,
+      stakingInput,
+      stakingParamsVersion,
       stakingTx,
     );
-    const signedUnbondingPsbtHex = await this.btcProvider.signPsbt(
-      unbondingPsbt.toHex()
-    );
-    const signedUnbondingTx = Psbt
-      .fromHex(signedUnbondingPsbtHex).extractTransaction();
+
+    // Check the computed txid of the signed unbonding transaction is the same as
+    // the txid of the unsigned unbonding transaction
+    if (signedUnbondingTx.getId() !== unsignedUnbondingTx.getId()) {
+      throw new Error(
+        "Unbonding transaction hash does not match the computed hash",
+      );
+    }
 
     // Add covenant unbonding signatures
     // Convert the params of covenants to buffer
@@ -418,142 +465,158 @@ export class BabylonBtcStakingManager extends EventEmitter {
     // Overwrite the witness to include the covenant unbonding signatures
     signedUnbondingTx.ins[0].witness = witness;
 
-    return signedUnbondingTx;
+    return {
+      transaction: signedUnbondingTx,
+      fee,
+    };
   }
 
   /**
    * Creates a signed withdrawal transaction on the unbodning output expiry path 
    * that is ready to be sent to the BTC network.
    * @param stakingInput - The staking inputs.
-   * @param stakingParamVersion - The param version that was used to create the
+   * @param stakingParamsVersion - The params version that was used to create the
    * delegation in Babylon chain
    * @param earlyUnbondingTx - The early unbonding transaction.
    * @param feeRate - The fee rate in satoshis per byte.
-   * @returns The signed withdrawal transaction.
+   * @returns The signed withdrawal transaction and its fee.
    */
-  async createSignedWithdrawEarlyUnbondedBtcTransaction(
+  async createSignedBtcWithdrawEarlyUnbondedTransaction(
+    stakerBtcInfo: StakerInfo,
     stakingInput: StakingInputs,
-    stakingParamVersion: number,
+    stakingParamsVersion: number,
     earlyUnbondingTx: Transaction,
     feeRate: number,
-  ): Promise<Transaction> {
-    const params = getBabylonParamByVersion(stakingParamVersion, this.stakingParams);
-    if (!params) {
-      throw new Error(
-        `Unable to find staking params for version ${stakingParamVersion}`,
-      );
-    }
-
-    const stakerInfo = await this.btcProvider.getStakerInfo();
-    if (!stakerInfo) {
-      throw new Error("Staker info not found while creating signed unbonding transaction");
-    }
+  ): Promise<TransactionResult> {
+    const params = getBabylonParamByVersion(
+      stakingParamsVersion,
+      this.stakingParams,
+    );
 
     const staking = new Staking(
       this.network,
-      stakerInfo,
+      stakerBtcInfo,
       params,
       stakingInput.finalityProviderPkNoCoordHex,
       stakingInput.stakingTimelock,
     );
 
-    const { psbt: unbondingPsbt } = staking.createWithdrawEarlyUnbondedTransaction(
+    const { psbt: unbondingPsbt, fee } = staking.createWithdrawEarlyUnbondedTransaction(
       earlyUnbondingTx,
       feeRate,
     );
 
+    this.emit(
+      StakingEventType.SIGNING,
+      SigningType.WITHDRAW_EARLY_UNBONDED,
+    );
     const signedWithdrawalPsbtHex = await this.btcProvider.signPsbt(
       unbondingPsbt.toHex()
     );
-    return Psbt.fromHex(signedWithdrawalPsbtHex).extractTransaction();
+    return {
+      transaction: Psbt.fromHex(signedWithdrawalPsbtHex).extractTransaction(),
+      fee,
+    };
   }
 
   /**
    * Creates a signed withdrawal transaction on the staking output expiry path 
    * that is ready to be sent to the BTC network.
+   * @param stakerBtcInfo - The staker BTC info which includes the BTC address
+   * and the no-coord public key in hex format.
    * @param stakingInput - The staking inputs.
-   * @param stakingParamVersion - The param version that was used to create the EOI
+   * @param stakingParamsVersion - The params version that was used to create the
+   * delegation in Babylon chain
    * @param stakingTx - The staking transaction.
    * @param feeRate - The fee rate in satoshis per byte.
-   * @returns The signed withdrawal transaction.
+   * @returns The signed withdrawal transaction and its fee.
    */
-  async createSignedWithdrawStakingExpiredBtcTransaction(
+  async createSignedBtcWithdrawStakingExpiredTransaction(
+    stakerBtcInfo: StakerInfo,
     stakingInput: StakingInputs,
-    stakingParamVersion: number,
+    stakingParamsVersion: number,
     stakingTx: Transaction,
     feeRate: number,
-  ): Promise<Transaction> {
-    const params = getBabylonParamByVersion(stakingParamVersion, this.stakingParams);
-    if (!params) {
-      throw new Error(`Unable to find staking params for version ${stakingParamVersion}`);
-    }
-
-    const stakerInfo = await this.btcProvider.getStakerInfo();
-    if (!stakerInfo) {
-      throw new Error("Staker info not found while creating signed unbonding transaction");
-    }
+  ): Promise<TransactionResult> {
+    const params = getBabylonParamByVersion(
+      stakingParamsVersion,
+      this.stakingParams,
+    );
 
     const staking = new Staking(
       this.network,
-      stakerInfo,
+      stakerBtcInfo,
       params,
       stakingInput.finalityProviderPkNoCoordHex,
       stakingInput.stakingTimelock,
     );
 
-    const { psbt } = staking.createWithdrawStakingExpiredPsbt(
+    const { psbt, fee } = staking.createWithdrawStakingExpiredPsbt(
       stakingTx,
       feeRate,
     );
 
+    this.emit(
+      StakingEventType.SIGNING,
+      SigningType.WITHDRAW_STAKING_EXPIRED,
+    );
     const signedWithdrawalPsbtHex = await this.btcProvider.signPsbt(
       psbt.toHex()
     );
-    return Psbt.fromHex(signedWithdrawalPsbtHex).extractTransaction();
+    return {
+      transaction: Psbt.fromHex(signedWithdrawalPsbtHex).extractTransaction(),
+      fee,
+    };
   }
 
   /**
    * Creates a signed withdrawal transaction for the expired slashing output that 
-   * ready to be sent to the BTC network.
+   * is ready to be sent to the BTC network.
+   * @param stakerBtcInfo - The staker BTC info which includes the BTC address
+   * and the no-coord public key in hex format.
    * @param stakingInput - The staking inputs.
-   * @param stakingParamVersion - The param version that was used to create the EOI
+   * @param stakingParamsVersion - The params version that was used to create the
+   * delegation in Babylon chain
    * @param slashingTx - The slashing transaction.
    * @param feeRate - The fee rate in satoshis per byte.
-   * @returns The signed withdrawal transaction.
+   * @returns The signed withdrawal transaction and its fee.
    */
-  async createSignedWithdrawSlashingBtcTransaction(
+  async createSignedBtcWithdrawSlashingTransaction(
+    stakerBtcInfo: StakerInfo,
     stakingInput: StakingInputs,
-    stakingParamVersion: number,
+    stakingParamsVersion: number,
     slashingTx: Transaction,
     feeRate: number,
-  ): Promise<Transaction> {
-    const params = getBabylonParamByVersion(stakingParamVersion, this.stakingParams);
-    if (!params) {
-      throw new Error(`Unable to find staking params for version ${stakingParamVersion}`);
-    }
-
-    const stakerInfo = await this.btcProvider.getStakerInfo();
-    if (!stakerInfo) {
-      throw new Error("Staker info not found while creating withdraw slashing transaction");
-    }
+  ): Promise<TransactionResult> {
+    const params = getBabylonParamByVersion(
+      stakingParamsVersion,
+      this.stakingParams,
+    );
 
     const staking = new Staking(
       this.network,
-      stakerInfo,
+      stakerBtcInfo,
       params,
       stakingInput.finalityProviderPkNoCoordHex,
       stakingInput.stakingTimelock,
     );
 
-    const { psbt } = staking.createWithdrawSlashingPsbt(
+    const { psbt, fee } = staking.createWithdrawSlashingPsbt(
       slashingTx,
       feeRate,
     );
 
+    this.emit(
+      StakingEventType.SIGNING,
+      SigningType.WITHDRAW_SLASHING,
+    );
     const signedSlashingPsbtHex = await this.btcProvider.signPsbt(
       psbt.toHex()
     );
-    return Psbt.fromHex(signedSlashingPsbtHex).extractTransaction();
+    return {
+      transaction: Psbt.fromHex(signedSlashingPsbtHex).extractTransaction(),
+      fee,
+    };
   }
 
   /**
@@ -570,8 +633,8 @@ export class BabylonBtcStakingManager extends EventEmitter {
     // Create Proof of Possession
     const bech32AddressHex = uint8ArrayToHex(fromBech32(bech32Address).data);
     this.emit(
-      StakingEventType.SIGNING_REGISTRATION,
-      SigningRegistrationType.PROOF_OF_POSSESSION,
+      StakingEventType.SIGNING,
+      SigningType.PROOF_OF_POSSESSION,
     );
     const signedBabylonAddress = await this.btcProvider.signMessage(
       bech32AddressHex,
@@ -647,7 +710,7 @@ export class BabylonBtcStakingManager extends EventEmitter {
    * @param bech32Address - The staker's babylon chain bech32 address
    * @param stakerBtcInfo - The staker's BTC information such as address and 
    * public key
-   * @param param - The staking parameters.
+   * @param params - The staking parameters.
    * @param inclusionProof - The inclusion proof of the staking transaction.
    * @returns The protobuf message.
    */
@@ -657,7 +720,7 @@ export class BabylonBtcStakingManager extends EventEmitter {
     stakingTx: Transaction,
     bech32Address: string,
     stakerBtcInfo: StakerInfo,
-    param: StakingParams,
+    params: StakingParams,
     inclusionProof?: btcstaking.InclusionProof,
   ) {
     const {
@@ -671,8 +734,8 @@ export class BabylonBtcStakingManager extends EventEmitter {
 
     // Sign the slashing PSBT
     this.emit(
-      StakingEventType.SIGNING_REGISTRATION,
-      SigningRegistrationType.STAKING_SLASHING,
+      StakingEventType.SIGNING,
+      SigningType.STAKING_SLASHING,
     );
     const signedSlashingPsbtHex = await this.btcProvider.signPsbt(
       slashingPsbt.toHex(),
@@ -689,8 +752,8 @@ export class BabylonBtcStakingManager extends EventEmitter {
 
     // Sign the unbonding slashing PSBT
     this.emit(
-      StakingEventType.SIGNING_REGISTRATION,
-      SigningRegistrationType.UNBONDING_SLASHING,
+      StakingEventType.SIGNING,
+      SigningType.UNBONDING_SLASHING,
     );
     const signedUnbondingSlashingPsbtHex = await this.btcProvider.signPsbt(
       unbondingSlashingPsbt.toHex(),
@@ -728,9 +791,9 @@ export class BabylonBtcStakingManager extends EventEmitter {
           Buffer.from(clearTxSignatures(signedSlashingTx).toHex(), "hex"),
         ),
         delegatorSlashingSig: Uint8Array.from(slashingSig),
-        unbondingTime: param.unbondingTime,
+        unbondingTime: params.unbondingTime,
         unbondingTx: Uint8Array.from(unbondingTx.toBuffer()),
-        unbondingValue: stakingInput.stakingAmountSat - param.unbondingFeeSat,
+        unbondingValue: stakingInput.stakingAmountSat - params.unbondingFeeSat,
         unbondingSlashingTx: Uint8Array.from(
           Buffer.from(
             clearTxSignatures(signedUnbondingSlashingTx).toHex(),
@@ -831,4 +894,22 @@ const deriveMerkleProof = (merkle: string[]) => {
     return acc + Buffer.from(m, "hex").reverse().toString("hex");
   }, "");
   return proofHex;
+};
+
+/**
+ * Get the staker signature from the unbonding transaction
+ * This is used mostly for unbonding transactions from phase-1(Observable)
+ * @param unbondingTx - The unbonding transaction
+ * @returns The staker signature
+ */
+export const getUnbondingTxStakerSignature = (unbondingTx: Transaction): string => {
+  try {
+    // There is only one input and one output in the unbonding transaction
+    return unbondingTx.ins[0].witness[0].toString("hex");
+  } catch (error) {
+    throw StakingError.fromUnknown(
+      error, StakingErrorCode.INVALID_INPUT,
+      "Failed to get staker signature",
+    );
+  }
 };
