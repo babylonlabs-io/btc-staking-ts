@@ -145,11 +145,6 @@ export class BabylonBtcStakingManager extends EventEmitter {
       babylonBtcTipHeight,
       this.stakingParams,
     );
-    if (!params) {
-      throw new Error(
-        `Unable to find staking params for height ${babylonBtcTipHeight}`,
-      );
-    }
 
     const staking = new Staking(
       this.network,
@@ -212,10 +207,7 @@ export class BabylonBtcStakingManager extends EventEmitter {
   }> {
     // Get the Babylon params at the time of the staking transaction
     const params = getBabylonParamByBtcHeight(stakingTxHeight, this.stakingParams);
-    if (!params)
-      throw new Error(
-        `Unable to find staking params for height ${stakingTxHeight}`,
-      );
+
     if (!isValidBabylonAddress(babylonAddress)) {
       throw new Error("Invalid Babylon address");
     }
@@ -324,11 +316,6 @@ export class BabylonBtcStakingManager extends EventEmitter {
     stakingParamsVersion: number,
   ): Promise<Transaction> {
     const params = getBabylonParamByVersion(stakingParamsVersion, this.stakingParams);
-    if (!params) {
-      throw new Error(
-        `Unable to find staking params for version ${stakingParamsVersion}`,
-      );
-    }
     if (inputUTXOs.length === 0) {
       throw new Error("No input UTXOs provided");
     }
@@ -357,52 +344,54 @@ export class BabylonBtcStakingManager extends EventEmitter {
   }
 
   /**
-+   * Creates a partial signed unbonding transaction that is only signed by the
-+   * staker. In order to complete the unbonding transaction, the covenant
-+   * unbonding signatures need to be added to the transaction before sending it
-+   * to the BTC network.
-+   * NOTE: This method should only be used for Babylon phase-1 unbonding.
-+   * @param stakerBtcInfo - The staker BTC info which includes the BTC address
-+   *  and the no-coord public key in hex format.
-+   * @param stakingInput - The staking inputs.
-+   * @param stakingTxHeight - The BTC height in which the staking transaction
-+   * is included.
-+   * @param stakingTx - The staking transaction.
-+   * @returns The partial signed unbonding transaction and its fee.
+   * Creates a partial signed unbonding transaction that is only signed by the
+   * staker. In order to complete the unbonding transaction, the covenant
+   * unbonding signatures need to be added to the transaction before sending it
+   * to the BTC network.
+   * NOTE: This method should only be used for Babylon phase-1 unbonding.
+   * @param stakerBtcInfo - The staker BTC info which includes the BTC address
+   * and the no-coord public key in hex format.
+   * @param stakingInput - The staking inputs.
+   * @param stakingParamsVersion - The params version that was used to create the
+   * delegation in Babylon chain
+   * @param stakingTx - The staking transaction.
+   * @returns The partial signed unbonding transaction and its fee.
    */
   async createPartialSignedBtcUnbondingTransaction(
     stakerBtcInfo: StakerInfo,
     stakingInput: StakingInputs,
-    stakingTxHeight: number,
+    stakingParamsVersion: number,
     stakingTx: Transaction,
   ): Promise<TransactionResult> {
     // Get the staking params at the time of the staking transaction
-    const params = getBabylonParamByBtcHeight(
-      stakingTxHeight,
+    const params = getBabylonParamByVersion(
+      stakingParamsVersion,
       this.stakingParams,
     );
-    if (!params) {
-        throw new Error(
-          `Unable to find staking params for height ${stakingTxHeight}`,
-        );
-      }
   
-      const staking = new Staking(
-        this.network,
-        stakerBtcInfo,
-        params,
-        stakingInput.finalityProviderPkNoCoordHex,
-        stakingInput.stakingTimelock,
-      );
-      const { transaction: unbondingTx, fee } = staking.createUnbondingTransaction(stakingTx);
-  
-      const psbt = staking.toUnbondingPsbt(unbondingTx, stakingTx);
-      this.emit(
-        StakingEventType.SIGNING,
-        SigningType.UNBONDING,
-      );
-      const signedUnbondingPsbtHex = await this.btcProvider.signPsbt(psbt.toHex());
-      const signedUnbondingTx = Psbt.fromHex(signedUnbondingPsbtHex).extractTransaction();
+    const staking = new Staking(
+      this.network,
+      stakerBtcInfo,
+      params,
+      stakingInput.finalityProviderPkNoCoordHex,
+      stakingInput.stakingTimelock,
+    );
+    const {
+      transaction: unbondingTx,
+      fee,
+    } = staking.createUnbondingTransaction(stakingTx);
+
+    const psbt = staking.toUnbondingPsbt(unbondingTx, stakingTx);
+    this.emit(
+      StakingEventType.SIGNING,
+      SigningType.UNBONDING,
+    );
+    const signedUnbondingPsbtHex = await this.btcProvider.signPsbt(
+      psbt.toHex(),
+    );
+    const signedUnbondingTx = Psbt.fromHex(
+      signedUnbondingPsbtHex,
+    ).extractTransaction();
   
     return {
       transaction: signedUnbondingTx,
@@ -440,34 +429,24 @@ export class BabylonBtcStakingManager extends EventEmitter {
       stakingParamsVersion,
       this.stakingParams,
     );
-    if (!params) {
-      throw new Error(
-        `Unable to find staking params for version ${stakingParamsVersion}`,
-      );
-    }
 
-    const staking = new Staking(
-      this.network,
+    const {
+      transaction: signedUnbondingTx,
+      fee,
+    } = await this.createPartialSignedBtcUnbondingTransaction(
       stakerBtcInfo,
-      params,
-      stakingInput.finalityProviderPkNoCoordHex,
-      stakingInput.stakingTimelock,
-    );
-
-    const unbondingPsbt = staking.toUnbondingPsbt(
-      unsignedUnbondingTx,
+      stakingInput,
+      stakingParamsVersion,
       stakingTx,
     );
 
-    this.emit(
-      StakingEventType.SIGNING,
-      SigningType.UNBONDING,
-    );
-    const signedUnbondingPsbtHex = await this.btcProvider.signPsbt(
-      unbondingPsbt.toHex()
-    );
-    const signedUnbondingTx = Psbt
-      .fromHex(signedUnbondingPsbtHex).extractTransaction();
+    // Check the computed txid of the signed unbonding transaction is the same as
+    // the txid of the unsigned unbonding transaction
+    if (signedUnbondingTx.getId() !== unsignedUnbondingTx.getId()) {
+      throw new Error(
+        "Unbonding transaction hash does not match the computed hash",
+      );
+    }
 
     // Add covenant unbonding signatures
     // Convert the params of covenants to buffer
@@ -488,7 +467,7 @@ export class BabylonBtcStakingManager extends EventEmitter {
 
     return {
       transaction: signedUnbondingTx,
-      fee: params.unbondingFeeSat,
+      fee,
     };
   }
 
@@ -509,12 +488,10 @@ export class BabylonBtcStakingManager extends EventEmitter {
     earlyUnbondingTx: Transaction,
     feeRate: number,
   ): Promise<TransactionResult> {
-    const params = getBabylonParamByVersion(stakingParamsVersion, this.stakingParams);
-    if (!params) {
-      throw new Error(
-        `Unable to find staking params for version ${stakingParamsVersion}`,
-      );
-    }
+    const params = getBabylonParamByVersion(
+      stakingParamsVersion,
+      this.stakingParams,
+    );
 
     const staking = new Staking(
       this.network,
@@ -565,11 +542,6 @@ export class BabylonBtcStakingManager extends EventEmitter {
       stakingParamsVersion,
       this.stakingParams,
     );
-    if (!params) {
-      throw new Error(
-        `Unable to find staking params for version ${stakingParamsVersion}`,
-      );
-    }
 
     const staking = new Staking(
       this.network,
@@ -620,11 +592,6 @@ export class BabylonBtcStakingManager extends EventEmitter {
       stakingParamsVersion,
       this.stakingParams,
     );
-    if (!params) {
-      throw new Error(
-        `Unable to find staking params for version ${stakingParamsVersion}`,
-      );
-    }
 
     const staking = new Staking(
       this.network,
