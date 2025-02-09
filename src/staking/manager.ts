@@ -115,6 +115,7 @@ export class BabylonBtcStakingManager extends EventEmitter {
    * @param inputUTXOs - The UTXOs that will be used to pay for the staking
    * transaction.
    * @param feeRate - The fee rate in satoshis per byte.
+   * @param babylonAddress - The Babylon bech32 encoded address of the staker.
    * @returns The signed babylon pre-staking registration transaction in base64 
    * format.
    */
@@ -189,6 +190,8 @@ export class BabylonBtcStakingManager extends EventEmitter {
    * sent to the Babylon chain. This is used when a staking transaction is 
    * already created and included in a BTC block and we want to register it on 
    * the Babylon chain.
+   * @param stakerBtcInfo - The staker BTC info which includes the BTC address
+   * and the no-coord public key in hex format.
    * @param stakingTx - The staking transaction.
    * @param stakingTxHeight - The BTC height in which the staking transaction 
    * is included.
@@ -303,12 +306,14 @@ export class BabylonBtcStakingManager extends EventEmitter {
   /**
    * Creates a signed staking transaction that is ready to be sent to the BTC 
    * network.
+   * @param stakerBtcInfo - The staker BTC info which includes the BTC address
+   * and the no-coord public key in hex format.
    * @param stakingInput - The staking inputs.
    * @param unsignedStakingTx - The unsigned staking transaction.
-   * @param stakingParamsVersion - The params version that was used to create the
-   * delegation in Babylon chain
    * @param inputUTXOs - The UTXOs that will be used to pay for the staking
    * transaction.
+   * @param stakingParamsVersion - The params version that was used to create the
+   * delegation in Babylon chain
    * @returns The signed staking transaction.
    */
   async createSignedBtcStakingTransaction(
@@ -392,6 +397,10 @@ export class BabylonBtcStakingManager extends EventEmitter {
       const { transaction: unbondingTx, fee } = staking.createUnbondingTransaction(stakingTx);
   
       const psbt = staking.toUnbondingPsbt(unbondingTx, stakingTx);
+      this.emit(
+        StakingEventType.SIGNING,
+        SigningType.UNBONDING,
+      );
       const signedUnbondingPsbtHex = await this.btcProvider.signPsbt(psbt.toHex());
       const signedUnbondingTx = Psbt.fromHex(signedUnbondingPsbtHex).extractTransaction();
   
@@ -404,6 +413,8 @@ export class BabylonBtcStakingManager extends EventEmitter {
   /**
    * Creates a signed unbonding transaction that is ready to be sent to the BTC 
    * network.
+   * @param stakerBtcInfo - The staker BTC info which includes the BTC address
+   * and the no-coord public key in hex format.
    * @param stakingInput - The staking inputs.
    * @param stakingParamsVersion - The params version that was used to create the
    * delegation in Babylon chain
@@ -534,6 +545,8 @@ export class BabylonBtcStakingManager extends EventEmitter {
   /**
    * Creates a signed withdrawal transaction on the staking output expiry path 
    * that is ready to be sent to the BTC network.
+   * @param stakerBtcInfo - The staker BTC info which includes the BTC address
+   * and the no-coord public key in hex format.
    * @param stakingInput - The staking inputs.
    * @param stakingParamsVersion - The params version that was used to create the
    * delegation in Babylon chain
@@ -587,6 +600,8 @@ export class BabylonBtcStakingManager extends EventEmitter {
   /**
    * Creates a signed withdrawal transaction for the expired slashing output that 
    * is ready to be sent to the BTC network.
+   * @param stakerBtcInfo - The staker BTC info which includes the BTC address
+   * and the no-coord public key in hex format.
    * @param stakingInput - The staking inputs.
    * @param stakingParamsVersion - The params version that was used to create the
    * delegation in Babylon chain
