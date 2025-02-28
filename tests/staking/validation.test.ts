@@ -69,14 +69,6 @@ describe.each(testingNetworks)("Staking input validations", ({
     };
     const finalityProviderPkNoCoordHex = dataGenerator.generateRandomKeyPair().publicKeyNoCoord;
     const validParams = dataGenerator.generateStakingParams();
-    const stakingInstance = new Staking(
-      network,
-      stakerInfo,
-      validParams,
-      finalityProviderPkNoCoordHex,
-      dataGenerator.generateRandomTimelock(validParams),
-    );
-    
 
     it('should pass with valid parameters', () => {
       expect(() => new Staking(
@@ -145,7 +137,19 @@ describe.each(testingNetworks)("Staking input validations", ({
     });
 
     it('should throw an error if unbonding time is less than or equal to 0', () => {
-      const params = { ...validParams, unbondingTime: 0 };
+      let params = { ...validParams, unbondingTime: 0 };
+
+      expect(() => new Staking(
+        network,
+        stakerInfo,
+        params,
+        finalityProviderPkNoCoordHex,
+        dataGenerator.generateRandomTimelock(validParams),
+      )).toThrow(
+        'Unbonding time must be greater than 0'
+      );
+
+      params = { ...validParams, unbondingTime: -1 };
 
       expect(() => new Staking(
         network,
@@ -159,7 +163,19 @@ describe.each(testingNetworks)("Staking input validations", ({
     });
 
     it('should throw an error if unbonding fee is less than or equal to 0', () => {
-      const params = { ...validParams, unbondingFeeSat: 0 };
+      let params = { ...validParams, unbondingFeeSat: 0 };
+
+      expect(() => new Staking(
+        network,
+        stakerInfo,
+        params,
+        finalityProviderPkNoCoordHex,
+        dataGenerator.generateRandomTimelock(validParams),
+      )).toThrow(
+        'Unbonding fee must be greater than 0'
+      );
+
+      params = { ...validParams, unbondingFeeSat: -1 };
 
       expect(() => new Staking(
         network,
@@ -253,7 +269,19 @@ describe.each(testingNetworks)("Staking input validations", ({
     });
 
     it('should throw an error if covenant quorum is less than or equal to 0', () => {
-      const params = { ...validParams, covenantQuorum: 0 };
+      let params = { ...validParams, covenantQuorum: 0 };
+
+      expect(() => new Staking(
+        network,
+        stakerInfo,
+        params,
+        finalityProviderPkNoCoordHex,
+        dataGenerator.generateRandomTimelock(validParams),
+      )).toThrow(
+        'Covenant quorum must be greater than 0'
+      );
+
+      params = { ...validParams, covenantQuorum: -1 };
 
       expect(() => new Staking(
         network,
