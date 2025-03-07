@@ -106,7 +106,9 @@ export class BabylonBtcStakingManager {
    * @param babylonBtcTipHeight - The Babylon BTC tip height.
    * @param inputUTXOs - The UTXOs that will be used to pay for the staking
    * transaction.
-   * @param feeRate - The fee rate in satoshis per byte.
+   * @param feeRate - The fee rate in satoshis per byte. Typical value for the
+   * fee rate is above 1. If the fee rate is too low, the transaction will not
+   * be included in a block.
    * @param babylonAddress - The Babylon bech32 encoded address of the staker.
    * @returns The signed babylon pre-staking registration transaction in base64 
    * format.
@@ -249,7 +251,9 @@ export class BabylonBtcStakingManager {
    * @param stakingInput - The staking inputs.
    * @param inputUTXOs - The UTXOs that will be used to pay for the staking
    * transaction.
-   * @param feeRate - The fee rate in satoshis per byte.
+   * @param feeRate - The fee rate in satoshis per byte. Typical value for the
+   * fee rate is above 1. If the fee rate is too low, the transaction will not
+   * be included in a block.
    * @returns The estimated BTC fee in satoshis.
    */
   estimateBtcStakingFee(
@@ -462,7 +466,9 @@ export class BabylonBtcStakingManager {
    * @param stakingParamsVersion - The params version that was used to create the
    * delegation in Babylon chain
    * @param earlyUnbondingTx - The early unbonding transaction.
-   * @param feeRate - The fee rate in satoshis per byte.
+   * @param feeRate - The fee rate in satoshis per byte. Typical value for the
+   * fee rate is above 1. If the fee rate is too low, the transaction will not
+   * be included in a block.
    * @returns The signed withdrawal transaction and its fee.
    */
   async createSignedBtcWithdrawEarlyUnbondedTransaction(
@@ -509,7 +515,9 @@ export class BabylonBtcStakingManager {
    * @param stakingParamsVersion - The params version that was used to create the
    * delegation in Babylon chain
    * @param stakingTx - The staking transaction.
-   * @param feeRate - The fee rate in satoshis per byte.
+   * @param feeRate - The fee rate in satoshis per byte. Typical value for the
+   * fee rate is above 1. If the fee rate is too low, the transaction will not
+   * be included in a block.
    * @returns The signed withdrawal transaction and its fee.
    */
   async createSignedBtcWithdrawStakingExpiredTransaction(
@@ -556,7 +564,9 @@ export class BabylonBtcStakingManager {
    * @param stakingParamsVersion - The params version that was used to create the
    * delegation in Babylon chain
    * @param slashingTx - The slashing transaction.
-   * @param feeRate - The fee rate in satoshis per byte.
+   * @param feeRate - The fee rate in satoshis per byte. Typical value for the
+   * fee rate is above 1. If the fee rate is too low, the transaction will not
+   * be included in a block.
    * @returns The signed withdrawal transaction and its fee.
    */
   async createSignedBtcWithdrawSlashingTransaction(
