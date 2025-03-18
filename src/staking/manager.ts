@@ -9,6 +9,7 @@ import {
   btcstakingtx,
 } from "@babylonlabs-io/babylon-proto-ts";
 import {
+  BIP322Sig,
   BTCSigType,
   ProofOfPossessionBTC,
 } from "@babylonlabs-io/babylon-proto-ts/dist/generated/babylon/btcstaking/v1/pop";
@@ -21,14 +22,18 @@ import { findMatchingTxOutputIndex } from "../utils/staking";
 import { isValidBabylonAddress } from "../utils/babylon";
 import { StakingError } from "../error";
 import { StakingErrorCode } from "../error";
+import { isNativeSegwit, isTaproot } from "../utils/btc";
 
 export interface BtcProvider {
   // Sign a PSBT
   signPsbt(signingStep: SigningStep, psbtHex: string): Promise<string>;
-  // Sign a message using the ECDSA type
+  // Sign a message using the ECDSA or BIP322 type depending on the address type
+  // taproot or native segwit will use BIP322, legacy addresses will use ECDSA
   // This is optional and only required if you would like to use the 
   // `createProofOfPossession` function
-  signMessage?: (signingStep: SigningStep, message: string, type: "ecdsa") => Promise<string>;
+  signMessage?: (
+    signingStep: SigningStep, message: string, type: "ecdsa" | "bip322-simple"
+  ) => Promise<string>;
 }
 
 export interface BabylonProvider {
@@ -611,22 +616,46 @@ export class BabylonBtcStakingManager {
    */
   async createProofOfPossession(
     bech32Address: string,
+    stakerBtcAddress: string,
   ): Promise<ProofOfPossessionBTC> {
     if (!this.btcProvider.signMessage) {
       throw new Error("Sign message function not found");
     }
-    // Create Proof of Possession
-    const bech32AddressHex = uint8ArrayToHex(fromBech32(bech32Address).data);
- 
+
+    let sigType: BTCSigType = BTCSigType.ECDSA;
+
+    // For Taproot or Native SegWit addresses, use BIP322 signature scheme for
+    // enhanced security in the proof of possession. For legacy addresses, 
+    // fall back to ECDSA signature scheme.
+    if (
+      isTaproot(stakerBtcAddress, this.network) 
+        || isNativeSegwit(stakerBtcAddress, this.network)
+    ) {
+      sigType = BTCSigType.BIP322;
+    }
+
     const signedBabylonAddress = await this.btcProvider.signMessage(
       SigningStep.PROOF_OF_POSSESSION,
-      bech32AddressHex,
-      "ecdsa",
+      bech32Address,
+      sigType === BTCSigType.BIP322 ? "bip322-simple" : "ecdsa",
     );
-    const ecdsaSig = Uint8Array.from(Buffer.from(signedBabylonAddress, "base64"));
+
+    if (sigType === BTCSigType.BIP322) {
+      const bip322Sig = BIP322Sig.fromPartial({
+        address: stakerBtcAddress,
+        sig: Buffer.from(signedBabylonAddress, "base64"),
+      });
+      const encodedBip322Sig = BIP322Sig.encode(bip322Sig).finish();
+
+      return {
+        btcSigType: sigType,
+        btcSig: encodedBip322Sig
+      };
+    }
+
     return {
-      btcSigType: BTCSigType.ECDSA,
-      btcSig: ecdsaSig,
+      btcSigType: sigType,
+      btcSig: Buffer.from(signedBabylonAddress, "base64")
     };
   }
 
@@ -720,7 +749,10 @@ export class BabylonBtcStakingManager {
     }
 
     // Create proof of possession
-    const proofOfPossession = await this.createProofOfPossession(bech32Address);
+    const proofOfPossession = await this.createProofOfPossession(
+      bech32Address,
+      stakerBtcInfo.address,
+    );
 
     // Prepare the final protobuf message
     const msg: btcstakingtx.MsgCreateBTCDelegation =

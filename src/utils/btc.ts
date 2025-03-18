@@ -32,7 +32,10 @@ export const isValidBitcoinAddress = (
  * @param {object} network - The Bitcoin network (e.g., bitcoin.networks.bitcoin).
  * @returns {boolean} - True if the address is a Taproot address, otherwise false.
  */
-export const isTaproot = (taprootAddress: string, network: networks.Network): boolean => {
+export const isTaproot = (
+  taprootAddress: string,
+  network: networks.Network,
+): boolean => {
   try {
     const decoded = address.fromBech32(taprootAddress);
     if (decoded.version !== 1) {
@@ -48,6 +51,37 @@ export const isTaproot = (taprootAddress: string, network: networks.Network): bo
       default:
         return false;
     }  
+  } catch (error) {
+    return false;
+  }
+};
+
+/**
+ * Check whether the given address is a Native SegWit address.
+ *
+ * @param {string} segwitAddress - The Bitcoin bech32 encoded address to check.
+ * @param {object} network - The Bitcoin network (e.g., bitcoin.networks.bitcoin).
+ * @returns {boolean} - True if the address is a Native SegWit address, otherwise false.
+ */
+export const isNativeSegwit = (
+  segwitAddress: string,
+  network: networks.Network,
+): boolean => {
+  try {
+    const decoded = address.fromBech32(segwitAddress);
+    if (decoded.version !== 0) {
+      return false;
+    }
+    switch (network) {
+      case networks.bitcoin:
+        // Check if address starts with "bc1q"
+        return segwitAddress.startsWith("bc1q");
+      case networks.testnet:
+        // testnet native segwit addresses start with "tb1q"
+        return segwitAddress.startsWith("tb1q");
+      default:
+        return false;
+    }
   } catch (error) {
     return false;
   }
