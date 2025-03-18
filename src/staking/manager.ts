@@ -2,7 +2,6 @@ import { networks, Psbt, Transaction } from "bitcoinjs-lib";
 import { StakingParams, VersionedStakingParams } from "../types/params";
 import { TransactionResult, UTXO } from "../types";
 import { StakerInfo, Staking } from ".";
-import { fromBech32 } from "@cosmjs/encoding";
 import {
   btccheckpoint,
   btcstaking,
@@ -16,7 +15,7 @@ import {
 import { BABYLON_REGISTRY_TYPE_URLS } from "../constants/registry";
 import { createCovenantWitness } from "./transactions";
 import { getBabylonParamByBtcHeight, getBabylonParamByVersion } from "../utils/staking/param";
-import { reverseBuffer, uint8ArrayToHex } from "../utils";
+import { reverseBuffer } from "../utils";
 import { deriveStakingOutputInfo } from "../utils/staking";
 import { findMatchingTxOutputIndex } from "../utils/staking";
 import { isValidBabylonAddress } from "../utils/babylon";
@@ -27,10 +26,10 @@ import { isNativeSegwit, isTaproot } from "../utils/btc";
 export interface BtcProvider {
   // Sign a PSBT
   signPsbt(signingStep: SigningStep, psbtHex: string): Promise<string>;
-  // Sign a message using the ECDSA or BIP322 type depending on the address type
-  // taproot or native segwit will use BIP322, legacy addresses will use ECDSA
-  // This is optional and only required if you would like to use the 
-  // `createProofOfPossession` function
+  
+  // Signs a message using either ECDSA or BIP-322, depending on the address type.
+  // - Taproot and Native Segwit addresses will use BIP-322.
+  // - Legacy addresses will use ECDSA.
   signMessage?: (
     signingStep: SigningStep, message: string, type: "ecdsa" | "bip322-simple"
   ) => Promise<string>;
