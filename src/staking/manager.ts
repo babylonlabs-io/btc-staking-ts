@@ -30,7 +30,7 @@ export interface BtcProvider {
   // Signs a message using either ECDSA or BIP-322, depending on the address type.
   // - Taproot and Native Segwit addresses will use BIP-322.
   // - Legacy addresses will use ECDSA.
-  signMessage?: (
+  signMessage: (
     signingStep: SigningStep, message: string, type: "ecdsa" | "bip322-simple"
   ) => Promise<string>;
 }
@@ -617,10 +617,6 @@ export class BabylonBtcStakingManager {
     bech32Address: string,
     stakerBtcAddress: string,
   ): Promise<ProofOfPossessionBTC> {
-    if (!this.btcProvider.signMessage) {
-      throw new Error("Sign message function not found");
-    }
-
     let sigType: BTCSigType = BTCSigType.ECDSA;
 
     // For Taproot or Native SegWit addresses, use BIP322 signature scheme for
