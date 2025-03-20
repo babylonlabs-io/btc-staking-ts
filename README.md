@@ -4,7 +4,7 @@
     <p align="center">Babylon Bitcoin Staking Protocol</p>
     <p align="center"><strong>TypeScript</strong> library</p>
     <p align="center">
-      <a href="https://www.npmjs.com/package/btc-staking-ts"><img src="https://badge.fury.io/js/btc-staking-ts.svg" alt="npm version" height="18"></a>
+      <a href="https://www.npmjs.com/package/@babylonlabs-io/btc-staking-ts"><img src="https://badge.fury.io/js/btc-staking-ts.svg" alt="npm version" height="18"></a>
     </p>
 </p>
 <br/>
@@ -23,7 +23,8 @@ Stable release versions are manually released from the main branch.
 
 ### Canary version
 
-A canary version is a pre-release version. Make sure all changes are added and committed before running the command below:
+A canary version is a pre-release version from `dev` branch.
+Make sure all changes are added and committed before running the command below:
 
 ```console
 npm run version:canary
@@ -31,104 +32,308 @@ npm run version:canary
 
 ## Usage
 
-### Define Staking Parameters
+> **Note**: This documentation describes an abstraction layer designed to simplify two main processes:
+> 1. Creating Bitcoin staking delegations
+> 2. Constructing data in the format required by the Babylon chain
+>
+> While this abstraction layer makes the process more straightforward, it comes with certain constraints:
+> - Change address must be the same as the staker address
+> - Transaction signing order is fixed
+> - Limited customization options for transaction construction
+> - Predefined fee calculation formulas
+>
+> These constraints help maintain security and reduce complexity for most use cases. However, if you need:
+> - More flexibility in transaction construction
+> - Custom change address management
+> - Fine-grained control over signing order
+> - Advanced transaction options
+>
+> Please refer to the [advanced usage documentation](docs/advanced-btc-tx.md) for lower-level implementation details.
 
+This library follow the concepts of **pre-staking and post-staking registration flow**
+based on this [documentation](https://github.com/babylonlabs-io/babylon/blob/main/docs/register-bitcoin-stake.md)
+
+### Prerequisite
+
+#### Staking Parameters
 The Staking Parameters correspond to the parameters of the staking contract
-and the Bitcoin transaction containing it.
+and the Bitcoin transaction containing it. 
 
-Among others,
-they define the input UTXOs that should be used to fund the staking
-transaction, the staking value and duration, and the finality provider the user
-will delegate to.
+The parameter values can be retrieved from either:
+- A [Babylon](https://github.com/babylonlabs-io/babylon) node
+- The [backend API service](https://github.com/babylonlabs-io/staking-api-service)
+
+We will be using the full list of staking parameters in this library, for detailed
+explanation of each fields, refer to this [documentation](https://github.com/babylonlabs-io/babylon/blob/main/docs/register-bitcoin-stake.md#32-babylon-chain-btc-staking-parameters)
+
+#### Staker information
+
+The library require Staker's BTC as well as their Babylon Genesis Account 
+information to be supplied in order to create the relevant transactions.
+
+1. **Staker's Bitcoin and Babylon Details**
+```ts
+const stakerInfo = {
+  address: "{{ Staker BTC address }}",
+  publicKeyNoCoordHex: "{{ Staker BTC public key without coordinates in hex }}",
+}
+
+const babylonAddress = "{{ Babylon Genesis Chain bech32 Address }}"
+```
+
+as well the staking inputs selected/created by the staker at the time of creating
+the delegation:
 
 ```ts
-import { networks } from "bitcoinjs-lib";
-
-// 1. Collect the Babylon system parameters.
-//    These are parameters that are shared between for all Bitcoin staking
-//    transactions, and are maintained by Babylon governance.
-//    They involve:
-//       - `covenantPks: Buffer[]`: A list of the public keys
-//          without the coordinate bytes correspondongin to the
-//          covenant emulators.
-//       - `covenantThreshold: number`: The amount of covenant
-//          emulator signatures required for the staking to be activated.
-//       - `minimumUnbondingTime: number`: The minimum unbonding period
-//          allowed by the Babylon system .
-//       - `magicBytes: Buffer`: The magic bytes that are appended to the data
-//          embed script that is used to identify the staking transaction on BTC.
-//       - `lockHeight: number`: Indicates the BTC height before which
-//          the transaction is considered invalid. This value can be derived from
-//          the `activationHeight` of the Babylon versioned global parameters
-//          where the current BTC height is. Note that if the 
-//          `current BTC height + 1 + confirmationDepth` is going to be >=
-//          the next versioned `activationHeight`, then you should use the 
-//          `activationHeight` from the next version of the global parameters.
-//    Below, these values are hardcoded, but they should be retrieved from the
-//    Babylon system.
-const covenantPks: Buffer[] = covenant_pks.map((pk) => Buffer.from(pk, "hex"));
-const covenantThreshold: number = 3;
-const minUnbondingTime: number = 101;
-const magicBytes: Buffer = Buffer.from("62627434", "hex"); // "bbt4" tag
-// Optional field. Value coming from current global param activationHeight
-const lockHeight: number = 0;
-
-// 2. Define the user selected parameters of the staking contract:
-//    - `stakerPk: Buffer`: The public key without the coordinate of the
-//       staker.
-//    - `finalityProviders: Buffer[]`: A list of public keys without the
-//       coordinate corresponding to the finality providers. Currently,
-//       a delegation to only a single finality provider is allowed,
-//       so the list should contain only a single item.
-//    - `stakingDuration: number`: The staking period in BTC blocks.
-//    - `stakingAmount: number`: The amount to be staked in satoshis.
-//    - `unbondingTime: number`: The unbonding time. Should be `>=` the
-//      `minUnbondingTime`.
-
-const stakerPk: Buffer = btcWallet.publicKeyNoCoord();
-const finalityProviders: Buffer[] = [
-  Buffer.from(finalityProvider.btc_pk_hex, "hex"),
-];
-const stakingDuration: number = 144;
-const stakingAmount: number = 1000;
-const unbondingTime: number = minUnbondingTime;
-
-// 3. Define the parameters for the staking transaction that will contain the
-//    staking contract:
-//    - `inputUTXOs: UTXO[]`: The list of UTXOs that will be used as an input
-//       to fund the staking transaction.
-//    - `feeRate: number`: The fee per tx byte in satoshis.
-//    - `changeAddress: string`: BTC wallet change address, Taproot or Native
-//       Segwit.
-//    - `network: network to work with, either networks.testnet
-//       for BTC Testnet and BTC Signet, or networks.bitcoin for BTC Mainnet.
-
-// Each object in the inputUTXOs array represents a single UTXO with the following properties:
-// - txid: transaction ID, string
-// - vout: output index, number
-// - value: value of the UTXO, in satoshis, number
-// - scriptPubKey: script which provides the conditions that must be fulfilled for this UTXO to be spent, string
-const inputUTXOs = [
-  {
-    txid: "e472d65b0c9c1bac9ffe53708007e57ab830f1bf09af4bfbd17e780b641258fc",
-    vout: 2,
-    value: 9265692,
-    scriptPubKey: "0014505049839bc32f869590adc5650c584e17c917fc",
-  },
-];
-const feeRate: number = 18;
-const changeAddress: string = btcWallet.address;
-const network = networks.testnet;
+const stakerInput = {
+  finalityProviderPkNoCoordHex: "{{ The chosen finality provider public key }}",
+  stakingAmountSat: "{{ Amount of satoshis to stake }}",
+  stakingTimelock: "{{ Timelock of the staking }}"
+}
 ```
 
-### Fee Calculation
-The fee calculation in the @babylonlabs-io/btc-staking-ts library is based on an estimated size 
-of the transaction in virtual bytes (vB). This estimation helps in calculating 
-the appropriate fee to include in the transaction to ensure it is processed by 
-the Bitcoin network efficiently.
+#### Providers
+
+The library requires two provider implementations to handle transaction signing:
+
+1. **Bitcoin Provider**: Handles Bitcoin transaction and message signing
+2. **Babylon Provider**: Handles Babylon transaction signing
+
+These providers are essential for constructing valid Babylon transaction 
+messages, as certain message fields depend on the output of signed Bitcoin 
+transactions. The `SigningStep` enum is used throughout the signing process to:
+- Identify which signing operation is being performed
+- Enable proper user interaction flows (e.g., showing relevant prompts)
+
+```ts
+export interface BtcProvider {
+  // Sign a PSBT
+  signPsbt(signingStep: SigningStep, psbtHex: string): Promise<string>;
+  // Sign a message using the ECDSA type
+  // This is optional and only required if you would like to use the 
+  // `createProofOfPossession` function
+  signMessage?: (
+    signingStep: SigningStep, message: string, type: "ecdsa" || "bip322-simple"
+  ) => Promise<string>;
+}
+
+export interface BabylonProvider {
+  signTransaction: <T extends object>(
+    signingStep: SigningStep,
+    msg: {
+      typeUrl: string;
+      value: T;
+    }
+  ) => Promise<Uint8Array>
+}
+```
+
+### Post-Staking Registration
+
+This refers to registration of an already existing BTC staking transaction into Babylon
+chain network. For more details, refer to [documentation](https://github.com/babylonlabs-io/babylon/blob/main/docs/register-bitcoin-stake.md#21-post-staking-registration).
+
+> **Note**: This method does not create Bitcoin transactions that are ready to be sent to 
+> the Bitcoin network. Instead, it creates Babylon transactions that contain the
+> unsigned and partially signed Bitcoin transactions together with already 
+> onchain staking transaction required for delegation registration.
+
+```ts
+import {
+  BabylonBtcStakingManager,
+} from "@babylonlabs-io/btc-staking-ts";
+
+const manager = new BabylonBtcStakingManager(
+  btcNetwork,
+  stakingParams,
+  btcProvider,
+  bbnProvider,
+);
+
+const { 
+  signedBabylonTx
+} = await manager.postStakeRegistrationBabylonTransaction(
+  stakerInfo,
+  stakingTx,
+  stakingHeight,
+  stakingInput,
+  inclusionProof,
+  bech32Address,
+);
+```
+
+### Pre-Staking Registration
+
+The Pre-staking registration flow is for stakers who seek verification from the Babylon chain before submitting their BTC staking transaction to the Bitcoin ledger. For more details, refer to [documentation](https://github.com/babylonlabs-io/babylon/blob/main/docs/register-bitcoin-stake.md#22-pre-staking-registration)
+
+> **Note**: This method does not create Bitcoin transactions that are ready to be sent to 
+> the Bitcoin network. Instead, it creates Babylon transactions that contain the
+> unsigned and partially signed Bitcoin transactions required for delegation 
+> registration.
+
+
+```ts
+import {
+  BabylonBtcStakingManager,
+} from "@babylonlabs-io/btc-staking-ts";
+
+const manager = new BabylonBtcStakingManager(
+  btcNetwork,
+  stakingParams,
+  btcProvider,
+  bbnProvider,
+);
+
+const { 
+  signedBabylonTx
+} = await manager.preStakeRegistrationBabylonTransaction(
+  stakerInfo,
+  stakingInput,
+  babylonBtcTipHeight,
+  inputUTXOs,
+  feeRate,
+  bech32Address,
+);
+```
+
+### Staking Transaction
+
+This step signs the previously created (but unsigned) staking transaction, 
+making it ready for submission to the Bitcoin network. The hash of the signed 
+staking transaction must match the staking transaction hash contained within 
+the pre-staking registration Babylon transaction.
+
+The unsigned staking transaction can be retrieved from either the Babylon
+chain or the backend API.
+
+If you prefer to create a new Bitcoin staking transaction without first interacting with the
+Babylon chain, please refer to the [advanced usage documentation](docs/advanced-btc-tx.md).
+
+
+```ts
+import {
+  BabylonBtcStakingManager,
+} from "@babylonlabs-io/btc-staking-ts";
+
+const manager = new BabylonBtcStakingManager(
+  btcNetwork,
+  stakingParams,
+  btcProvider,
+  bbnProvider,
+);
+
+const signedBtcStakingTx = await manager.createSignedBtcStakingTransaction({
+  stakerInfo,
+  stakingInput,
+  unsignedStakingTx,
+  inputUTXOs,
+  stakingParamsVersion
+})
+```
+### Unbonding Transaction
+
+This step signs the previously created (but unsigned) unbonding transaction and 
+combines it with the signatures from covenants to create a properly signed 
+unbonding transaction that is ready to be sent to the Bitcoin network to unbond 
+a staking transaction.
+
+The unsigned unbonding and staking transactions, as well as the covenant 
+committee signatures, can be retrieved from either the Babylon Genesis Chain or 
+backend API.
+
+```ts
+import {
+  BabylonBtcStakingManager,
+} from "@babylonlabs-io/btc-staking-ts";
+
+const manager = new BabylonBtcStakingManager(
+  btcNetwork,
+  stakingParams,
+  btcProvider,
+  bbnProvider,
+);
+
+const { signedUnbondingTx } = await manager.createSignedBtcUnbondingTransaction({
+  stakerInfo,
+  stakingInput,
+  stakingParamsVersion,
+  stakingTx,
+  unsignedUnbondingTx,
+  covenantUnbondingSignatures
+})
+```
+
+#### Withdraw
+
+There are 3 different types of withdrawal transactions:
+1. Withdraw from early unbonding (`createSignedBtcWithdrawEarlyUnbondedTransaction`)
+   - Used when the unbonding period has passed
+2. Withdraw from expired timelock (`createSignedBtcWithdrawStakingExpiredTransaction`)
+   - Used when the staking period has naturally ended
+3. Withdraw from slashed stake (`createSignedBtcWithdrawSlashingTransaction`)
+   - Used when withdrawing slashed funds after timelock expiry
+
+All withdrawal transactions will direct the change balance to the staker's 
+address (provided via `stakerInfo`).
+For more customized transaction options, please refer to the [advanced usage documentation](docs/advanced-btc-tx.md).
+
+The required input transaction varies depending on the withdrawal method:
+- Early unbonding withdrawal requires the unbonding transaction
+- Timelock expiry withdrawal requires the staking transaction
+- Slashed stake withdrawal requires the slashing transaction
+
+These transactions can be retrieved from either the Babylon Genesis Chain or the Backend API.
+
+```ts
+import {
+  BabylonBtcStakingManager,
+} from "@babylonlabs-io/btc-staking-ts";
+
+const manager = new BabylonBtcStakingManager(
+  btcNetwork,
+  stakingParams,
+  btcProvider,
+  bbnProvider,
+);
+
+// 1. Withdraw from early unbonding (when unbonding period has passed)
+const signedWithdrawEarlyUnbondedTx = await manager.createSignedBtcWithdrawEarlyUnbondedTransaction({
+  stakerInfo,
+  stakingInput,
+  stakingParamsVersion,
+  unbondingTx,
+  feeRate
+})
+
+// 2. Withdraw from expired timelock (when staking period has naturally ended)
+const signedWithdrawTimelockExpiredTx = await manager.createSignedBtcWithdrawStakingExpiredTransaction({
+  stakerInfo,
+  stakingInput,
+  stakingParamsVersion,
+  stakingTx,
+  feeRate
+})
+
+// 3. Withdraw from slashed delegation (after timelock expiry)
+const signedWithdrawSlashedTx = await manager.createSignedBtcWithdrawSlashingTransaction({
+  stakerInfo,
+  stakingInput,
+  stakingParamsVersion,
+  slashingTx,
+  feeRate
+})
+```
+
+#### Fee Calculation
+
+The fee calculation in the @babylonlabs-io/btc-staking-ts library is based on 
+an estimated size of the transaction in virtual bytes (vB). 
+This estimation helps in calculating the appropriate fee to include in the 
+transaction to ensure it is processed by the Bitcoin network efficiently.
 
 The fee estimation formula used is:
-```
+
+```ts
 numInputs * 180 + numOutputs * 34 + 10 + numInputs + 40
 ```
 
@@ -139,280 +344,24 @@ This accounts for:
 - `numInputs` additional factor
 - `40 vB` buffer for the op_return output
 
-### Create the Staking Contract
-
-After defining its parameters,
-the staking contract can be created.
-First, create an instance of the `StakingScriptData` class
-and construct the Bitcoin scipts associated with Bitcoin staking using it.
-
 ```ts
-import { StakingScriptData } from "@babylonlabs-io/btc-staking-ts";
+import {
+  BabylonBtcStakingManager,
+} from "@babylonlabs-io/btc-staking-ts";
 
-const stakingScriptData = new StakingScriptData(
-  stakerPk,
-  finalityProviders,
-  covenantPks,
-  covenantThreshold,
-  stakingDuration,
-  minUnbondingTime,
-  magicBytes,
+const manager = new BabylonBtcStakingManager(
+  btcNetwork,
+  stakingParams,
+  btcProvider,
+  bbnProvider,
 );
 
-const {
-  timelockScript,
-  unbondingScript,
-  slashingScript,
-  dataEmbedScript,
-  unbondingTimelockScript,
-} = stakingScriptData.buildScripts();
-```
-
-The above scripts correspond to the following:
-
-- `timelockScript`: A script that allows the Bitcoin to be retrieved only
-  through the staker's signature and the staking period being expired.
-- `unbondingScript`: The script that allows on-demand unbonding.
-  Requires the staker's signature and the covenant committee's signatures.
-- `slashingScript`: The script that enables slashing.
-  It requires the staker's signature and in this phase the staker should not sign it.
-- `dataEmbedScript`: An `OP_RETURN` script containing all required data to
-  identify and verify the transaction as a staking transaction.
-
-### Create a staking transaction
-
-Using the Bitcoin staking scripts, you can generate a Bitcoin staking
-transaction and later sign it using a supported wallet's method.
-In this instance, we use the `btcWallet.signTransaction()` method.
-
-```ts
-import { stakingTransaction } from "@babylonlabs-io/btc-staking-ts";
-import { Psbt, Transaction } from "bitcoinjs-lib";
-
-// stakingTransaction constructs an unsigned BTC Staking transaction
-const unsignedStakingPsbt: {psbt: Psbt, fee: number} = stakingTransaction(
-  scripts: {
-    timelockScript,
-    unbondingScript,
-    slashingScript,
-    dataEmbedScript
-  },
-  stakingAmount,
-  changeAddress,
+// Calculate the estimated fee for a staking transaction
+const feeSats = manager.estimateBtcStakingFee({
+  stakerInfo,
+  babylonBtcTipHeight,
+  stakingInput,
   inputUTXOs,
-  network(),
-  feeRate,
-  btcWallet.isTaproot ? btcWallet.publicKeyNoCoord() : undefined,
-  lockHeight,
-);
-
-const signedStakingPsbt = await btcWallet.signPsbt(unsignedStakingPsbt.psbt.toHex());
-const stakingTx = Psbt.fromHex(signedStakingPsbt).extractTransaction();
-```
-
-Public key is needed only if the wallet is in Taproot mode, for `tapInternalKey`.
-
-### Create unbonding transaction
-
-The staking script allows users to on-demand unbond their locked stake before
-the staking transaction timelock expires, subject to an unbonding period.
-
-The unbonding transaction can be created as follows:
-
-```ts
-import { unbondingTransaction } from "@babylonlabs-io/btc-staking-ts";
-import { Psbt, Transaction } from "bitcoinjs-lib";
-
-// Unbonding fee in satoshis. number
-const unbondingFee: number = 500;
-
-const unsignedUnbondingPsbt: {psbt: Psbt} = unbondingTransaction(
-  scripts: {
-    unbondingScript,
-    unbondingTimelockScript,
-    timelockScript,
-    slashingScript,
-  },
-  stakingTx,
-  unbondingFee,
-  network,
-);
-
-const signedUnbondingPsbt = await signPsbt(unsignedUnbondingPsbt.psbt.toHex());
-const unbondingTx = Psbt.fromHex(signedUnbondingPsbt).extractTransaction();
-```
-
-#### Collecting Unbonding Signatures
-
-The above unbonding transaction is partially signed,
-as apart from the staker's signature,
-it also needs a set of signatures from the covenant committee.
-
-For the first phase of Babylon's mainnet,
-the system will have to propagate the unbonding transaction and the staker's
-signature to a Babylon maintained back-end that collects the covenant
-committee's signatures, adds them to the unbonding transaction to complete the
-signature set, and propagates it to Bitcoin.
-
-For completeness, we present the alternative method in which the application
-has access to the covenant signature set. This method can be useful for testing
-purposes. It involves the following:
-
-```ts
-// Create the full witness
-const witness = createWitness(
-  unbondingTx.ins[0].witness: Buffer[], // original witness
-  covenantPks: Buffer[],
-  covenantUnbondingSignatures: {
-    btc_pk_hex: string;
-    sig_hex: string;
-  }[],
-);
-
-// Put the witness inside the unbonding transaction.
-unbondingTx.setWitness(0, witness);
-```
-
-### Withdrawing
-
-Withdrawing involves extracting funds for which the staking/unbonding period
-has expired from the staking/unbonding transaction.
-
-Initially, we specify the withdrawal transaction parameters.
-
-```ts
-// The index of the staking/unbonding output in the staking/unbonding
-// transcation.
-const stakingOutputIndex: number = 0;
-
-// The fee that the withdrawl transaction should use.
-const withdrawalFee: number = 500;
-
-// The address to which the funds should be withdrawed to.
-const withdrawalAddress: string = btcWallet.address;
-```
-
-Then, we construct the withdrawal transaction.
-There are two types of withdrawal
-
-1. Withdraw funds from a staking transaction in which the timelock naturally
-   expired:
-
-```ts
-import { Psbt, Transaction } from "bitcoinjs-lib";
-import { withdrawTimelockUnbondedTransaction } from "@babylonlabs-io/btc-staking-ts";
-
-// staking transaction. Transaction
-const stakingTx: Transaction = undefined;
-
-const unsignedWithdrawalPsbt: {psbt: Psbt, fee: number} = withdrawTimelockUnbondedTransaction(
-  scripts: {
-    timelockScript,
-    slashingScript,
-    unbondingScript,
-  },
-  stakingTx,
-  btcWallet.address,
-  network,
-  feeRate,
-  stakingOutputIndex,
-);
-```
-
-2. Withdraw funds from an unbonding transaction that was submitted for early
-   unbonding and the unbonding period has passed:
-
-```ts
-import { Psbt, Transaction } from "bitcoinjs-lib";
-import { withdrawEarlyUnbondedTransaction } from "@babylonlabs-io/btc-staking-ts";
-
-const unsignedWithdrawalPsbt: { psbt: Psbt, fee: number } = withdrawEarlyUnbondedTransaction(
-  scripts: {
-    unbondingTimelockScript,
-    slashingScript,
-  },
-  unbondingTx,
-  withdrawalAddress,
-  network,
-  feeRate,
-);
-
-const signedWithdrawalPsbt = await signPsbt(unsignedWithdrawalPsbt.psbt.toHex());
-const withdrawalTransaction = Psbt.fromHex(signedWithdrawalPsbt).extractTransaction();
-```
-
-### Create slashing transaction
-
-The slashing transaction is the transaction that is sent to Bitcoin in the
-event of the finality provider in which the stake has been delegated to
-performs an offence.
-
-**For the initial phase of the mainnet, there will be no slashing, so the
-following instructions can be safely ignored and are put here for
-completeness.**
-
-First, collect the parameters related to slashing.
-These are Babylon parameters and should be collected from the Babylon system.
-
-```ts
-// The address to which the slashed funds should go to.
-const slashingAddress: string = "";
-// The slashing percentage rate. It shall be decimal number between 0-1
-const slashingRate: number = 0;
-// The required fee for the slashing transaction in satoshis.
-const minimumSlashingFee: number = 500;
-```
-
-Then create and sign the slashing transaction.
-There are two types of slashing transactions:
-
-1. Slashing of the staking transaction when no unbonding has been performed:
-
-```ts
-import { slashTimelockUnbondedTransaction } from "@babylonlabs-io/btc-staking-ts";
-import { Psbt, Transaction } from "bitcoinjs-lib";
-
-const outputIndex: number = 0;
-
-const unsignedSlashingPsbt: {psbt: Psbt} = slashTimelockUnbondedTransaction(
-  scripts: {
-    slashingScript,
-    unbondingScript,
-    timelockScript,
-    unbondingTimelockScript,
-  },
-  stakingTx,
-  slashingAddress,
-  slashingRate,
-  minimumSlashingFee,
-  network,
-  outputIndex,
-);
-
-const signedSlashingPsbt = await signPsbt(unsignedSlashingPsbt.psbt.toHex());
-const slashingTx = Psbt.fromHex(signedSlashingPsbt).extractTransaction();
-```
-
-2. Slashing of the unbonding transaction in the case of on-demand unbonding:
-
-create unsigned unbonding slashing transaction
-
-```ts
-import { Psbt, Transaction } from "bitcoinjs-lib";
-import { slashEarlyUnbondedTransaction } from "@babylonlabs-io/btc-staking-ts";
-
-const unsignedUnbondingSlashingPsbt: {psbt: Psbt} = slashEarlyUnbondedTransaction(
-  scripts: {
-    slashingScript,
-    unbondingTimelockScript,
-  },
-  unbondingTx,
-  slashingAddress,
-  slashingRate,
-  minimumSlashingFee,
-  network,
-);
-
-const signedUnbondingSlashingPsbt = await signPsbt(unsignedUnbondingSlashingPsbt.psbt.toHex());
-const unbondingSlashingTx = Psbt.fromHex(signedUnbondingSlashingPsbt).extractTransaction();
+  feeRate
+})
 ```
