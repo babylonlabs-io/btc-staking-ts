@@ -1,20 +1,28 @@
 import { payments } from "bitcoinjs-lib";
 import {
-  getPublicKeyNoCoord, isTaproot, isValidNoCoordPublicKey, transactionIdToHash,
+  getPublicKeyNoCoord,
+  isNativeSegwit,
+  isTaproot,
+  isValidNoCoordPublicKey,
+  transactionIdToHash,
 } from '../../src/utils/btc';
 import { networks } from 'bitcoinjs-lib';
 import { testingNetworks } from '../helper';
 import { deriveStakingOutputInfo } from '../../src/utils/staking';
 import { Staking } from '../../src/staking';
 
-describe('isTaproot', () => {
-  describe.each(testingNetworks)('should return true for a valid Taproot address', 
+describe('address type', () => {
+  describe.each(testingNetworks)('should return true for a valid address type', 
   ({ network, datagen: { stakingDatagen: dataGenerator } }) => {
     const addresses = dataGenerator.getAddressAndScriptPubKey(
       dataGenerator.generateRandomKeyPair().publicKey
     );
     it('should return true for a valid Taproot address', () => {
       expect(isTaproot(addresses.taproot.address, network)).toBe(true);
+    });
+
+    it('should return true for a valid Native SegWit address', () => {
+      expect(isNativeSegwit(addresses.nativeSegwit.address, network)).toBe(true);
     });
 
     it('should return false for non-Taproot address', () => {
@@ -26,6 +34,17 @@ describe('isTaproot', () => {
       const nestedSegWidth = '3A2yqzgfxwwqxgse5rDTCQ2qmxZhMnfd5b';
       expect(isTaproot(nestedSegWidth, network)).toBe(false);
     });
+
+    it('should return false for non-Native SegWit address', () => {
+      expect(isNativeSegwit(addresses.taproot.address, network)).toBe(false);
+
+      const legacyAddress = '16o1TKSUWXy51oDpL5wbPxnezSGWC9rMPv';
+      expect(isNativeSegwit(legacyAddress, network)).toBe(false);
+
+      const nestedSegWidth = '3A2yqzgfxwwqxgse5rDTCQ2qmxZhMnfd5b';
+      expect(isNativeSegwit(nestedSegWidth, network)).toBe(false);
+    });
+    
   });
 
   const [mainnetDatagen, signetDatagen] = testingNetworks;
@@ -44,19 +63,23 @@ describe('isTaproot', () => {
       signetDatagen.generateRandomKeyPair().publicKey
     );
 
-  it('should return false for a signet non-Taproot address', () => {
+  it('should return false for a mis-matched address type in different networks', () => {
     expect(isTaproot(signetAddresses.nativeSegwit.address, networks.testnet)).toBe(false);
+    expect(isNativeSegwit(mainnetAddresses.taproot.address, networks.bitcoin)).toBe(false);
 
     const legacyAddress = 'n2eq5iP3UsdfmGsJyEEMXyRGNx5ysUXLXb';
     expect(isTaproot(legacyAddress, networks.testnet)).toBe(false);
+    expect(isNativeSegwit(legacyAddress, networks.bitcoin)).toBe(false);
 
     const nestedSegWidth = '2NChmRbq92M6geBmwCXcFF8dCfmGr38FmX2';
     expect(isTaproot(nestedSegWidth, networks.testnet)).toBe(false);
+    expect(isNativeSegwit(nestedSegWidth, networks.bitcoin)).toBe(false);
   });
 
   it('should return false for an invalid address format', () => {
     const invalidAddress = 'invalid_address';
     expect(isTaproot(invalidAddress, networks.bitcoin)).toBe(false);
+    expect(isNativeSegwit(invalidAddress, networks.bitcoin)).toBe(false);
   });
 
   it('should return false for an incorrect network', () => {
@@ -64,6 +87,11 @@ describe('isTaproot', () => {
     expect(isTaproot(mainnetAddresses.taproot.address, networks.regtest)).toBe(false);
 
     expect(isTaproot(signetAddresses.taproot.address, networks.bitcoin)).toBe(false);
+
+    expect(isNativeSegwit(mainnetAddresses.nativeSegwit.address, networks.testnet)).toBe(false);
+    expect(isNativeSegwit(mainnetAddresses.nativeSegwit.address, networks.regtest)).toBe(false);
+
+    expect(isNativeSegwit(signetAddresses.nativeSegwit.address, networks.bitcoin)).toBe(false);
   });
   });
 });

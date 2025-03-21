@@ -16,7 +16,9 @@ const createNetworkConfig = (
   network: bitcoin.Network,
 ): NetworkConfig => ({
   networkName,
-  network,
+   // A deep copy of the network object to avoid referring to the same object 
+  // in memory
+  network: {...network},
   datagen: {
     observableStakingDatagen: new ObservableStakingDatagen(network),
     stakingDatagen: new StakingDataGenerator(network),
