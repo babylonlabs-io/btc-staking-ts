@@ -32,63 +32,50 @@ npm run version:canary
 
 ## Usage
 
-> **Note**: This documentation describes an abstraction layer designed to simplify two main processes:
-> 1. Creating Bitcoin staking delegations
-> 2. Constructing data in the format required by the Babylon chain
->
-> While this abstraction layer makes the process more straightforward, it comes with certain constraints:
-> - Change address must be the same as the staker address
-> - Transaction signing order is fixed
-> - Limited customization options for transaction construction
-> - Predefined fee calculation formulas
->
-> These constraints help maintain security and reduce complexity for most use cases. However, if you need:
-> - More flexibility in transaction construction
-> - Custom change address management
-> - Fine-grained control over signing order
-> - Advanced transaction options
->
-> Please refer to the [advanced usage documentation](docs/advanced-btc-tx.md) for lower-level implementation details.
-
 This library follow the concepts of **pre-staking and post-staking registration flow**
-based on this [documentation](https://github.com/babylonlabs-io/babylon/blob/main/docs/register-bitcoin-stake.md)
+based on this [documentation](https://github.com/babylonlabs-io/babylon/blob/release/v1.x/docs/register-bitcoin-stake.md)
 
-### Prerequisite
+### Prerequisites
 
 #### Staking Parameters
-The Staking Parameters correspond to the parameters of the staking contract
-and the Bitcoin transaction containing it. 
 
-The parameter values can be retrieved from either:
-- A [Babylon](https://github.com/babylonlabs-io/babylon) node
-- The [backend API service](https://github.com/babylonlabs-io/staking-api-service)
+The staking parameters define the conditions that the  
+Bitcoin staking script and the Bitcoin Staking transaction containing it
+must satisfy.  
 
-We will be using the full list of staking parameters in this library, for detailed
-explanation of each fields, refer to this [documentation](https://github.com/babylonlabs-io/babylon/blob/main/docs/register-bitcoin-stake.md#32-babylon-chain-btc-staking-parameters)
+The parameter values can be retrieved from [Network Parameters](#2-network-parameters).
+
+We will be using the full list of staking parameters in this library. For detailed
+explanation of the parameters, refer to the [documentation](https://github.com/babylonlabs-io/babylon/blob/release/v1.x/docs/register-bitcoin-stake.md#32-babylon-chain-btc-staking-parameters)
 
 #### Staker information
 
-The library require Staker's BTC as well as their Babylon Genesis Account 
+The library requires the Bitcoin staker's Bitcoin and Babylon Genesis account  
 information to be supplied in order to create the relevant transactions.
+as well the staking inputs selected/created by the staker at the time of creating
+the Bitcoin Staking transaction:
 
 1. **Staker's Bitcoin and Babylon Details**
 ```ts
+
 const stakerInfo = {
-  address: "{{ Staker BTC address }}",
-  publicKeyNoCoordHex: "{{ Staker BTC public key without coordinates in hex }}",
+  // BTC Address
+  address: string,
+  // BTC compressed public Key in the 32-byte x-coordinate only hex format.
+  publicKeyNoCoordHex: string,
 }
 
-const babylonAddress = "{{ Babylon Genesis Chain bech32 Address }}"
-```
+// Babylon bech32 address with prefix of `bbn`.
+const babylonAddress = string
 
-as well the staking inputs selected/created by the staker at the time of creating
-the delegation:
-
-```ts
 const stakerInput = {
-  finalityProviderPkNoCoordHex: "{{ The chosen finality provider public key }}",
-  stakingAmountSat: "{{ Amount of satoshis to stake }}",
-  stakingTimelock: "{{ Timelock of the staking }}"
+  // The chosen finality provider public key in compressed 32 bytes x-coordinate
+  // only
+  finalityProviderPkNoCoordHex: string,
+  // Amount of satoshis staker choose to stake
+  stakingAmountSat: number,
+  // The number of BTC blocks this staking transaction will be staked for
+  stakingTimelock: number
 }
 ```
 
@@ -98,12 +85,6 @@ The library requires two provider implementations to handle transaction signing:
 
 1. **Bitcoin Provider**: Handles Bitcoin transaction and message signing
 2. **Babylon Provider**: Handles Babylon transaction signing
-
-These providers are essential for constructing valid Babylon transaction 
-messages, as certain message fields depend on the output of signed Bitcoin 
-transactions. The `SigningStep` enum is used throughout the signing process to:
-- Identify which signing operation is being performed
-- Enable proper user interaction flows (e.g., showing relevant prompts)
 
 ```ts
 export interface BtcProvider {
@@ -130,13 +111,18 @@ export interface BabylonProvider {
 
 ### Post-Staking Registration
 
-This refers to registration of an already existing BTC staking transaction into Babylon
-chain network. For more details, refer to [documentation](https://github.com/babylonlabs-io/babylon/blob/main/docs/register-bitcoin-stake.md#21-post-staking-registration).
+This refers to registration of an already existing BTC staking transaction into 
+Babylon chain network. 
+For more details, refer to the [Babylon node documentation](https://github.com/babylonlabs-io/babylon/blob/release/v1.x/docs/register-bitcoin-stake.md#21-post-staking-registration).
 
-> **Note**: This method does not create Bitcoin transactions that are ready to be sent to 
-> the Bitcoin network. Instead, it creates Babylon transactions that contain the
-> unsigned and partially signed Bitcoin transactions together with already 
-> onchain staking transaction required for delegation registration.
+> **Note**: This method focuses on creating Babylon chain transactions, 
+> not Bitcoin transactions. Specifically:
+>
+> It creates Babylon transactions that contain:
+>   - The existing on-chain Bitcoin staking transaction
+>   - Unsigned unbonding Bitcoin transaction
+>   - Signed Slashing Bitcoin transactions
+>   - Proof of possession
 
 ```ts
 import {
@@ -164,12 +150,18 @@ const {
 
 ### Pre-Staking Registration
 
-The Pre-staking registration flow is for stakers who seek verification from the Babylon chain before submitting their BTC staking transaction to the Bitcoin ledger. For more details, refer to [documentation](https://github.com/babylonlabs-io/babylon/blob/main/docs/register-bitcoin-stake.md#22-pre-staking-registration)
+The Pre-staking registration flow is for stakers who seek verification from the 
+Babylon chain before submitting their BTC staking transaction to the Bitcoin 
+ledger. For more details, refer to [documentation](https://github.com/babylonlabs-io/babylon/blob/release/v1.x/docs/register-bitcoin-stake.md#22-pre-staking-registration)
 
-> **Note**: This method does not create Bitcoin transactions that are ready to be sent to 
-> the Bitcoin network. Instead, it creates Babylon transactions that contain the
-> unsigned and partially signed Bitcoin transactions required for delegation 
-> registration.
+> **Note**: This method focuses on creating Babylon chain transactions, 
+> not Bitcoin transactions. Specifically:
+>
+> It creates Babylon transactions that contain:
+>   - Unsigned Staking transaction
+>   - Unsigned Unbonding Bitcoin transaction
+>   - Signed Slashing Bitcoin transactions
+>   - Proof of possession
 
 
 ```ts
@@ -198,17 +190,13 @@ const {
 
 ### Staking Transaction
 
-This step signs the previously created (but unsigned) staking transaction, 
+This step signs the previously created (but unsigned) Bitcoain staking transaction, 
 making it ready for submission to the Bitcoin network. The hash of the signed 
 staking transaction must match the staking transaction hash contained within 
 the pre-staking registration Babylon transaction.
 
 The unsigned staking transaction can be retrieved from either the Babylon
 chain or the backend API.
-
-If you prefer to create a new Bitcoin staking transaction without first interacting with the
-Babylon chain, please refer to the [advanced usage documentation](docs/advanced-btc-tx.md).
-
 
 ```ts
 import {
@@ -230,16 +218,18 @@ const signedBtcStakingTx = await manager.createSignedBtcStakingTransaction({
   stakingParamsVersion
 })
 ```
+
 ### Unbonding Transaction
 
-This step signs the previously created (but unsigned) unbonding transaction and 
+This step signs the previously created unbonding transaction and 
 combines it with the signatures from covenants to create a properly signed 
 unbonding transaction that is ready to be sent to the Bitcoin network to unbond 
 a staking transaction.
 
-The unsigned unbonding and staking transactions, as well as the covenant 
-committee signatures, can be retrieved from either the Babylon Genesis Chain or 
-backend API.
+The unsigned unbonding and staking transactions, 
+as well as the covenant committee signatures, can be retrieved from either the 
+Babylon Genesis Chain or backend API using the endpoints described 
+in [Staking Transaction Details](#1-staking-transaction-details).
 
 ```ts
 import {
@@ -282,7 +272,8 @@ The required input transaction varies depending on the withdrawal method:
 - Timelock expiry withdrawal requires the staking transaction
 - Slashed stake withdrawal requires the slashing transaction
 
-These transactions can be retrieved from either the Babylon Genesis Chain or the Backend API.
+The required input transaction can be queried 
+via the endpoints described in [Staking Transaction Details](#1-staking-transaction-details).
 
 ```ts
 import {
@@ -314,7 +305,7 @@ const signedWithdrawTimelockExpiredTx = await manager.createSignedBtcWithdrawSta
   feeRate
 })
 
-// 3. Withdraw from slashed delegation (after timelock expiry)
+// 3. Withdraw from slashed Bitcoin Staking transaction (after timelock expiry)
 const signedWithdrawSlashedTx = await manager.createSignedBtcWithdrawSlashingTransaction({
   stakerInfo,
   stakingInput,
@@ -326,10 +317,10 @@ const signedWithdrawSlashedTx = await manager.createSignedBtcWithdrawSlashingTra
 
 #### Fee Calculation
 
-The fee calculation in the @babylonlabs-io/btc-staking-ts library is based on 
-an estimated size of the transaction in virtual bytes (vB). 
-This estimation helps in calculating the appropriate fee to include in the 
-transaction to ensure it is processed by the Bitcoin network efficiently.
+The fee calculation in the library is based on an estimated size of the 
+transaction in virtual bytes (vB). This estimation helps in calculating the 
+appropriate fee to include in the transaction to ensure it is processed by the 
+Bitcoin network efficiently.
 
 The fee estimation formula used is:
 
@@ -365,3 +356,40 @@ const feeSats = manager.estimateBtcStakingFee({
   feeRate
 })
 ```
+
+### How to Retrieve Data from Babylon Genesis Chain or Backend API
+
+Both the Babylon Genesis Chain and Staking-API service provide endpoints to retrieve data necessary for creating staking transactions.
+
+#### 1. Staking Transaction Details
+
+Get information about specific staking transactions:
+- **Babylon Genesis Chain**
+  ```
+  /babylon/btcstaking/v1/btc_delegation/:staking_tx_hash_hex
+  ```
+- **Backend API**
+  ```
+  /v2/delegation?staking_tx_hash_hex=xyz
+  ```
+
+#### 2. Network Parameters
+
+Retrieve current network and staking parameters:
+- **Babylon Genesis Chain**
+  ```
+  /babylon/btcstaking/v1/params
+  ```
+- **Backend API**
+  ```
+  /v2/network-info
+  ```
+
+These endpoints provide essential information such as:
+- Staking transaction status
+- Covenant signatures
+- Current network parameters
+- Fee rates
+- Other staking-related data
+
+For detailed API documentation and response formats, please refer to each service's API documentation.
