@@ -41,16 +41,16 @@ export const isTaproot = (
     if (decoded.version !== 1) {
       return false;
     }
-    switch (network) {
-      case networks.bitcoin:
-        // Check if address statrts with "bc1p"
-        return taprootAddress.startsWith("bc1p");
-      case networks.testnet:
-        // signet, regtest and testnet taproot addresses start with "tb1p" or "sb1p"
-        return taprootAddress.startsWith("tb1p") || taprootAddress.startsWith("sb1p");
-      default:
-        return false;
-    }  
+
+    // Compare network properties instead of object reference
+    if (network.bech32 === networks.bitcoin.bech32) {
+      // Check if address starts with "bc1p"
+      return taprootAddress.startsWith("bc1p");
+    } else if (network.bech32 === networks.testnet.bech32) {
+      // signet, regtest and testnet taproot addresses start with "tb1p" or "sb1p"
+      return taprootAddress.startsWith("tb1p") || taprootAddress.startsWith("sb1p");
+    }
+    return false;
   } catch (error) {
     return false;
   }
@@ -72,16 +72,15 @@ export const isNativeSegwit = (
     if (decoded.version !== 0) {
       return false;
     }
-    switch (network) {
-      case networks.bitcoin:
-        // Check if address starts with "bc1q"
-        return segwitAddress.startsWith("bc1q");
-      case networks.testnet:
-        // testnet native segwit addresses start with "tb1q"
-        return segwitAddress.startsWith("tb1q");
-      default:
-        return false;
+    
+    if (network.bech32 === networks.bitcoin.bech32) {
+      // Check if address starts with "bc1q"
+      return segwitAddress.startsWith("bc1q");
+    } else if (network.bech32 === networks.testnet.bech32) {
+      // testnet native segwit addresses start with "tb1q"
+      return segwitAddress.startsWith("tb1q");
     }
+    return false;
   } catch (error) {
     return false;
   }
