@@ -25,11 +25,13 @@ import { isNativeSegwit, isTaproot } from "../utils/btc";
 
 export interface BtcProvider {
   // Sign a PSBT
+  // Expecting the PSBT to be encoded in hex format.
   signPsbt(signingStep: SigningStep, psbtHex: string): Promise<string>;
   
   // Signs a message using either ECDSA or BIP-322, depending on the address type.
   // - Taproot and Native Segwit addresses will use BIP-322.
   // - Legacy addresses will use ECDSA.
+  // Expecting the message to be encoded in base64 format.
   signMessage: (
     signingStep: SigningStep, message: string, type: "ecdsa" | "bip322-simple"
   ) => Promise<string>;
@@ -619,9 +621,9 @@ export class BabylonBtcStakingManager {
   ): Promise<ProofOfPossessionBTC> {
     let sigType: BTCSigType = BTCSigType.ECDSA;
 
-    // For Taproot or Native SegWit addresses, use BIP322 signature scheme for
-    // enhanced security in the proof of possession. For legacy addresses, 
-    // fall back to ECDSA signature scheme.
+    // For Taproot or Native SegWit addresses, use the BIP322 signature scheme
+    // in the proof of possession as it uses the same signature type as the regular
+    // input UTXO spend. For legacy addresses, use the ECDSA signature scheme.
     if (
       isTaproot(stakerBtcAddress, this.network) 
         || isNativeSegwit(stakerBtcAddress, this.network)
@@ -635,22 +637,22 @@ export class BabylonBtcStakingManager {
       sigType === BTCSigType.BIP322 ? "bip322-simple" : "ecdsa",
     );
 
+    let btcSig: Uint8Array;
     if (sigType === BTCSigType.BIP322) {
       const bip322Sig = BIP322Sig.fromPartial({
         address: stakerBtcAddress,
         sig: Buffer.from(signedBabylonAddress, "base64"),
       });
-      const encodedBip322Sig = BIP322Sig.encode(bip322Sig).finish();
-
-      return {
-        btcSigType: sigType,
-        btcSig: encodedBip322Sig
-      };
+      // Encode the BIP322 protobuf message to a Uint8Array
+      btcSig = BIP322Sig.encode(bip322Sig).finish();
+    } else {
+      // Encode the ECDSA signature to a Uint8Array
+      btcSig = Buffer.from(signedBabylonAddress, "base64");
     }
 
     return {
       btcSigType: sigType,
-      btcSig: Buffer.from(signedBabylonAddress, "base64")
+      btcSig
     };
   }
 

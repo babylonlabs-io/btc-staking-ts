@@ -43,6 +43,8 @@ export const isTaproot = (
     }
 
     // Compare network properties instead of object reference
+    // The bech32 is hardcoded in the bitcoinjs-lib library.
+    // https://github.com/bitcoinjs/bitcoinjs-lib/blob/master/ts_src/networks.ts#L36
     if (network.bech32 === networks.bitcoin.bech32) {
       // Check if address starts with "bc1p"
       return taprootAddress.startsWith("bc1p");
@@ -73,6 +75,9 @@ export const isNativeSegwit = (
       return false;
     }
     
+    // Compare network properties instead of object reference
+    // The bech32 is hardcoded in the bitcoinjs-lib library.
+    // https://github.com/bitcoinjs/bitcoinjs-lib/blob/master/ts_src/networks.ts#L36
     if (network.bech32 === networks.bitcoin.bech32) {
       // Check if address starts with "bc1q"
       return segwitAddress.startsWith("bc1q");
