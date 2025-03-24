@@ -3,6 +3,23 @@
 This library follow the concepts of **pre-staking and post-staking registration flow**
 based on this [documentation](https://github.com/babylonlabs-io/babylon/blob/release/v1.x/docs/register-bitcoin-stake.md)
 
+## Table of Contents
+
+- [1. Prerequisites](#1-prerequisites)
+  - [1.1 Staking Parameters](#11-staking-parameters)
+  - [1.2 Staker Information](#12-staker-information)
+  - [1.3 Signing Providers](#13-signing-providers)
+- [2. Initialization](#2-initialization)
+- [3. Registration](#3-registration)
+  - [3.1 Post-Staking Registration](#31-post-staking-registration)
+  - [3.2 Pre-Staking Registration](#32-pre-staking-registration)
+- [4. Staking Transaction](#4-staking-transaction)
+- [5. Unbonding Transaction](#5-unbonding-transaction)
+- [6. Withdrawal](#6-withdraw)
+- [7. Fee Calculation](#7-fee-calculation)
+  - [Bitcoin Transaction Fee](#71-bitcoin-transaction-fee)
+  - [Babylon Genesis Transaction Fee](#72-babylon-genesis-transaction-fee)
+
 ## 1. Prerequisites
 
 ### 1.1 Staking Parameters
