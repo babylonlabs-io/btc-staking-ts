@@ -35,7 +35,9 @@ You can retrieve the parameters as follows:
   of an RPC/LCD node. You can find the available RPC/LCD nodes
   of each active network in the
   [Babylon networks repository](https://github.com/babylonlabs-io/networks).
-* By querying the `/v2/network-info` endpoint of the [Babylon Staking API](https://docs.babylonlabs.io/api/staking-api/get-network-info/) that exposes the indexed Babylon parameters.
+* By querying the `/v2/network-info` endpoint of the
+  [Babylon Staking API](https://docs.babylonlabs.io/api/staking-api/get-network-info/)
+  that exposes the indexed Babylon parameters.
 
 To learn more about the Bitcoin staking parameters and their usage in
 constructing and validating Bitcoin Staking transactions, please refer to the
@@ -155,13 +157,13 @@ Staker inputs, accounts information, combined with the staking parameters,
 provide necessary elements for creating Bitcoin transactions that register
 stakes on both the Babylon Genesis ledgers. These transactions include:
 - BTC Staking Transaction: The Bitcoin transaction that locks the stake in
-the self-custodial Bitcoin staking script.
+  the self-custodial Bitcoin staking script.
 - Slashing Transaction: A pre-signed transaction consenting to slashing in
-case of double-signing.
+  case of double-signing.
 - Unbonding Transaction: The on-demand unbonding transaction used to unlock
-the stake before the originally committed timelock expires.
+  the stake before the originally committed timelock expires.
 - Unbonding Slashing Transaction: A pre-signed transaction consenting to
-slashing during the unbonding process in case of double-signing.
+  slashing during the unbonding process in case of double-signing.
 
 There are two types of registrations supported by Babylon Genesis chain in which
 they fits for difference purpose/use-case.
@@ -173,7 +175,8 @@ pre-staking registration requires validation from the Babylon Genesis chain
 first, ensuring acceptance guarantees before submitting the staking transaction
 to the Bitcoin network.
 
-For more details about the two types, refer to the [Babylon node documentation](https://github.com/babylonlabs-io/babylon/blob/release/v1.x/docs/register-bitcoin-stake.md#2-bitcoin-stake-registration-methods)
+For more details about the two types, refer to the
+[Babylon node documentation](https://github.com/babylonlabs-io/babylon/blob/release/v1.x/docs/register-bitcoin-stake.md#2-bitcoin-stake-registration-methods).
 
 
 ### 3.1 Post-Staking Registration
@@ -246,9 +249,11 @@ When constructing the Babylon Genesis transaction for `Pre-staking registration`
 an unsigned Bitcoin staking transaction should already been created. You can
 retrieve the Bitcoin staking transaction:
 - By querying the `/babylon/btcstaking/v1/btc_delegation/:staking_tx_hash_hex`
-endpoint of an RPC/LCD node. For more details, see this [Babylon API documentation](https://docs.babylonlabs.io/api/babylon-gRPC/btc-delegation/)
+  endpoint of an RPC/LCD node. For more details, see this
+  [Babylon API documentation](https://docs.babylonlabs.io/api/babylon-gRPC/btc-delegation/).
 - By queryign the `/v2/delegation?staking_tx_hash_hex=xxx` endpoint from the
-Babylon Staking API. For more details, see this [Staking API documentation](https://docs.babylonlabs.io/api/staking-api/get-a-delegation/)
+  Babylon Staking API. For more details, see this
+  [Staking API documentation](https://docs.babylonlabs.io/api/staking-api/get-a-delegation/).
 
 ```ts
 const signedBtcStakingTx = await manager.createSignedBtcStakingTransaction({
@@ -274,9 +279,11 @@ transaction ready for submission to the Bitcoin network.
 You can retrieve the unsigned unbonding transaction and covenant committee
 signatures through either:
 - By querying the `/babylon/btcstaking/v1/btc_delegation/:staking_tx_hash_hex`
-endpoint of an RPC/LCD node. For more details, see this [Babylon API documentation](https://docs.babylonlabs.io/api/babylon-gRPC/btc-delegation/)
+  endpoint of an RPC/LCD node. For more details, see this
+  [Babylon API documentation](https://docs.babylonlabs.io/api/babylon-gRPC/btc-delegation/).
 - By queryign the `/v2/delegation?staking_tx_hash_hex=xxx` endpoint from the
-Babylon Staking API. For more details, see this [Staking API documentation](https://docs.babylonlabs.io/api/staking-api/get-a-delegation/)
+  Babylon Staking API. For more details, see this
+  [Staking API documentation](https://docs.babylonlabs.io/api/staking-api/get-a-delegation/).
 
 ```ts
 const { signedUnbondingTx } = await manager.createSignedBtcUnbondingTransaction({
@@ -312,9 +319,11 @@ You can retrieve the Bitcoin staking transaction, unsigned unbonding transaction
 , slashing transaction and staking input made at the time of creating the staking
 transaction through either:
 - By querying the `/babylon/btcstaking/v1/btc_delegation/:staking_tx_hash_hex`
-endpoint of an RPC/LCD node. For more details, see this [Babylon API documentation](https://docs.babylonlabs.io/api/babylon-gRPC/btc-delegation/)
+  endpoint of an RPC/LCD node. For more details, see this
+  [Babylon API documentation](https://docs.babylonlabs.io/api/babylon-gRPC/btc-delegation/).
 - By queryign the `/v2/delegation?staking_tx_hash_hex=xxx` endpoint from the
-Babylon Staking API. For more details, see this [Staking API documentation](https://docs.babylonlabs.io/api/staking-api/get-a-delegation/)
+  Babylon Staking API. For more details, see this
+  [Staking API documentation](https://docs.babylonlabs.io/api/staking-api/get-a-delegation/).
 
 
 ```ts
@@ -359,7 +368,8 @@ processed by the Bitcoin network efficiently.
 > transactions. The slashing and unbonding transactions have a pre-defined fee
 > amount that should be used based on the Bitcoin Staking parameters utilized
 > for the staking operation. Please refer to the
-> [staking registration documentation](https://github.com/babylonlabs-io/babylon/blob/release/v1.x/docs/register-bitcoin-stake.md) for more details.
+> [staking registration documentation](https://github.com/babylonlabs-io/babylon/blob/release/v1.x/docs/register-bitcoin-stake.md)
+> for more details.
 
 ```ts
 // Calculate the estimated fee for a staking transaction
@@ -377,4 +387,5 @@ The current version of the library does not include functionality to calculate
 Babylon Genesis transaction fees for `pre-staking registration`
 and `post-staking registration` operations. This feature will be added in a
 future release.
-For now please refer to the [simple-staking example](https://github.com/babylonlabs-io/simple-staking/blob/main/src/app/hooks/client/rpc/mutation/useBbnTransaction.ts#L27). 
+For now please refer to the
+[simple-staking example](https://github.com/babylonlabs-io/simple-staking/blob/main/src/app/hooks/client/rpc/mutation/useBbnTransaction.ts#L27). 
