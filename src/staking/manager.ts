@@ -38,6 +38,17 @@ export interface BtcProvider {
 }
 
 export interface BabylonProvider {
+  /**
+   * Signs a Babylon chain transaction using the provided signing step.
+   * This is primarily used for signing MsgCreateBTCDelegation transactions
+   * which register the BTC delegation on the Babylon Genesis chain.
+   * 
+   * @param {SigningStep} signingStep - The current signing step context
+   * @param {object} msg - The Cosmos SDK transaction message to sign
+   * @param {string} msg.typeUrl - The Protobuf type URL identifying the message type
+   * @param {T} msg.value - The transaction message data matching the typeUrl
+   * @returns {Promise<Uint8Array>} The signed transaction bytes
+   */
   signTransaction: <T extends object>(
     signingStep: SigningStep,
     msg: {
@@ -190,7 +201,8 @@ export class BabylonBtcStakingManager {
    * @param stakingTxHeight - The BTC height in which the staking transaction 
    * is included.
    * @param stakingInput - The staking inputs.
-   * @param inclusionProof - The inclusion proof of the staking transaction.
+   * @param inclusionProof - Merkle Proof of Inclusion: Verifies transaction
+   * inclusion in a Bitcoin block that is k-deep.
    * @param babylonAddress - The Babylon bech32 encoded address of the staker.
    * @returns The signed babylon transaction in base64 format.
    */
