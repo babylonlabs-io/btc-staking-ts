@@ -15,6 +15,7 @@ import { REDEEM_VERSION } from "../constants/transaction";
 
 // https://bips.xyz/370
 const BTC_LOCKTIME_HEIGHT_TIME_CUTOFF = 500000000;
+const BTC_SLASHING_FRACTION_DIGITS = 4;
 
 /**
  * Constructs an unsigned BTC Staking transaction in psbt format.
@@ -537,7 +538,7 @@ function slashingTransaction(
     throw new Error("Slashing rate must be between 0 and 1");
   }
   // Round the slashing rate to two decimal places
-  slashingRate = parseFloat(slashingRate.toFixed(2));
+  slashingRate = parseFloat(slashingRate.toFixed(BTC_SLASHING_FRACTION_DIGITS));
   // Minimum fee must be a postive integer
   if (minimumFee <= 0 || !Number.isInteger(minimumFee)) {
     throw new Error("Minimum fee must be a positve integer");
