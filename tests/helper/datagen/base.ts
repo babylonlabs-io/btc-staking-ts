@@ -160,9 +160,9 @@ export class StakingDataGenerator {
     return Math.floor(Math.random() * 1000) + 1;
   };
 
-  // Real values will likely be in range 0.01 to 0.30
-  generateRandomSlashingRate(min: number = 0.01, max: number = 0.30): number {
-    return parseFloat((Math.random() * (max - min) + min).toFixed(2));
+  // Real values will likely be in range 0.0001 to 0.3
+  generateRandomSlashingRate(min: number = 0.0001, max: number = 0.3): number {
+    return parseFloat((Math.random() * (max - min) + min).toFixed(4));
   }
 
   // Convenant committee are a list of public keys that are used to sign a covenant
