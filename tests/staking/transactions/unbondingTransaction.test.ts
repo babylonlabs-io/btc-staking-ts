@@ -1,30 +1,31 @@
-import { initBTCCurve, unbondingTransaction } from "../src";
-import { BTC_DUST_SAT } from "../src/constants/dustSat";
-import { NON_RBF_SEQUENCE, TRANSACTION_VERSION } from "../src/constants/psbt";
-import { testingNetworks } from "./helper";
+import { initBTCCurve, unbondingTransaction } from "../../../src";
+import { BTC_DUST_SAT } from "../../../src/constants/dustSat";
+import { NON_RBF_SEQUENCE, TRANSACTION_VERSION } from "../../../src/constants/psbt";
+import { testingNetworks } from "../../helper";
 
-describe("Unbonding Transaction - ", () => {
-  beforeAll(() => {
-    initBTCCurve();
-  });
-  testingNetworks.forEach(({ networkName, network, dataGenerator }) => {
+describe.each(testingNetworks)("Transactions - ", (
+  { networkName, network, datagen }
+) => {
+  describe.each(Object.values(datagen))("unbondingTransaction", (
+    dataGenerator
+  ) => {
+    beforeAll(() => {
+      initBTCCurve();
+    });
     const stakerKeyPair = dataGenerator.generateRandomKeyPair();
-    const stakingAmount =
-      dataGenerator.getRandomIntegerBetween(1000, 100000) + 10000;
-    const stakingTx = dataGenerator.generateRandomStakingTransaction(
-      stakerKeyPair,
-      undefined,
-      stakingAmount,
+    const { stakingTx, stakingAmountSat } = dataGenerator.generateRandomStakingTransaction(
+      network, 1, stakerKeyPair
     );
     const stakingScripts =
       dataGenerator.generateMockStakingScripts(stakerKeyPair);
+
     describe(`${networkName} - `, () => {
       it("should throw an error if the unbonding fee is not postive number", () => {
         expect(() =>
           unbondingTransaction(stakingScripts, stakingTx, 0, network),
         ).toThrow("Unbonding fee must be bigger than 0");
       });
-
+  
       it("should throw if output index is negative", () => {
         expect(() =>
           unbondingTransaction(
@@ -36,9 +37,9 @@ describe("Unbonding Transaction - ", () => {
           ),
         ).toThrow("Output index must be bigger or equal to 0");
       });
-
+  
       it("should throw if output is less than dust limit", () => {
-        const unbondingFee = stakingAmount - BTC_DUST_SAT + 1;
+        const unbondingFee = stakingAmountSat - BTC_DUST_SAT + 1;
         expect(() =>
           unbondingTransaction(
             stakingScripts,
@@ -49,31 +50,31 @@ describe("Unbonding Transaction - ", () => {
           ),
         ).toThrow("Output value is less than dust limit");
       });
-
+  
       it("should return psbt for unbonding transaction", () => {
         const unbondingFee =
           dataGenerator.getRandomIntegerBetween(
             1,
-            stakingAmount - BTC_DUST_SAT - 1,
+            stakingAmountSat - BTC_DUST_SAT - 1,
           );
-        const { psbt } = unbondingTransaction(
+        const { transaction } = unbondingTransaction(
           stakingScripts,
           stakingTx,
           unbondingFee,
           network,
           0,
         );
-        expect(psbt).toBeDefined();
-        expect(psbt.txOutputs.length).toBe(1);
+        expect(transaction).toBeDefined();
+        expect(transaction.outs.length).toBe(1);
         // check output value
-        expect(psbt.txOutputs[0].value).toBe(stakingAmount - unbondingFee);
-
-        expect(psbt.locktime).toBe(0);
-        expect(psbt.version).toBe(TRANSACTION_VERSION);
-        psbt.txInputs.forEach((input) => {
+        expect(transaction.outs[0].value).toBe(stakingAmountSat - unbondingFee);
+  
+        expect(transaction.locktime).toBe(0);
+        expect(transaction.version).toBe(TRANSACTION_VERSION);
+        transaction.ins.forEach((input) => {
           expect(input.sequence).toBe(NON_RBF_SEQUENCE);
         });
       });
     });
-  });
+  });  
 });

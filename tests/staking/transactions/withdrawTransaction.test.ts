@@ -1,57 +1,70 @@
-import { Transaction, script } from "bitcoinjs-lib";
+import { Network, Transaction, script } from "bitcoinjs-lib";
 import {
   initBTCCurve,
+  StakingParams,
+  StakingScripts,
   withdrawEarlyUnbondedTransaction,
+  withdrawSlashingTransaction,
   withdrawTimelockUnbondedTransaction,
-} from "../src/index";
-import { StakingScripts } from "../src/types/StakingScripts";
-import { PsbtTransactionResult } from "../src/types/transaction";
-import { testingNetworks } from "./helper";
-import { DEFAULT_TEST_FEE_RATE, KeyPair } from "./helper/dataGenerator";
-import { NetworkConfig } from "./helper/testingNetworks";
-import { BTC_DUST_SAT } from "../src/constants/dustSat";
-import { TRANSACTION_VERSION } from "../src/constants/psbt";
+} from "../../../src/index";
+import { PsbtResult } from "../../../src/types/transaction";
+import { DEFAULT_TEST_FEE_RATE, testingNetworks } from "../../helper";
+import { BTC_DUST_SAT } from "../../../src/constants/dustSat";
+import { TRANSACTION_VERSION } from "../../../src/constants/psbt";
+import { KeyPair, SlashingType, StakingDataGenerator } from "../../helper/datagen/base";
+import { ObservableStakingDatagen } from "../../helper/datagen/observable";
+import { StakerInfo } from "../../../src/staking";
+import { getWithdrawTxFee } from "../../../src/utils/fee";
+import { deriveSlashingOutput, findMatchingTxOutputIndex } from "../../../src/utils/staking";
 
 interface WithdrawTransactionTestData {
   keyPair: KeyPair;
-  address: string;
+  stakerInfo: StakerInfo;
   stakingScripts: StakingScripts;
   stakingTx: Transaction;
+  stakingAmountSat: number;
+  params: StakingParams;
 }
 
-describe("withdrawTransaction", () => {
-  beforeAll(() => {
-    initBTCCurve();
-  });
+const setupTestData = (
+    network: Network,
+    dataGenerator: ObservableStakingDatagen | StakingDataGenerator,
+): WithdrawTransactionTestData => {
+  const stakerKeyPair = dataGenerator.generateRandomKeyPair();
 
-  const setupTestData = (
-    network: NetworkConfig,
-  ): WithdrawTransactionTestData => {
-    const dataGenerator = network.dataGenerator;
-    const stakerKeyPair = dataGenerator.generateRandomKeyPair();
+  const stakingScripts =
+    dataGenerator.generateMockStakingScripts(stakerKeyPair);
+  const { stakingTx, stakerInfo, params, stakingAmountSat } = dataGenerator.generateRandomStakingTransaction(
+    network, 1, stakerKeyPair,
+  );
 
-    const address = dataGenerator.getAddressAndScriptPubKey(
-      stakerKeyPair.publicKey,
-    ).nativeSegwit.address;
-    const stakingScripts =
-      dataGenerator.generateMockStakingScripts(stakerKeyPair);
-    const stakingTx =
-      dataGenerator.generateRandomStakingTransaction(stakerKeyPair);
-
-    return {
-      keyPair: stakerKeyPair,
-      address,
-      stakingScripts,
-      stakingTx,
-    };
+  return {
+    keyPair: stakerKeyPair,
+    stakerInfo,
+    stakingScripts,
+    stakingTx,
+    stakingAmountSat,
+    params,
   };
+};
 
-  testingNetworks.map(({ networkName, network, dataGenerator }) => {
+describe.each(testingNetworks)("withdrawTransaction", (
+  { networkName, network, datagen }
+) => {
+  describe.each(Object.values(datagen))("withdrawTransaction", (
+    dataGenerator
+  ) => {
+    beforeAll(() => {
+      initBTCCurve();
+    });
     let testData: WithdrawTransactionTestData;
 
     beforeEach(() => {
       jest.restoreAllMocks();
-      testData = setupTestData({ networkName, network, dataGenerator });
+      testData = setupTestData(
+        network,
+        dataGenerator,
+      );
     });
 
     it(`${networkName} - should throw an error if the fee rate is less than or equal to 0`, () => {
@@ -63,7 +76,7 @@ describe("withdrawTransaction", () => {
             slashingScript: testData.stakingScripts.slashingScript,
           },
           testData.stakingTx,
-          testData.address,
+          testData.stakerInfo.address,
           network,
           0,
         ),
@@ -77,7 +90,7 @@ describe("withdrawTransaction", () => {
             unbondingScript: testData.stakingScripts.unbondingScript,
           },
           testData.stakingTx,
-          testData.address,
+          testData.stakerInfo.address,
           network,
           0,
         ),
@@ -91,7 +104,7 @@ describe("withdrawTransaction", () => {
             slashingScript: testData.stakingScripts.slashingScript,
           },
           testData.stakingTx,
-          testData.address,
+          testData.stakerInfo.address,
           network,
           -1,
         ),
@@ -105,7 +118,7 @@ describe("withdrawTransaction", () => {
             unbondingScript: testData.stakingScripts.unbondingScript,
           },
           testData.stakingTx,
-          testData.address,
+          testData.stakerInfo.address,
           network,
           -1,
         ),
@@ -123,7 +136,7 @@ describe("withdrawTransaction", () => {
             unbondingScript: testData.stakingScripts.unbondingScript,
           },
           testData.stakingTx,
-          testData.address,
+          testData.stakerInfo.address,
           network,
           DEFAULT_TEST_FEE_RATE,
         ),
@@ -139,7 +152,7 @@ describe("withdrawTransaction", () => {
             unbondingScript: testData.stakingScripts.unbondingScript,
           },
           testData.stakingTx,
-          testData.address,
+          testData.stakerInfo.address,
           network,
           DEFAULT_TEST_FEE_RATE,
           -1,
@@ -148,16 +161,12 @@ describe("withdrawTransaction", () => {
     });
 
     it(`${networkName} - should throw if not enough funds to cover fees`, () => {
-      const keyPair = dataGenerator.generateRandomKeyPair();
-
-      const address = dataGenerator.getAddressAndScriptPubKey(keyPair.publicKey).nativeSegwit.address;
-      const stakingScripts = dataGenerator.generateMockStakingScripts(keyPair);
-      const amount = dataGenerator.getRandomIntegerBetween(1, 1000);
-      const stakingTx = dataGenerator.generateRandomStakingTransaction(
-        keyPair,
-        DEFAULT_TEST_FEE_RATE,
-        amount,
+      const { stakingTx, stakerInfo, keyPair, stakingAmountSat } = dataGenerator.generateRandomStakingTransaction(
+        network,
       );
+      const stakingScripts = dataGenerator.generateMockStakingScripts(keyPair);
+      const unitWithdrawTxFee = getWithdrawTxFee(1);
+      const feeRateToExceedAmount = Math.ceil(stakingAmountSat / unitWithdrawTxFee) * 10;
 
       expect(() => withdrawEarlyUnbondedTransaction(
         {
@@ -166,32 +175,36 @@ describe("withdrawTransaction", () => {
           slashingScript: stakingScripts.slashingScript,
         },
         stakingTx,
-        address,
+        stakerInfo.address,
         network,
-        DEFAULT_TEST_FEE_RATE,
+        feeRateToExceedAmount,
       )).toThrow("Not enough funds to cover the fee for withdrawal transaction");
     });
 
     it(`${networkName} - should throw if output is less than dust limit`, () => {
-      const keyPair = dataGenerator.generateRandomKeyPair();
-
-      const address = dataGenerator.getAddressAndScriptPubKey(keyPair.publicKey).nativeSegwit.address;
-      const stakingScripts = dataGenerator.generateMockStakingScripts(keyPair);
-      const amount = 1935 + BTC_DUST_SAT - 1; // 1935 is the manually calculated fee for the transaction
-      const stakingTx = dataGenerator.generateRandomStakingTransaction(
-        keyPair,
-        DEFAULT_TEST_FEE_RATE,
-        amount,
+      const params = dataGenerator.generateStakingParams(
+        false,
+        undefined,
+        0,
       );
-
-      expect(() => withdrawEarlyUnbondedTransaction(
-        {
-          unbondingTimelockScript:
-            stakingScripts.unbondingTimelockScript,
-          slashingScript: stakingScripts.slashingScript,
-        },
+      const estimatedFee = getWithdrawTxFee(DEFAULT_TEST_FEE_RATE);
+      const amountToNotCoverDustLimit = BTC_DUST_SAT + estimatedFee - 1 + params.unbondingFeeSat;
+      
+      const { stakingTx, stakerInfo, stakingInstance, stakingTxFee } = dataGenerator.generateRandomStakingTransaction(
+        network,
+        DEFAULT_TEST_FEE_RATE,
+        undefined,
+        amountToNotCoverDustLimit,
+        undefined,
+        params,
+      );
+      const { transaction: unbondingTx } = stakingInstance.createUnbondingTransaction(
         stakingTx,
-        address,
+      );
+      expect(() => withdrawEarlyUnbondedTransaction(
+        stakingInstance.buildScripts(),
+        unbondingTx,
+        stakerInfo.address,
         network,
         DEFAULT_TEST_FEE_RATE,
       )).toThrow("Output value is less than dust limit");
@@ -205,11 +218,11 @@ describe("withdrawTransaction", () => {
           slashingScript: testData.stakingScripts.slashingScript,
         },
         testData.stakingTx,
-        testData.address,
+        testData.stakerInfo.address,
         network,
         DEFAULT_TEST_FEE_RATE,
       );
-      validateCommonFields(psbtResult, testData.address);
+      validateCommonFields(psbtResult, testData.stakerInfo.address);
     });
 
     it(`${networkName} - should return a valid psbt result for timelock unbonded transaction`, () => {
@@ -220,17 +233,62 @@ describe("withdrawTransaction", () => {
           unbondingScript: testData.stakingScripts.unbondingScript,
         },
         testData.stakingTx,
-        testData.address,
+        testData.stakerInfo.address,
         network,
         DEFAULT_TEST_FEE_RATE,
       );
-      validateCommonFields(psbtResult, testData.address);
+      validateCommonFields(psbtResult, testData.stakerInfo.address);
+    });
+    
+    it(`${networkName} - should create the withdraw slashing transactions successfully`, () => {
+      const slashingTypes: SlashingType[] = ["earlyUnbonded", "timelockExpire"];
+      slashingTypes.forEach((type) => {
+        const {
+          tx: slashingTx,
+        } = dataGenerator.generateSlashingTransaction(
+        network,
+        testData.stakingScripts,
+        testData.stakingTx,
+        {
+          minSlashingTxFeeSat: testData.params.slashing?.minSlashingTxFeeSat!!,
+          slashingPkScriptHex: testData.params.slashing?.slashingPkScriptHex!!,
+          slashingRate: testData.params.slashing?.slashingRate!!,
+        },
+        testData.keyPair,
+        type,
+        );
+
+        const outputIndex = findMatchingTxOutputIndex(
+          slashingTx,
+          deriveSlashingOutput(testData.stakingScripts, network).outputAddress,
+          network,
+        );
+
+        const psbt = withdrawSlashingTransaction(
+          testData.stakingScripts,
+          slashingTx,
+          testData.stakerInfo.address,
+          network,
+          DEFAULT_TEST_FEE_RATE,
+          outputIndex,
+        );
+        validateCommonFields(psbt, testData.stakerInfo.address);
+
+        // Validate the slashing output value
+        const remainingAmout = slashingTx.outs[outputIndex].value - 
+          getWithdrawTxFee(DEFAULT_TEST_FEE_RATE);
+        expect(psbt.psbt.txOutputs[0].value).toBe(
+          Math.floor(
+              remainingAmout
+            )
+          );
+        });
     });
   });
 });
 
 const validateCommonFields = (
-  psbtResult: PsbtTransactionResult,
+  psbtResult: PsbtResult,
   withdrawalAddress: string,
 ) => {
   expect(psbtResult).toBeDefined();
