@@ -580,8 +580,8 @@ function slashingTransaction(
   // Compute the slashing output
   const slashingOutput = Buffer.from(slashingPkScriptHex, "hex");
 
-  // If op_return included, it can be any value. i.e 0
-  // If op_return not included, then should satisfy the dust limit 526.
+  // If OP_RETURN is not included, the slashing amount must be greater than the
+  // dust limit.
   if (opcodes.OP_RETURN != slashingOutput[0]) {
     if (slashingAmount <= BTC_DUST_SAT) {
       throw new Error("Slashing amount is less than dust limit");
