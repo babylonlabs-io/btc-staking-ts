@@ -362,7 +362,7 @@ export class StakingDataGenerator {
       params.slashingPkScriptHex,
     );
     expect(slashingPsbt.txOutputs[0].value).toBe(
-      Math.floor(outputValue * params.slashingRate),
+      Math.round(outputValue * params.slashingRate),
     );
 
      // second output is the change output which send to unbonding timelock script address
@@ -374,7 +374,7 @@ export class StakingDataGenerator {
     expect(slashingPsbt.txOutputs[1].address).toBe(changeOutput.address);
     const expectedChangeOutputValue =
       outputValue -
-      Math.floor(outputValue * params.slashingRate) -
+      Math.round(outputValue * params.slashingRate) -
       params.minSlashingTxFeeSat;
     expect(slashingPsbt.txOutputs[1].value).toBe(expectedChangeOutputValue);
 

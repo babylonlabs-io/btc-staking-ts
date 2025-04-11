@@ -575,7 +575,7 @@ function slashingTransaction(
   const stakingAmount = transaction.outs[outputIndex].value;
   // Slashing rate is a percentage of the staking amount, rounded down to
   // the nearest integer to avoid sending decimal satoshis
-  const slashingAmount = Math.floor(stakingAmount * slashingRate);
+  const slashingAmount = Math.round(stakingAmount * slashingRate);
 
   // Compute the slashing output
   const slashingOutput = Buffer.from(slashingPkScriptHex, "hex");
