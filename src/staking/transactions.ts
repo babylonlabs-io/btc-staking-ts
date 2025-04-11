@@ -575,7 +575,7 @@ function slashingTransaction(
   const stakingAmount = transaction.outs[outputIndex].value;
   // Slashing rate is a percentage of the staking amount, rounded down to
   // the nearest integer to avoid sending decimal satoshis
-  const slashingAmount = Math.floor(stakingAmount * slashingRate);
+  const slashingAmount = Math.round(stakingAmount * slashingRate);
   if (slashingAmount <= BTC_DUST_SAT) {
     throw new Error("Slashing amount is less than dust limit");
   }
