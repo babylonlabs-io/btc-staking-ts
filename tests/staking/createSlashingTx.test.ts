@@ -56,7 +56,7 @@ describe.each(testingNetworks)("Create slashing transactions", ({
       expect(slashTx.psbt.txOutputs.length).toBe(2);
       // slash amount
       const stakingAmountLeftInUnbondingTx = unbondingTx.outs[0].value;
-      const slashAmount = Math.floor(stakingAmountLeftInUnbondingTx * params.slashing!.slashingRate);
+      const slashAmount = Math.round(stakingAmountLeftInUnbondingTx * params.slashing!.slashingRate);
       expect(slashTx.psbt.txOutputs[0].value).toBe(
         slashAmount,
       );
@@ -115,7 +115,7 @@ describe.each(testingNetworks)("Create slashing transactions", ({
       // verify outputs
       expect(slashTx.psbt.txOutputs.length).toBe(2);
       // slash amount
-      const slashAmount = Math.floor(stakingAmountSat * params.slashing!.slashingRate);
+      const slashAmount = Math.round(stakingAmountSat * params.slashing!.slashingRate);
       expect(slashTx.psbt.txOutputs[0].value).toBe(
         slashAmount,
       );

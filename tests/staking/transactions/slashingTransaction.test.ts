@@ -25,7 +25,7 @@ describe.each(testingNetworks)("Transactions - ", (
       stakerKeyPair,
     );
     const slashingRate = dataGenerator.generateRandomSlashingRate();
-    const slashingAmount = Math.floor(stakingAmountSat * slashingRate);
+    const slashingAmount = Math.round(stakingAmountSat * slashingRate);
     const minSlashingFee = dataGenerator.getRandomIntegerBetween(
       1,
       stakingAmountSat - slashingAmount - BTC_DUST_SAT - 1,
@@ -198,7 +198,7 @@ describe.each(testingNetworks)("Transactions - ", (
         // first output shall send slashed amount to the slashing script
         expect(Buffer.from(psbt.txOutputs[0].script).toString("hex")).toBe(slashingPkScriptHex);
         expect(psbt.txOutputs[0].value).toBe(
-          Math.floor(stakingAmountSat * slashingRate),
+          Math.round(stakingAmountSat * slashingRate),
         );
 
         // second output is the change output which send to unbonding timelock script address
@@ -210,7 +210,7 @@ describe.each(testingNetworks)("Transactions - ", (
         expect(psbt.txOutputs[1].address).toBe(changeOutput.address);
         const expectedChangeOutputValue =
           stakingAmountSat -
-          Math.floor(stakingAmountSat * slashingRate) -
+          Math.round(stakingAmountSat * slashingRate) -
           minSlashingFee;
         expect(psbt.txOutputs[1].value).toBe(expectedChangeOutputValue);
       });
@@ -333,7 +333,7 @@ describe.each(testingNetworks)("Transactions - ", (
         // first output shall send slashed amount to the slashing pk script (i.e burn output)
         expect(Buffer.from(psbt.txOutputs[0].script).toString("hex")).toBe(slashingPkScriptHex);
         expect(psbt.txOutputs[0].value).toBe(
-          Math.floor(unbondingTxOutputValue * slashingRate),
+          Math.round(unbondingTxOutputValue * slashingRate),
         );
 
         // second output is the change output which send to unbonding timelock script address
@@ -345,7 +345,7 @@ describe.each(testingNetworks)("Transactions - ", (
         expect(psbt.txOutputs[1].address).toBe(changeOutput.address);
         const expectedChangeOutputValue =
           unbondingTxOutputValue -
-          Math.floor(unbondingTxOutputValue * slashingRate) -
+          Math.round(unbondingTxOutputValue * slashingRate) -
           minSlashingFee;
         expect(psbt.txOutputs[1].value).toBe(expectedChangeOutputValue);
 
