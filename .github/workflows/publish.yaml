@@ -3,9 +3,8 @@ name: publish
 on:
   workflow_dispatch:
   push:
-    tags:
-      - 'release/v[0-9]+.[0-9]+.[0-9]+'
-      - 'main'
+    branches:
+      - main
 
 jobs:
   lint_test:
@@ -14,7 +13,4 @@ jobs:
     with:
       run-build: true
       run-unit-tests: true
-      publish: true
-      publish-command: |
-        ./bin/ci_validate_version.sh
-        npm publish
+      use-semantic-release: true
