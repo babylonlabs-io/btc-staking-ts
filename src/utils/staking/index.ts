@@ -186,7 +186,11 @@ export const findMatchingTxOutputIndex = (
   network: networks.Network,
 ) => {
   const index = tx.outs.findIndex(output => {
-    return address.fromOutputScript(output.script, network) === outputAddress;
+    try {
+      return address.fromOutputScript(output.script, network) === outputAddress;  
+    } catch (error) {
+      return false;
+    }
   });
 
   if (index === -1) {

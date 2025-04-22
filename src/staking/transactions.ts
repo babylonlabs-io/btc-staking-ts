@@ -1,4 +1,4 @@
-import { Psbt, Transaction, networks, payments, script, address } from "bitcoinjs-lib";
+import { Psbt, Transaction, networks, payments, script, address, opcodes } from "bitcoinjs-lib";
 import { Taptree } from "bitcoinjs-lib/src/types";
 
 import { BTC_DUST_SAT } from "../constants/dustSat";
@@ -575,9 +575,17 @@ function slashingTransaction(
   const stakingAmount = transaction.outs[outputIndex].value;
   // Slashing rate is a percentage of the staking amount, rounded down to
   // the nearest integer to avoid sending decimal satoshis
-  const slashingAmount = Math.floor(stakingAmount * slashingRate);
-  if (slashingAmount <= BTC_DUST_SAT) {
-    throw new Error("Slashing amount is less than dust limit");
+  const slashingAmount = Math.round(stakingAmount * slashingRate);
+
+  // Compute the slashing output
+  const slashingOutput = Buffer.from(slashingPkScriptHex, "hex");
+
+  // If OP_RETURN is not included, the slashing amount must be greater than the
+  // dust limit.
+  if (opcodes.OP_RETURN != slashingOutput[0]) {
+    if (slashingAmount <= BTC_DUST_SAT) {
+      throw new Error("Slashing amount is less than dust limit");
+    }  
   }
 
   const userFunds = stakingAmount - slashingAmount - minimumFee;
@@ -603,7 +611,7 @@ function slashingTransaction(
 
   // Add the slashing output
   psbt.addOutput({
-    script: Buffer.from(slashingPkScriptHex, "hex"),
+    script: slashingOutput,
     value: slashingAmount,
   });
 
