@@ -17,18 +17,24 @@ npm i @babylonlabs-io/btc-staking-ts
 
 ## Version Release
 
-### Stable version
+This library follows a **trunk-based release workflow**, where all development happens on the `main` branch, and versioned releases are cut from dedicated `release/*` branches.
 
-Stable release versions are manually released from the main branch.
+For more details, please refer to the [Babylon Release Process](https://github.com/babylonlabs-io/babylon/blob/main/RELEASE_PROCESS.md). 
 
-### Canary version
+### Stable Version
 
-A canary version is a pre-release version from `dev` branch.
-Make sure all changes are added and committed before running the command below:
+Stable releases are created **only** from release branches such as `release/v1.x`.  
+These branches represent production-ready versions, and all semantic versioning (major/minor/patch) is applied from them.
 
-```console
-npm run version:canary
-```
+### Development Branch
+
+The `main` branch is the active development branch where all new changes are merged. It may contain features or updates not yet included in a stable release.
+
+#### Canary Version
+
+Canary versions are optional pre-releases used for testing. They may be published manually from the `main` branch before a stable release is cut.
+
+To publish a canary version, ensure update the package.json version to include `-canary.xyz`, then trigger the release pipeline from github action
 
 ## Usage Guide
 
