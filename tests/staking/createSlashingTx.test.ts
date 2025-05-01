@@ -8,7 +8,7 @@ describe.each(testingNetworks)("Create slashing transactions", ({
   network, networkName, datagen: { stakingDatagen: dataGenerator }
 }) => {
   const {
-    stakingTx, timelock, stakingInstance, finalityProviderPkNoCoordHex,
+    stakingTx, stakingInstance,
     stakerInfo, params, stakingAmountSat,
   } = dataGenerator.generateRandomStakingTransaction(
     network, 1

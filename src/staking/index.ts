@@ -352,6 +352,16 @@ export class Staking {
     // Build scripts
     const scripts = this.buildScripts();
 
+    // Get the staking output address
+    const { outputAddress } = deriveStakingOutputInfo(scripts, this.network);
+
+    // Reconstruct the stakingOutputIndex
+    const stakingOutputIndex = findMatchingTxOutputIndex(
+      stakingTx,
+      outputAddress,
+      this.network,
+    )
+
     // create the slash timelock unbonded transaction
     try {
       const { psbt } = slashTimelockUnbondedTransaction(
@@ -361,6 +371,7 @@ export class Staking {
         this.params.slashing.slashingRate,
         this.params.slashing.minSlashingTxFeeSat,
         this.network,
+        stakingOutputIndex,
       );
       return {
         psbt,
