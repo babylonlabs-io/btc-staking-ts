@@ -22,7 +22,7 @@ const stakingInput = {
 const version = 2;
 
 describe("Staking Manager", () => {
-  describe("Create Signed Btc Staking Transaction", () => {
+  describe("createSignedBtcStakingTransaction", () => {
     let manager: BabylonBtcStakingManager;
 
     beforeAll(() => {
@@ -36,6 +36,10 @@ describe("Staking Manager", () => {
         btcProvider,
         babylonProvider,
       );
+    });
+
+    afterEach(() => {
+      btcProvider.signPsbt.mockReset();
     });
 
     it("should validate version params", async () => {

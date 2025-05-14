@@ -40,6 +40,10 @@ describe("Staking Manager", () => {
       );
     });
 
+    afterEach(() => {
+      btcProvider.signPsbt.mockReset();
+    });
+
     it("should validate babylonBtcTipHeight", async () => {
       const btcTipHeight = 0;
 

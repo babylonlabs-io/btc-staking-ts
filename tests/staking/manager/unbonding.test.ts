@@ -33,6 +33,10 @@ describe("Staking Manager", () => {
     );
   });
 
+  afterEach(() => {
+    btcProvider.signPsbt.mockReset();
+  });
+
   describe("createPartialSignedBtcUnbondingTransaction", () => {
     it("should validate version params", async () => {
       const version = 5;
