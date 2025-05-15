@@ -1,6 +1,5 @@
 import { networks, Psbt, Transaction } from "bitcoinjs-lib";
 
-import { initBTCCurve } from "../../../src";
 import {
   BabylonBtcStakingManager,
   SigningStep,
@@ -19,10 +18,6 @@ import {
 
 describe("Staking Manager", () => {
   let manager: BabylonBtcStakingManager;
-
-  beforeAll(() => {
-    initBTCCurve();
-  });
 
   beforeEach(() => {
     manager = new BabylonBtcStakingManager(

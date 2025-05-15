@@ -1,6 +1,6 @@
 import { networks, Psbt, Transaction } from "bitcoinjs-lib";
 
-import { getPublicKeyNoCoord, initBTCCurve, type UTXO } from "../../../src";
+import { getPublicKeyNoCoord, type UTXO } from "../../../src";
 import {
   BabylonBtcStakingManager,
   SigningStep,
@@ -24,10 +24,6 @@ const version = 2;
 describe("Staking Manager", () => {
   describe("createSignedBtcStakingTransaction", () => {
     let manager: BabylonBtcStakingManager;
-
-    beforeAll(() => {
-      initBTCCurve();
-    });
 
     beforeEach(() => {
       manager = new BabylonBtcStakingManager(

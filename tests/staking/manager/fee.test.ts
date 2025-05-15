@@ -1,6 +1,5 @@
 import { networks } from "bitcoinjs-lib";
 
-import { initBTCCurve } from "../../../src";
 import { BabylonBtcStakingManager } from "../../../src/staking/manager";
 
 import {
@@ -17,9 +16,7 @@ describe("Staking Manager", () => {
   describe("estimateBtcStakingFee", () => {
     let manager: BabylonBtcStakingManager;
 
-    beforeAll(() => {
-      initBTCCurve();
-    });
+    beforeAll(() => {});
 
     beforeEach(() => {
       manager = new BabylonBtcStakingManager(
