@@ -11,6 +11,7 @@ import {
   btcTipHeight,
   delegationMsg,
   feeRate,
+  invalidStartHeightArr,
   params,
   signedBabylonAddress,
   signedSlashingPsbt,
@@ -41,22 +42,23 @@ describe("Staking Manager", () => {
       btcProvider.signPsbt.mockReset();
     });
 
-    it("should validate babylonBtcTipHeight", async () => {
-      const btcTipHeight = 0;
-
-      try {
-        await manager.preStakeRegistrationBabylonTransaction(
-          stakerInfo,
-          stakingInput,
-          btcTipHeight,
-          utxos,
-          feeRate,
-          babylonAddress,
-        );
-      } catch (e: any) {
-        expect(e.message).toMatch("Babylon BTC tip height cannot be 0");
-      }
-    });
+    it.each(invalidStartHeightArr)(
+      "should validate babylonBtcTipHeight",
+      async (btcTipHeight, errorMessage) => {
+        try {
+          await manager.preStakeRegistrationBabylonTransaction(
+            stakerInfo,
+            stakingInput,
+            btcTipHeight,
+            utxos,
+            feeRate,
+            babylonAddress,
+          );
+        } catch (e: any) {
+          expect(e.message).toMatch(errorMessage);
+        }
+      },
+    );
 
     it("should validate input UTXOs", async () => {
       const utxos: UTXO[] = [];

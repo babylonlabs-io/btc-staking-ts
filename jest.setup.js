@@ -18,3 +18,5 @@ global.it = (name, fn, timeout) => {
     originalIt(`${name} (iteration ${i + 1})`, fn, timeout);
   }
 };
+
+global.it.each = originalIt.each;

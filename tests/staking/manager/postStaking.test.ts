@@ -9,6 +9,7 @@ import {
   babylonAddress,
   delegationMsg,
   inclusionProof,
+  invalidStartHeightArr,
   params,
   signedBabylonAddress,
   signedSlashingPsbt,
@@ -38,25 +39,27 @@ describe("Staking Manager", () => {
     afterEach(() => {
       btcProvider.signPsbt.mockReset();
     });
+    console.log(it.each);
 
-    it("should validate babylonBtcTipHeight", async () => {
-      const btcTipHeight = 0;
-
-      try {
-        await manager.postStakeRegistrationBabylonTransaction(
-          stakerInfo,
-          stakingTx,
-          btcTipHeight,
-          stakingInput,
-          inclusionProof,
-          babylonAddress,
-        );
-      } catch (e: any) {
-        expect(e.message).toMatch(
-          `Babylon params not found for height ${btcTipHeight}`,
-        );
-      }
-    });
+    it.each(invalidStartHeightArr)(
+      "should validate babylonBtcTipHeight %s",
+      async (btcTipHeight) => {
+        try {
+          await manager.postStakeRegistrationBabylonTransaction(
+            stakerInfo,
+            stakingTx,
+            btcTipHeight,
+            stakingInput,
+            inclusionProof,
+            babylonAddress,
+          );
+        } catch (e: any) {
+          expect(e.message).toMatch(
+            `Babylon params not found for height ${btcTipHeight}`,
+          );
+        }
+      },
+    );
 
     it("should validate babylon address", async () => {
       const babylonAddress = "invalid-babylon-address";

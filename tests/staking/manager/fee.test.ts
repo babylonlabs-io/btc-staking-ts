@@ -5,6 +5,7 @@ import { BabylonBtcStakingManager } from "../../../src/staking/manager";
 import {
   btcTipHeight,
   feeRate,
+  invalidStartHeightArr,
   stakerInfo,
   stakingInput,
   stakingParams,
@@ -15,8 +16,6 @@ import { babylonProvider, btcProvider } from "./__mock__/providers";
 describe("Staking Manager", () => {
   describe("estimateBtcStakingFee", () => {
     let manager: BabylonBtcStakingManager;
-
-    beforeAll(() => {});
 
     beforeEach(() => {
       manager = new BabylonBtcStakingManager(
@@ -31,23 +30,22 @@ describe("Staking Manager", () => {
       btcProvider.signPsbt.mockReset();
     });
 
-    it("should validate babylonBtcTipHeight", async () => {
-      const btcTipHeight = 0;
-
-      try {
-        await manager.estimateBtcStakingFee(
-          stakerInfo,
-          btcTipHeight,
-          stakingInput,
-          utxos,
-          feeRate,
-        );
-      } catch (e: any) {
-        expect(e.message).toMatch(
-          `Babylon BTC tip height cannot be ${btcTipHeight}`,
-        );
-      }
-    });
+    it.each(invalidStartHeightArr)(
+      "should validate babylonBtcTipHeight",
+      async (btcTipHeight, errorMessage) => {
+        try {
+          await manager.estimateBtcStakingFee(
+            stakerInfo,
+            btcTipHeight,
+            stakingInput,
+            utxos,
+            feeRate,
+          );
+        } catch (e: any) {
+          expect(e.message).toMatch(errorMessage);
+        }
+      },
+    );
 
     it("should validate babylonBtcTipHeight", async () => {
       const btcTipHeight = 100;

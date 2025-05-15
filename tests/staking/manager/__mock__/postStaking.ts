@@ -112,6 +112,8 @@ export const stakingTx = Transaction.fromHex(
 
 export const startHeight = 229159;
 
+export const invalidStartHeightArr = [0, 200_000];
+
 export const stakingInput = {
   finalityProviderPkNoCoordHex: getPublicKeyNoCoord(
     "ee9da95e9fecbb2191943c56a109d1dc81787a77994ad9ef89278850a58e4876",

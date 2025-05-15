@@ -32,6 +32,10 @@ export const utxos: UTXO[] = [
 ];
 
 export const btcTipHeight = 900_000;
+export const invalidStartHeightArr = [
+  [0, "Babylon BTC tip height cannot be 0"],
+  [200_000, "Babylon params not found for height 200000"],
+] as [number, string][];
 
 export const feeRate = 4;
 
