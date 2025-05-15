@@ -11,6 +11,7 @@ import {
   btcTipHeight,
   delegationMsg,
   feeRate,
+  invalidBabylonAddresses,
   invalidStartHeightArr,
   params,
   signedBabylonAddress,
@@ -77,22 +78,23 @@ describe("Staking Manager", () => {
       }
     });
 
-    it("should validate babylon address", async () => {
-      const babylonAddress = "test-babylon-address";
-
-      try {
-        await manager.preStakeRegistrationBabylonTransaction(
-          stakerInfo,
-          stakingInput,
-          btcTipHeight,
-          utxos,
-          feeRate,
-          babylonAddress,
-        );
-      } catch (e: any) {
-        expect(e.message).toMatch("Invalid Babylon address");
-      }
-    });
+    it.each(invalidBabylonAddresses)(
+      "should validate babylon address",
+      async (babylonAddress) => {
+        try {
+          await manager.preStakeRegistrationBabylonTransaction(
+            stakerInfo,
+            stakingInput,
+            btcTipHeight,
+            utxos,
+            feeRate,
+            babylonAddress,
+          );
+        } catch (e: any) {
+          expect(e.message).toMatch("Invalid Babylon address");
+        }
+      },
+    );
 
     it("should validate babylon params", async () => {
       const btcTipHeight = 100;

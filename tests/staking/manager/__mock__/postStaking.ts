@@ -192,3 +192,11 @@ export const delegationMsg = {
       "MmYfm8tnhw34hrwvrUngxITsUJ8P3sOE5Ux3UyRhWqYcbZKrvFY+Jm/Bs8XDLa1HQ/W5LLuaaDZ1gMOBIQqIjQ==",
   }),
 };
+
+export const invalidBabylonAddresses = [
+  "invalid-babylon-address",
+  "cosmos1cyqgpk0nlsutlm5ymkfpya30fqntanc8slpure",
+  "bbn1cyqgpk0nlsutlm5ymkfpya30fqntanc8spure",
+  "tb1plqg44wluw66vpkfccz23rdmtlepnx2m3yef57yyz66flgxdf4h8q7wu6pf",
+  "cyqgpk0nlsutlm5ymkfpya30fqntanc8s",
+];

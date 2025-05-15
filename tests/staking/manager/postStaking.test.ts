@@ -9,6 +9,7 @@ import {
   babylonAddress,
   delegationMsg,
   inclusionProof,
+  invalidBabylonAddresses,
   invalidStartHeightArr,
   params,
   signedBabylonAddress,
@@ -61,22 +62,23 @@ describe("Staking Manager", () => {
       },
     );
 
-    it("should validate babylon address", async () => {
-      const babylonAddress = "invalid-babylon-address";
-
-      try {
-        await manager.postStakeRegistrationBabylonTransaction(
-          stakerInfo,
-          stakingTx,
-          startHeight,
-          stakingInput,
-          inclusionProof,
-          babylonAddress,
-        );
-      } catch (e: any) {
-        expect(e.message).toMatch("Invalid Babylon address");
-      }
-    });
+    it.each(invalidBabylonAddresses)(
+      "should validate babylon address",
+      async (babylonAddress) => {
+        try {
+          await manager.postStakeRegistrationBabylonTransaction(
+            stakerInfo,
+            stakingTx,
+            startHeight,
+            stakingInput,
+            inclusionProof,
+            babylonAddress,
+          );
+        } catch (e: any) {
+          expect(e.message).toMatch("Invalid Babylon address");
+        }
+      },
+    );
 
     it("should validate tx output", async () => {
       const tx = {
