@@ -40,7 +40,6 @@ describe("Staking Manager", () => {
     afterEach(() => {
       btcProvider.signPsbt.mockReset();
     });
-    console.log(it.each);
 
     it.each(invalidStartHeightArr)(
       "should validate babylonBtcTipHeight %s",

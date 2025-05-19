@@ -7,6 +7,7 @@ import {
   feeRate,
   invalidStartHeightArr,
   stakerInfo,
+  stakerInfoArr,
   stakingInput,
   stakingParams,
   utxos,
@@ -65,7 +66,7 @@ describe("Staking Manager", () => {
       }
     });
 
-    it("should return valid tx fee", async () => {
+    it.each(stakerInfoArr)("should return valid tx fee", async (stakerInfo) => {
       const txFee = await manager.estimateBtcStakingFee(
         stakerInfo,
         btcTipHeight,

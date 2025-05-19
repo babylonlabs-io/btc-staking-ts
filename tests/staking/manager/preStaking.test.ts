@@ -1,3 +1,4 @@
+import { btcstakingtx } from "@babylonlabs-io/babylon-proto-ts";
 import { networks } from "bitcoinjs-lib";
 
 import { type UTXO } from "../../../src";
@@ -9,19 +10,13 @@ import {
 import {
   babylonAddress,
   btcTipHeight,
-  delegationMsg,
   feeRate,
   invalidBabylonAddresses,
   invalidStartHeightArr,
   params,
-  signedBabylonAddress,
-  signedSlashingPsbt,
-  signedUnbondingSlashingPsbt,
-  slashingPsbt,
   stakerInfo,
+  stakerInfoArr,
   stakingInput,
-  stakingTxHex,
-  unbondingSlashingPsbt,
   utxos,
 } from "./__mock__/preStaking";
 import { babylonProvider, btcProvider } from "./__mock__/providers";
@@ -41,6 +36,8 @@ describe("Staking Manager", () => {
 
     afterEach(() => {
       btcProvider.signPsbt.mockReset();
+      btcProvider.signMessage.mockReset();
+      babylonProvider.signTransaction.mockReset();
     });
 
     it.each(invalidStartHeightArr)(
@@ -115,40 +112,56 @@ describe("Staking Manager", () => {
       }
     });
 
-    it("should create valid pre stake registration tx", async () => {
-      btcProvider.signPsbt
-        .mockResolvedValueOnce(signedSlashingPsbt)
-        .mockResolvedValueOnce(signedUnbondingSlashingPsbt);
-      btcProvider.signMessage.mockResolvedValueOnce(signedBabylonAddress);
+    it.each(stakerInfoArr)(
+      "should create valid pre stake registration tx",
+      async (
+        stakerInfo,
+        {
+          signedSlashingPsbt,
+          signedUnbondingSlashingPsbt,
+          signedBabylonAddress,
+          slashingPsbt,
+          unbondingSlashingPsbt,
+          delegationMsg,
+          stakingTxHex,
+          signType,
+        },
+      ) => {
+        btcProvider.signPsbt
+          .mockResolvedValueOnce(signedSlashingPsbt)
+          .mockResolvedValueOnce(signedUnbondingSlashingPsbt);
+        btcProvider.signMessage.mockResolvedValueOnce(signedBabylonAddress);
 
-      const { stakingTx } =
-        await manager.preStakeRegistrationBabylonTransaction(
-          stakerInfo,
-          stakingInput,
-          btcTipHeight,
-          utxos,
-          feeRate,
-          babylonAddress,
+        const { stakingTx } =
+          await manager.preStakeRegistrationBabylonTransaction(
+            stakerInfo,
+            stakingInput,
+            btcTipHeight,
+            utxos,
+            feeRate,
+            babylonAddress,
+          );
+
+        expect(btcProvider.signPsbt).toHaveBeenCalledWith(
+          SigningStep.STAKING_SLASHING,
+          slashingPsbt,
         );
-
-      expect(btcProvider.signPsbt).toHaveBeenCalledWith(
-        SigningStep.STAKING_SLASHING,
-        slashingPsbt,
-      );
-      expect(btcProvider.signPsbt).toHaveBeenCalledWith(
-        SigningStep.UNBONDING_SLASHING,
-        unbondingSlashingPsbt,
-      );
-      expect(btcProvider.signMessage).toHaveBeenCalledWith(
-        SigningStep.PROOF_OF_POSSESSION,
-        babylonAddress,
-        "bip322-simple",
-      );
-      expect(babylonProvider.signTransaction).toHaveBeenCalledWith(
-        SigningStep.CREATE_BTC_DELEGATION_MSG,
-        delegationMsg,
-      );
-      expect(stakingTx.toHex()).toBe(stakingTxHex);
-    });
+        expect(btcProvider.signPsbt).toHaveBeenCalledWith(
+          SigningStep.UNBONDING_SLASHING,
+          unbondingSlashingPsbt,
+        );
+        expect(btcProvider.signMessage).toHaveBeenCalledWith(
+          SigningStep.PROOF_OF_POSSESSION,
+          babylonAddress,
+          signType,
+        );
+        expect(
+          btcstakingtx.MsgCreateBTCDelegation.toJSON(
+            babylonProvider.signTransaction.mock.calls[0][1].value,
+          ),
+        ).toEqual(delegationMsg.value);
+        expect(stakingTx.toHex()).toBe(stakingTxHex);
+      },
+    );
   });
 });

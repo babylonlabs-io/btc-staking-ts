@@ -11,6 +11,25 @@ export const stakerInfo = {
   address: "tb1plqg44wluw66vpkfccz23rdmtlepnx2m3yef57yyz66flgxdf4h8q7wu6pf",
 };
 
+export const stakerInfoArr = [
+  // Taproot
+  stakerInfo,
+  // Native SegWit
+  {
+    publicKeyNoCoordHex: getPublicKeyNoCoord(
+      "03d6781c8e9ac6fd353e97997d90befa0882c3e027a72ab12afaba5c391e5a87",
+    ),
+    address: "tb1qlphktyz6sse3meq36pjwjrsqktny4553paydg2",
+  },
+  // Legacy
+  {
+    publicKeyNoCoordHex: getPublicKeyNoCoord(
+      "028333358d13582af186073cb3ad86c34630c186d7490603c4ce60fb51221c9a37",
+    ),
+    address: "msSV7NptGswtM4k7Qom6f9efJ2rcZQQ8Ho",
+  },
+];
+
 export const babylonAddress = "bbn1cyqgpk0nlsutlm5ymkfpya30fqntanc8slpure";
 
 export const stakingInput = {
