@@ -7,6 +7,7 @@ import {
   SigningStep,
 } from "../../../src/staking/manager";
 
+import { babylonProvider, btcProvider } from "./__mock__/providers";
 import {
   babylonAddress,
   btcTipHeight,
@@ -18,8 +19,7 @@ import {
   stakerInfoArr,
   stakingInput,
   utxos,
-} from "./__mock__/preStaking";
-import { babylonProvider, btcProvider } from "./__mock__/providers";
+} from "./__mock__/registration";
 
 describe("Staking Manager", () => {
   describe("preStakeRegistrationBabylonTransaction", () => {
@@ -159,7 +159,7 @@ describe("Staking Manager", () => {
           btcstakingtx.MsgCreateBTCDelegation.toJSON(
             babylonProvider.signTransaction.mock.calls[0][1].value,
           ),
-        ).toEqual(delegationMsg.value);
+        ).toEqual(delegationMsg);
         expect(stakingTx.toHex()).toBe(stakingTxHex);
       },
     );

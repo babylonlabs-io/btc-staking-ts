@@ -1,7 +1,7 @@
 const { initBTCCurve } = require("./src");
 
 const originalTest = global.test;
-const NUM_ITERATIONS = 1;
+const NUM_ITERATIONS = 10;
 
 initBTCCurve();
 
