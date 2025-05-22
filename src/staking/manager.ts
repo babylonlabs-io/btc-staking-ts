@@ -13,6 +13,7 @@ import { StakerInfo, Staking } from ".";
 import { BABYLON_REGISTRY_TYPE_URLS } from "../constants/registry";
 import { StakingError, StakingErrorCode } from "../error";
 import { TransactionResult, UTXO } from "../types";
+import { ContractId } from "../types/contract";
 import { StakingParams, VersionedStakingParams } from "../types/params";
 import { reverseBuffer } from "../utils";
 import { isValidBabylonAddress } from "../utils/babylon";
@@ -28,7 +29,7 @@ import {
 import { createCovenantWitness } from "./transactions";
 
 export interface Contract {
-  id: string;
+  id: ContractId;
   params: Record<string, string | number | string[] | number[]>;
 }
 
@@ -375,7 +376,7 @@ export class BabylonBtcStakingManager {
       {
         contracts: [
           {
-            id: `babylon:${SigningStep.STAKING}`,
+            id: ContractId.STAKING,
             params: {
               stakerPk: stakerBtcInfo.publicKeyNoCoordHex,
               finalityProviders: [stakingInput.finalityProviderPkNoCoordHex],
