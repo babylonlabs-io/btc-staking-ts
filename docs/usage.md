@@ -10,19 +10,21 @@ documentation](https://github.com/babylonlabs-io/babylon/blob/release/v1.x/docs/
 
 ## Table of Contents
 
-- [1. Prerequisites](#1-prerequisites)
-  - [1.1 Staking Parameters](#11-staking-parameters)
-  - [1.2 Staker Information](#12-staker-information)
-  - [1.3 Signing Providers](#13-signing-providers)
-- [2. Initialization](#2-initialization)
-- [3. Registration](#3-registration)
-  - [3.1 Post-Staking Registration](#31-post-staking-registration)
-  - [3.2 Pre-Staking Registration](#32-pre-staking-registration)
-- [4. Unbonding Transaction](#4-unbonding-transaction)
-- [5. Withdrawal](#5-withdrawal-transaction)
-- [6. Fee Calculation](#6-fee-calculation)
-  - [Bitcoin Transaction Fee](#61-bitcoin-transaction-fee)
-  - [Babylon Genesis Transaction Fee](#62-babylon-genesis-transaction-fee)
+- [Babylon Bitcoin Staking - Usage Guide](#babylon-bitcoin-staking---usage-guide)
+  - [Table of Contents](#table-of-contents)
+  - [1. Prerequisites](#1-prerequisites)
+    - [1.1 Staking Parameters](#11-staking-parameters)
+    - [1.2 Bitcoin Staker information](#12-bitcoin-staker-information)
+    - [1.3 Signing Providers](#13-signing-providers)
+  - [2. Staking Manager Initialization](#2-staking-manager-initialization)
+  - [3. Stake Registration](#3-stake-registration)
+    - [3.1 Post-Staking Registration](#31-post-staking-registration)
+    - [3.2 Pre-Staking Registration](#32-pre-staking-registration)
+  - [4. Unbonding Transaction](#4-unbonding-transaction)
+  - [5. Withdrawal Transaction](#5-withdrawal-transaction)
+  - [6. Fee Calculation](#6-fee-calculation)
+    - [6.1 Bitcoin Transaction Fee](#61-bitcoin-transaction-fee)
+    - [6.2 Babylon Genesis Transaction Fee](#62-babylon-genesis-transaction-fee)
 
 ## 1. Prerequisites
 
@@ -121,14 +123,18 @@ For the purposes of this library, two providers are required:
 arbitrary messages through the ECDSA or BIP-322 algorithms.
 - **Babylon Genesis Provider**: Responsible for signing Babylon Genesis
 transactions. Babylon Genesis is based on Cosmos SDK, so providers that
-support Cosmos SDK chains should be straightforward to adapt to Babylon Genesis.  
+support Cosmos SDK chains should be straightforward to adapt to Babylon Genesis.
 
 Below we define the expected interface for both of the above providers.
 
 ```ts
 export interface BtcProvider {
   // Sign a PSBT
-  signPsbt(signingStep: SigningStep, psbtHex: string): Promise<string>;
+  signPsbt(
+    signingStep: SigningStep,
+    psbtHex: string,
+    options?: SignPsbtOptions
+  ): Promise<string>;
   // Sign a message using the ECDSA type
   // This is optional and only required if you would like to use the
   // `createProofOfPossession` function
