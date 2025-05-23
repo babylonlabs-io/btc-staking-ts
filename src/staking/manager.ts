@@ -33,6 +33,9 @@ export interface Contract {
   params: Record<string, string | number | string[] | number[]>;
 }
 
+// Provides additional information about the transaction
+// Allows users to visually compare and verify contract parameters
+// before signing the transaction
 export interface SignPsbtOptions {
   contracts?: Contract[];
 }
