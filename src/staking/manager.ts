@@ -95,7 +95,7 @@ export enum SigningStep {
 }
 
 interface StakingInputs {
-  finalityProviderPkNoCoordHex: string;
+  finalityProviderPksNoCoordHex: string[];
   stakingAmountSat: number;
   stakingTimelock: number;
 }
@@ -184,7 +184,7 @@ export class BabylonBtcStakingManager {
       this.network,
       stakerBtcInfo,
       params,
-      stakingInput.finalityProviderPkNoCoordHex,
+      stakingInput.finalityProviderPksNoCoordHex,
       stakingInput.stakingTimelock,
     );
 
@@ -253,7 +253,7 @@ export class BabylonBtcStakingManager {
       this.network,
       stakerBtcInfo,
       params,
-      stakingInput.finalityProviderPkNoCoordHex,
+      stakingInput.finalityProviderPksNoCoordHex,
       stakingInput.stakingTimelock,
     );
 
@@ -321,7 +321,7 @@ export class BabylonBtcStakingManager {
       this.network,
       stakerBtcInfo,
       params,
-      stakingInput.finalityProviderPkNoCoordHex,
+      stakingInput.finalityProviderPksNoCoordHex,
       stakingInput.stakingTimelock,
     );
 
@@ -367,7 +367,7 @@ export class BabylonBtcStakingManager {
       this.network,
       stakerBtcInfo,
       params,
-      stakingInput.finalityProviderPkNoCoordHex,
+      stakingInput.finalityProviderPksNoCoordHex,
       stakingInput.stakingTimelock,
     );
 
@@ -426,7 +426,7 @@ export class BabylonBtcStakingManager {
       this.network,
       stakerBtcInfo,
       params,
-      stakingInput.finalityProviderPkNoCoordHex,
+      stakingInput.finalityProviderPksNoCoordHex,
       stakingInput.stakingTimelock,
     );
 
@@ -547,7 +547,7 @@ export class BabylonBtcStakingManager {
       this.network,
       stakerBtcInfo,
       params,
-      stakingInput.finalityProviderPkNoCoordHex,
+      stakingInput.finalityProviderPksNoCoordHex,
       stakingInput.stakingTimelock,
     );
 
@@ -594,7 +594,7 @@ export class BabylonBtcStakingManager {
       this.network,
       stakerBtcInfo,
       params,
-      stakingInput.finalityProviderPkNoCoordHex,
+      stakingInput.finalityProviderPksNoCoordHex,
       stakingInput.stakingTimelock,
     );
 
@@ -644,7 +644,7 @@ export class BabylonBtcStakingManager {
       this.network,
       stakerBtcInfo,
       params,
-      stakingInput.finalityProviderPkNoCoordHex,
+      stakingInput.finalityProviderPksNoCoordHex,
       stakingInput.stakingTimelock,
     );
 
@@ -810,11 +810,9 @@ export class BabylonBtcStakingManager {
         btcPk: Uint8Array.from(
           Buffer.from(stakerBtcInfo.publicKeyNoCoordHex, "hex"),
         ),
-        fpBtcPkList: [
-          Uint8Array.from(
-            Buffer.from(stakingInput.finalityProviderPkNoCoordHex, "hex"),
-          ),
-        ],
+        fpBtcPkList: stakingInput.finalityProviderPksNoCoordHex.map((pk) =>
+          Uint8Array.from(Buffer.from(pk, "hex")),
+        ),
         stakingTime: stakingInput.stakingTimelock,
         stakingValue: stakingInput.stakingAmountSat,
         stakingTx: Uint8Array.from(stakingTx.toBuffer()),
