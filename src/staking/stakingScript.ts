@@ -26,7 +26,6 @@ export class StakingScriptData {
     stakerKey: Buffer,
     // A list of public keys without the coordinate bytes corresponding to the finality providers
     // the stake will be delegated to.
-    // Currently, Babylon does not support restaking, so this should contain only a single item.
     finalityProviderKeys: Buffer[],
     // A list of the public keys without the coordinate bytes corresponding to
     // the covenant emulators.

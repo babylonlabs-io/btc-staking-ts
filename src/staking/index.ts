@@ -39,14 +39,15 @@ export class Staking {
   network: networks.Network;
   stakerInfo: StakerInfo;
   params: StakingParams;
-  finalityProviderPkNoCoordHex: string;
+  // Staking input from staker
+  finalityProviderPksNoCoordHex: string[];
   stakingTimelock: number;
 
   constructor(
     network: networks.Network,
     stakerInfo: StakerInfo,
     params: StakingParams,
-    finalityProviderPkNoCoordHex: string,
+    finalityProviderPksNoCoordHex: string[],
     stakingTimelock: number,
   ) {
     // Perform validations
@@ -62,7 +63,7 @@ export class Staking {
         "Invalid staker public key",
       );
     }
-    if (!isValidNoCoordPublicKey(finalityProviderPkNoCoordHex)) {
+    if (finalityProviderPksNoCoordHex.some((pk) => !isValidNoCoordPublicKey(pk))) {
       throw new StakingError(
         StakingErrorCode.INVALID_INPUT,
         "Invalid finality provider public key",
@@ -74,7 +75,7 @@ export class Staking {
     this.network = network;
     this.stakerInfo = stakerInfo;
     this.params = params;
-    this.finalityProviderPkNoCoordHex = finalityProviderPkNoCoordHex;
+    this.finalityProviderPksNoCoordHex = finalityProviderPksNoCoordHex;
     this.stakingTimelock = stakingTimelock;
   }
 
@@ -92,7 +93,7 @@ export class Staking {
     try {
       stakingScriptData = new StakingScriptData(
         Buffer.from(this.stakerInfo.publicKeyNoCoordHex, "hex"),
-        [Buffer.from(this.finalityProviderPkNoCoordHex, "hex")],
+        this.finalityProviderPksNoCoordHex.map((pk) => Buffer.from(pk, "hex")),
         toBuffers(covenantNoCoordPks),
         covenantQuorum,
         this.stakingTimelock,
