@@ -1,6 +1,6 @@
 {
   "name": "@babylonlabs-io/btc-staking-ts",
-  "version": "1.0.6",
+  "version": "1.0.7",
   "description": "Library exposing methods for the creation and consumption of Bitcoin transactions pertaining to Babylon's Bitcoin Staking protocol.",
   "module": "dist/index.js",
   "main": "dist/index.cjs",
@@ -68,9 +68,11 @@
   },
   "dependencies": {
     "@babylonlabs-io/babylon-proto-ts": "1.0.1",
-    "@bitcoin-js/tiny-secp256k1-asmjs": "2.2.3",
-    "@cosmjs/encoding": "^0.33.0",
-    "bitcoinjs-lib": "6.1.5"
+    "@cosmjs/encoding": "^0.33.0"
+  },
+  "peerDependencies": {
+    "bitcoinjs-lib": "6.1.5",
+    "@bitcoin-js/tiny-secp256k1-asmjs": "2.2.3"
   },
   "publishConfig": {
     "access": "public"

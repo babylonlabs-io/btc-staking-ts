@@ -13,6 +13,7 @@ import { StakerInfo, Staking } from ".";
 import { BABYLON_REGISTRY_TYPE_URLS } from "../constants/registry";
 import { StakingError, StakingErrorCode } from "../error";
 import { TransactionResult, UTXO } from "../types";
+import { ContractId } from "../types/contract";
 import { StakingParams, VersionedStakingParams } from "../types/params";
 import { reverseBuffer } from "../utils";
 import { isValidBabylonAddress } from "../utils/babylon";
@@ -27,10 +28,26 @@ import {
 } from "../utils/staking/param";
 import { createCovenantWitness } from "./transactions";
 
+export interface Contract {
+  id: ContractId;
+  params: Record<string, string | number | string[] | number[]>;
+}
+
+// Provides additional information about the transaction
+// Allows users to visually compare and verify contract parameters
+// before signing the transaction
+export interface SignPsbtOptions {
+  contracts?: Contract[];
+}
+
 export interface BtcProvider {
   // Sign a PSBT
   // Expecting the PSBT to be encoded in hex format.
-  signPsbt(signingStep: SigningStep, psbtHex: string): Promise<string>;
+  signPsbt(
+    signingStep: SigningStep,
+    psbtHex: string,
+    options?: SignPsbtOptions,
+  ): Promise<string>;
 
   // Signs a message using either ECDSA or BIP-322, depending on the address type.
   // - Taproot and Native Segwit addresses will use BIP-322.
@@ -359,6 +376,21 @@ export class BabylonBtcStakingManager {
     const signedStakingPsbtHex = await this.btcProvider.signPsbt(
       SigningStep.STAKING,
       stakingPsbt.toHex(),
+      {
+        contracts: [
+          {
+            id: ContractId.STAKING,
+            params: {
+              stakerPk: stakerBtcInfo.publicKeyNoCoordHex,
+              finalityProviders: [stakingInput.finalityProviderPkNoCoordHex],
+              covenantPks: params.covenantNoCoordPks,
+              covenantThreshold: params.covenantQuorum,
+              minUnbondingTime: params.unbondingTime,
+              stakingDuration: stakingInput.stakingTimelock,
+            },
+          },
+        ],
+      },
     );
 
     return Psbt.fromHex(signedStakingPsbtHex).extractTransaction();

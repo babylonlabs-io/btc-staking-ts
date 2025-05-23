@@ -90,8 +90,22 @@ describe("Staking Manager", () => {
       expect(btcProvider.signPsbt).toHaveBeenLastCalledWith(
         SigningStep.STAKING,
         unsignedTx,
+        {
+          contracts: [
+            {
+              id: `babylon:${SigningStep.STAKING}`,
+              params: {
+                stakerPk: stakerInfo.publicKeyNoCoordHex,
+                finalityProviders: [stakingInput.finalityProviderPkNoCoordHex],
+                covenantPks: params[version].covenantNoCoordPks,
+                covenantThreshold: params[version].covenantQuorum,
+                minUnbondingTime: params[version].unbondingTime,
+                stakingDuration: stakingInput.stakingTimelock,
+              },
+            },
+          ],
+        },
       );
-
       expect(tx).toEqual(Psbt.fromHex(signedTx).extractTransaction());
     });
   });
