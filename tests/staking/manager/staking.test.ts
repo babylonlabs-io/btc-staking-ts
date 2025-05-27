@@ -1,6 +1,6 @@
 import { networks, Psbt, Transaction } from "bitcoinjs-lib";
 
-import { getPublicKeyNoCoord, type UTXO } from "../../../src";
+import { ContractId, getPublicKeyNoCoord, type UTXO } from "../../../src";
 import {
   BabylonBtcStakingManager,
   SigningStep,
@@ -93,7 +93,7 @@ describe("Staking Manager", () => {
         {
           contracts: [
             {
-              id: `babylon:${SigningStep.STAKING}`,
+              id: ContractId.STAKING,
               params: {
                 stakerPk: stakerInfo.publicKeyNoCoordHex,
                 finalityProviders: [stakingInput.finalityProviderPkNoCoordHex],
