@@ -1,5 +1,6 @@
 import { networks, Psbt, Transaction } from "bitcoinjs-lib";
 
+import { ContractId } from "../../../src";
 import {
   BabylonBtcStakingManager,
   SigningStep,
@@ -66,6 +67,20 @@ describe("Staking Manager", () => {
       expect(btcProvider.signPsbt).toHaveBeenLastCalledWith(
         SigningStep.UNBONDING,
         unbondingPsbt,
+        {
+          contracts: [
+            {
+              id: ContractId.UNBONDING,
+              params: {
+                stakerPk: stakerInfo.publicKeyNoCoordHex,
+                finalityProviders: [stakingInput.finalityProviderPkNoCoordHex],
+                covenantPks: params[version].covenantNoCoordPks,
+                covenantThreshold: params[version].covenantQuorum,
+                unbondingTimeBlocks: params[version].unbondingTime,
+              },
+            },
+          ],
+        },
       );
       expect(transaction).toEqual(
         Psbt.fromHex(signedUnbondingTx).extractTransaction(),

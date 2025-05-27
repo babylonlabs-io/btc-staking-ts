@@ -438,6 +438,20 @@ export class BabylonBtcStakingManager {
     const signedUnbondingPsbtHex = await this.btcProvider.signPsbt(
       SigningStep.UNBONDING,
       psbt.toHex(),
+      {
+        contracts: [
+          {
+            id: ContractId.UNBONDING,
+            params: {
+              stakerPk: stakerBtcInfo.publicKeyNoCoordHex,
+              finalityProviders: [stakingInput.finalityProviderPkNoCoordHex],
+              covenantPks: params.covenantNoCoordPks,
+              covenantThreshold: params.covenantQuorum,
+              unbondingTimeBlocks: params.unbondingTime,
+            },
+          },
+        ],
+      },
     );
     const signedUnbondingTx = Psbt.fromHex(
       signedUnbondingPsbtHex,
