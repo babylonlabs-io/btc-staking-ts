@@ -784,6 +784,17 @@ export class BabylonBtcStakingManager {
     const signedSlashingPsbtHex = await this.btcProvider.signPsbt(
       SigningStep.STAKING_SLASHING,
       slashingPsbt.toHex(),
+      {
+        contracts: [
+          {
+            id: ContractId.STAKING_SLASHING,
+            params: {
+              stakerPk: stakerBtcInfo.publicKeyNoCoordHex,
+              unbondingTimeBlocks: params.unbondingTime,
+            },
+          },
+        ],
+      },
     );
     const signedSlashingTx = Psbt.fromHex(
       signedSlashingPsbtHex,
@@ -797,6 +808,17 @@ export class BabylonBtcStakingManager {
     const signedUnbondingSlashingPsbtHex = await this.btcProvider.signPsbt(
       SigningStep.UNBONDING_SLASHING,
       unbondingSlashingPsbt.toHex(),
+      {
+        contracts: [
+          {
+            id: ContractId.UNBONDING_SLASHING,
+            params: {
+              stakerPk: stakerBtcInfo.publicKeyNoCoordHex,
+              unbondingTimeBlocks: params.unbondingTime,
+            },
+          },
+        ],
+      },
     );
     const signedUnbondingSlashingTx = Psbt.fromHex(
       signedUnbondingSlashingPsbtHex,

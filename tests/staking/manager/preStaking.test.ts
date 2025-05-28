@@ -1,7 +1,7 @@
 import { btcstakingtx } from "@babylonlabs-io/babylon-proto-ts";
 import { networks } from "bitcoinjs-lib";
 
-import { type UTXO } from "../../../src";
+import { ContractId, type UTXO } from "../../../src";
 import {
   BabylonBtcStakingManager,
   SigningStep,
@@ -127,6 +127,8 @@ describe("Staking Manager", () => {
           signType,
         },
       ) => {
+        const version = 2;
+
         btcProvider.signPsbt
           .mockResolvedValueOnce(signedSlashingPsbt)
           .mockResolvedValueOnce(signedUnbondingSlashingPsbt);
@@ -145,10 +147,32 @@ describe("Staking Manager", () => {
         expect(btcProvider.signPsbt).toHaveBeenCalledWith(
           SigningStep.STAKING_SLASHING,
           slashingPsbt,
+          {
+            contracts: [
+              {
+                id: ContractId.STAKING_SLASHING,
+                params: {
+                  stakerPk: stakerInfo.publicKeyNoCoordHex,
+                  unbondingTimeBlocks: params[version].unbondingTime,
+                },
+              },
+            ],
+          },
         );
         expect(btcProvider.signPsbt).toHaveBeenCalledWith(
           SigningStep.UNBONDING_SLASHING,
           unbondingSlashingPsbt,
+          {
+            contracts: [
+              {
+                id: ContractId.UNBONDING_SLASHING,
+                params: {
+                  stakerPk: stakerInfo.publicKeyNoCoordHex,
+                  unbondingTimeBlocks: params[version].unbondingTime,
+                },
+              },
+            ],
+          },
         );
         expect(btcProvider.signMessage).toHaveBeenCalledWith(
           SigningStep.PROOF_OF_POSSESSION,
