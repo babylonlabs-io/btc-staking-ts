@@ -26,7 +26,7 @@ export class ObservableStaking extends Staking {
     network: networks.Network,
     stakerInfo: StakerInfo,
     params: ObservableVersionedStakingParams,
-    finalityProviderPkNoCoordHex: string,
+    finalityProviderPkNoCoordHex: string[],
     stakingTimelock: number,
   ) {
     super(
@@ -67,7 +67,7 @@ export class ObservableStaking extends Staking {
     try {
       stakingScriptData = new ObservableStakingScriptData(
         Buffer.from(this.stakerInfo.publicKeyNoCoordHex, "hex"),
-        [Buffer.from(this.finalityProviderPkNoCoordHex, "hex")],
+        this.finalityProviderPksNoCoordHex.map(pk => Buffer.from(pk, "hex")),
         toBuffers(covenantNoCoordPks),
         covenantQuorum,
         this.stakingTimelock,

@@ -382,7 +382,7 @@ export class BabylonBtcStakingManager {
             id: ContractId.STAKING,
             params: {
               stakerPk: stakerBtcInfo.publicKeyNoCoordHex,
-              finalityProviders: [stakingInput.finalityProviderPkNoCoordHex],
+              finalityProviders: stakingInput.finalityProviderPksNoCoordHex,
               covenantPks: params.covenantNoCoordPks,
               covenantThreshold: params.covenantQuorum,
               minUnbondingTime: params.unbondingTime,
@@ -700,34 +700,39 @@ export class BabylonBtcStakingManager {
   ): Promise<ProofOfPossessionBTC> {
     let sigType: BTCSigType = BTCSigType.ECDSA;
 
+    // TODO: WARNING, Below code is just temporary workaround for testing purpose to bypass the babylon verification on bip322 as it is not yet deployed on devnet
+
     // For Taproot or Native SegWit addresses, use the BIP322 signature scheme
     // in the proof of possession as it uses the same signature type as the regular
     // input UTXO spend. For legacy addresses, use the ECDSA signature scheme.
-    if (
-      isTaproot(stakerBtcAddress, this.network) ||
-      isNativeSegwit(stakerBtcAddress, this.network)
-    ) {
-      sigType = BTCSigType.BIP322;
-    }
+    // if (
+    //   isTaproot(stakerBtcAddress, this.network) ||
+    //   isNativeSegwit(stakerBtcAddress, this.network)
+    // ) {
+    //   sigType = BTCSigType.BIP322;
+    // }
 
     const signedBabylonAddress = await this.btcProvider.signMessage(
       SigningStep.PROOF_OF_POSSESSION,
       bech32Address,
-      sigType === BTCSigType.BIP322 ? "bip322-simple" : "ecdsa",
+      "ecdsa",
+      // sigType === BTCSigType.BIP322 ? "bip322-simple" : "ecdsa",
     );
 
     let btcSig: Uint8Array;
-    if (sigType === BTCSigType.BIP322) {
-      const bip322Sig = BIP322Sig.fromPartial({
-        address: stakerBtcAddress,
-        sig: Buffer.from(signedBabylonAddress, "base64"),
-      });
-      // Encode the BIP322 protobuf message to a Uint8Array
-      btcSig = BIP322Sig.encode(bip322Sig).finish();
-    } else {
-      // Encode the ECDSA signature to a Uint8Array
-      btcSig = Buffer.from(signedBabylonAddress, "base64");
-    }
+    btcSig = Buffer.from(signedBabylonAddress, "base64");
+
+    // if (sigType === BTCSigType.BIP322) {
+    //   const bip322Sig = BIP322Sig.fromPartial({
+    //     address: stakerBtcAddress,
+    //     sig: Buffer.from(signedBabylonAddress, "base64"),
+    //   });
+    //   // Encode the BIP322 protobuf message to a Uint8Array
+    //   btcSig = BIP322Sig.encode(bip322Sig).finish();
+    // } else {
+    //   // Encode the ECDSA signature to a Uint8Array
+    //   btcSig = Buffer.from(signedBabylonAddress, "base64");
+    // }
 
     return {
       btcSigType: sigType,
