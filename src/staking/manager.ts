@@ -441,6 +441,17 @@ export class BabylonBtcStakingManager {
       {
         contracts: [
           {
+            id: ContractId.STAKING,
+            params: {
+              stakerPk: stakerBtcInfo.publicKeyNoCoordHex,
+              finalityProviders: [stakingInput.finalityProviderPkNoCoordHex],
+              covenantPks: params.covenantNoCoordPks,
+              covenantThreshold: params.covenantQuorum,
+              minUnbondingTime: params.unbondingTime,
+              stakingDuration: stakingInput.stakingTimelock,
+            },
+          },
+          {
             id: ContractId.UNBONDING,
             params: {
               stakerPk: stakerBtcInfo.publicKeyNoCoordHex,
@@ -787,7 +798,18 @@ export class BabylonBtcStakingManager {
       {
         contracts: [
           {
-            id: ContractId.STAKING_SLASHING,
+            id: ContractId.STAKING,
+            params: {
+              stakerPk: stakerBtcInfo.publicKeyNoCoordHex,
+              finalityProviders: [stakingInput.finalityProviderPkNoCoordHex],
+              covenantPks: params.covenantNoCoordPks,
+              covenantThreshold: params.covenantQuorum,
+              minUnbondingTime: params.unbondingTime,
+              stakingDuration: stakingInput.stakingTimelock,
+            },
+          },
+          {
+            id: ContractId.SLASHING,
             params: {
               stakerPk: stakerBtcInfo.publicKeyNoCoordHex,
               unbondingTimeBlocks: params.unbondingTime,
@@ -811,7 +833,17 @@ export class BabylonBtcStakingManager {
       {
         contracts: [
           {
-            id: ContractId.UNBONDING_SLASHING,
+            id: ContractId.UNBONDING,
+            params: {
+              stakerPk: stakerBtcInfo.publicKeyNoCoordHex,
+              finalityProviders: [stakingInput.finalityProviderPkNoCoordHex],
+              covenantPks: params.covenantNoCoordPks,
+              covenantThreshold: params.covenantQuorum,
+              unbondingTimeBlocks: params.unbondingTime,
+            },
+          },
+          {
+            id: ContractId.SLASHING,
             params: {
               stakerPk: stakerBtcInfo.publicKeyNoCoordHex,
               unbondingTimeBlocks: params.unbondingTime,

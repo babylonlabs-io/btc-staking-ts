@@ -6,8 +6,7 @@
 export enum ContractId {
   STAKING = "babylon:staking",
   UNBONDING = "babylon:unbonding",
-  STAKING_SLASHING = "babylon:staking-slashing",
-  UNBONDING_SLASHING = "babylon:unbonding-slashing",
+  SLASHING = "babylon:slashing",
   WITHDRAW_STAKING_EXPIRED = "babylon:withdraw-staking-expired",
   WITHDRAW_EARLY_UNBONDED = "babylon:withdraw-early-unbonded",
   WITHDRAW_SLASHING = "babylon:withdraw-slashing",

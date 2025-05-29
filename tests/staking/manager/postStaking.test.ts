@@ -113,7 +113,7 @@ describe("Staking Manager", () => {
           signType,
         },
       ) => {
-        const version = 2;
+        const version = 4;
 
         btcProvider.signPsbt
           .mockResolvedValueOnce(signedSlashingPsbt)
@@ -135,7 +135,20 @@ describe("Staking Manager", () => {
           {
             contracts: [
               {
-                id: ContractId.STAKING_SLASHING,
+                id: ContractId.STAKING,
+                params: {
+                  stakerPk: stakerInfo.publicKeyNoCoordHex,
+                  finalityProviders: [
+                    stakingInput.finalityProviderPkNoCoordHex,
+                  ],
+                  covenantPks: params[version].covenantNoCoordPks,
+                  covenantThreshold: params[version].covenantQuorum,
+                  minUnbondingTime: params[version].unbondingTime,
+                  stakingDuration: stakingInput.stakingTimelock,
+                },
+              },
+              {
+                id: ContractId.SLASHING,
                 params: {
                   stakerPk: stakerInfo.publicKeyNoCoordHex,
                   unbondingTimeBlocks: params[version].unbondingTime,
@@ -150,7 +163,19 @@ describe("Staking Manager", () => {
           {
             contracts: [
               {
-                id: ContractId.UNBONDING_SLASHING,
+                id: ContractId.UNBONDING,
+                params: {
+                  stakerPk: stakerInfo.publicKeyNoCoordHex,
+                  finalityProviders: [
+                    stakingInput.finalityProviderPkNoCoordHex,
+                  ],
+                  covenantPks: params[version].covenantNoCoordPks,
+                  covenantThreshold: params[version].covenantQuorum,
+                  unbondingTimeBlocks: params[version].unbondingTime,
+                },
+              },
+              {
+                id: ContractId.SLASHING,
                 params: {
                   stakerPk: stakerInfo.publicKeyNoCoordHex,
                   unbondingTimeBlocks: params[version].unbondingTime,
