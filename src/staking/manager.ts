@@ -444,7 +444,7 @@ export class BabylonBtcStakingManager {
             id: ContractId.STAKING,
             params: {
               stakerPk: stakerBtcInfo.publicKeyNoCoordHex,
-              finalityProviders: [stakingInput.finalityProviderPkNoCoordHex],
+              finalityProviders: stakingInput.finalityProviderPksNoCoordHex,
               covenantPks: params.covenantNoCoordPks,
               covenantThreshold: params.covenantQuorum,
               minUnbondingTime: params.unbondingTime,
@@ -455,7 +455,7 @@ export class BabylonBtcStakingManager {
             id: ContractId.UNBONDING,
             params: {
               stakerPk: stakerBtcInfo.publicKeyNoCoordHex,
-              finalityProviders: [stakingInput.finalityProviderPkNoCoordHex],
+              finalityProviders: stakingInput.finalityProviderPksNoCoordHex,
               covenantPks: params.covenantNoCoordPks,
               covenantThreshold: params.covenantQuorum,
               unbondingTimeBlocks: params.unbondingTime,
@@ -806,7 +806,7 @@ export class BabylonBtcStakingManager {
             id: ContractId.STAKING,
             params: {
               stakerPk: stakerBtcInfo.publicKeyNoCoordHex,
-              finalityProviders: [stakingInput.finalityProviderPkNoCoordHex],
+              finalityProviders: stakingInput.finalityProviderPksNoCoordHex,
               covenantPks: params.covenantNoCoordPks,
               covenantThreshold: params.covenantQuorum,
               minUnbondingTime: params.unbondingTime,
@@ -841,7 +841,7 @@ export class BabylonBtcStakingManager {
             id: ContractId.UNBONDING,
             params: {
               stakerPk: stakerBtcInfo.publicKeyNoCoordHex,
-              finalityProviders: [stakingInput.finalityProviderPkNoCoordHex],
+              finalityProviders: stakingInput.finalityProviderPksNoCoordHex,
               covenantPks: params.covenantNoCoordPks,
               covenantThreshold: params.covenantQuorum,
               unbondingTimeBlocks: params.unbondingTime,
