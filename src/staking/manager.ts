@@ -459,6 +459,7 @@ export class BabylonBtcStakingManager {
               covenantPks: params.covenantNoCoordPks,
               covenantThreshold: params.covenantQuorum,
               unbondingTimeBlocks: params.unbondingTime,
+              unbondingFeeSat: params.unbondingFeeSat,
             },
           },
         ],
@@ -678,13 +679,13 @@ export class BabylonBtcStakingManager {
       feeRate,
     );
 
-    const signedSlashingPsbtHex = await this.btcProvider.signPsbt(
+    const signedWithrawSlashingPsbtHex = await this.btcProvider.signPsbt(
       SigningStep.WITHDRAW_SLASHING,
       psbt.toHex(),
     );
 
     return {
-      transaction: Psbt.fromHex(signedSlashingPsbtHex).extractTransaction(),
+      transaction: Psbt.fromHex(signedWithrawSlashingPsbtHex).extractTransaction(),
       fee,
     };
   }
@@ -785,6 +786,13 @@ export class BabylonBtcStakingManager {
     params: StakingParams,
     inclusionProof?: btcstaking.InclusionProof,
   ) {
+    if (!params.slashing) {
+      throw new StakingError(
+        StakingErrorCode.INVALID_PARAMS,
+        "Slashing parameters are required for creating delegation message",
+      );
+    }
+
     const { unbondingTx, slashingPsbt, unbondingSlashingPsbt } =
       await this.createDelegationTransactionsAndPsbts(
         stakingInstance,
@@ -813,6 +821,7 @@ export class BabylonBtcStakingManager {
             params: {
               stakerPk: stakerBtcInfo.publicKeyNoCoordHex,
               unbondingTimeBlocks: params.unbondingTime,
+              slashingFeeSat: params.slashing.minSlashingTxFeeSat,
             },
           },
         ],
@@ -840,6 +849,7 @@ export class BabylonBtcStakingManager {
               covenantPks: params.covenantNoCoordPks,
               covenantThreshold: params.covenantQuorum,
               unbondingTimeBlocks: params.unbondingTime,
+              unbondingFeeSat: params.unbondingFeeSat,
             },
           },
           {
@@ -847,6 +857,7 @@ export class BabylonBtcStakingManager {
             params: {
               stakerPk: stakerBtcInfo.publicKeyNoCoordHex,
               unbondingTimeBlocks: params.unbondingTime,
+              slashingFeeSat: params.slashing.minSlashingTxFeeSat,
             },
           },
         ],

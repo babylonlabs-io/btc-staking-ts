@@ -88,6 +88,7 @@ describe("Staking Manager", () => {
                 covenantPks: params[version].covenantNoCoordPks,
                 covenantThreshold: params[version].covenantQuorum,
                 unbondingTimeBlocks: params[version].unbondingTime,
+                unbondingFeeSat: params[version].unbondingFeeSat,
               },
             },
           ],

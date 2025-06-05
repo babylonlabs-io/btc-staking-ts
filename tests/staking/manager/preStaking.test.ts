@@ -167,6 +167,7 @@ describe("Staking Manager", () => {
                 params: {
                   stakerPk: stakerInfo.publicKeyNoCoordHex,
                   unbondingTimeBlocks: params[version].unbondingTime,
+                  slashingFeeSat: params[version].slashing?.minSlashingTxFeeSat,
                 },
               },
             ],
@@ -187,6 +188,7 @@ describe("Staking Manager", () => {
                   covenantPks: params[version].covenantNoCoordPks,
                   covenantThreshold: params[version].covenantQuorum,
                   unbondingTimeBlocks: params[version].unbondingTime,
+                  unbondingFeeSat: params[version].unbondingFeeSat,
                 },
               },
               {
@@ -194,6 +196,7 @@ describe("Staking Manager", () => {
                 params: {
                   stakerPk: stakerInfo.publicKeyNoCoordHex,
                   unbondingTimeBlocks: params[version].unbondingTime,
+                  slashingFeeSat: params[version].slashing?.minSlashingTxFeeSat,
                 },
               },
             ],
