@@ -1,10 +1,7 @@
 import { networks, Psbt, Transaction } from "bitcoinjs-lib";
 
 import { ContractId } from "../../../src";
-import {
-  BabylonBtcStakingManager,
-  SigningStep,
-} from "../../../src/staking/manager";
+import { BabylonBtcStakingManager } from "../../../src/staking/manager";
 
 import { babylonProvider, btcProvider } from "./__mock__/providers";
 import {
@@ -64,36 +61,32 @@ describe("Staking Manager", () => {
           stakingTx,
         );
 
-      expect(btcProvider.signPsbt).toHaveBeenLastCalledWith(
-        SigningStep.UNBONDING,
-        unbondingPsbt,
-        {
-          contracts: [
-            {
-              id: ContractId.STAKING,
-              params: {
-                stakerPk: stakerInfo.publicKeyNoCoordHex,
-                finalityProviders: [stakingInput.finalityProviderPkNoCoordHex],
-                covenantPks: params[version].covenantNoCoordPks,
-                covenantThreshold: params[version].covenantQuorum,
-                minUnbondingTime: params[version].unbondingTime,
-                stakingDuration: stakingInput.stakingTimelock,
-              },
+      expect(btcProvider.signPsbt).toHaveBeenLastCalledWith(unbondingPsbt, {
+        contracts: [
+          {
+            id: ContractId.STAKING,
+            params: {
+              stakerPk: stakerInfo.publicKeyNoCoordHex,
+              finalityProviders: [stakingInput.finalityProviderPkNoCoordHex],
+              covenantPks: params[version].covenantNoCoordPks,
+              covenantThreshold: params[version].covenantQuorum,
+              minUnbondingTime: params[version].unbondingTime,
+              stakingDuration: stakingInput.stakingTimelock,
             },
-            {
-              id: ContractId.UNBONDING,
-              params: {
-                stakerPk: stakerInfo.publicKeyNoCoordHex,
-                finalityProviders: [stakingInput.finalityProviderPkNoCoordHex],
-                covenantPks: params[version].covenantNoCoordPks,
-                covenantThreshold: params[version].covenantQuorum,
-                unbondingTimeBlocks: params[version].unbondingTime,
-                unbondingFeeSat: params[version].unbondingFeeSat,
-              },
+          },
+          {
+            id: ContractId.UNBONDING,
+            params: {
+              stakerPk: stakerInfo.publicKeyNoCoordHex,
+              finalityProviders: [stakingInput.finalityProviderPkNoCoordHex],
+              covenantPks: params[version].covenantNoCoordPks,
+              covenantThreshold: params[version].covenantQuorum,
+              unbondingTimeBlocks: params[version].unbondingTime,
+              unbondingFeeSat: params[version].unbondingFeeSat,
             },
-          ],
-        },
-      );
+          },
+        ],
+      });
       expect(transaction).toEqual(
         Psbt.fromHex(signedUnbondingTx).extractTransaction(),
       );

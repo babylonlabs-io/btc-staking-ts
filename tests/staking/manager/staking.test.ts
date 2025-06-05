@@ -1,10 +1,7 @@
 import { networks, Psbt, Transaction } from "bitcoinjs-lib";
 
 import { ContractId, getPublicKeyNoCoord, type UTXO } from "../../../src";
-import {
-  BabylonBtcStakingManager,
-  SigningStep,
-} from "../../../src/staking/manager";
+import { BabylonBtcStakingManager } from "../../../src/staking/manager";
 
 import { babylonProvider, btcProvider } from "./__mock__/providers";
 import { params, stakerInfo, utxos } from "./__mock__/staking";
@@ -87,25 +84,21 @@ describe("Staking Manager", () => {
         version,
       );
 
-      expect(btcProvider.signPsbt).toHaveBeenLastCalledWith(
-        SigningStep.STAKING,
-        unsignedTx,
-        {
-          contracts: [
-            {
-              id: ContractId.STAKING,
-              params: {
-                stakerPk: stakerInfo.publicKeyNoCoordHex,
-                finalityProviders: [stakingInput.finalityProviderPkNoCoordHex],
-                covenantPks: params[version].covenantNoCoordPks,
-                covenantThreshold: params[version].covenantQuorum,
-                minUnbondingTime: params[version].unbondingTime,
-                stakingDuration: stakingInput.stakingTimelock,
-              },
+      expect(btcProvider.signPsbt).toHaveBeenLastCalledWith(unsignedTx, {
+        contracts: [
+          {
+            id: ContractId.STAKING,
+            params: {
+              stakerPk: stakerInfo.publicKeyNoCoordHex,
+              finalityProviders: [stakingInput.finalityProviderPkNoCoordHex],
+              covenantPks: params[version].covenantNoCoordPks,
+              covenantThreshold: params[version].covenantQuorum,
+              minUnbondingTime: params[version].unbondingTime,
+              stakingDuration: stakingInput.stakingTimelock,
             },
-          ],
-        },
-      );
+          },
+        ],
+      });
       expect(tx).toEqual(Psbt.fromHex(signedTx).extractTransaction());
     });
   });
