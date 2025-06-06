@@ -9,14 +9,14 @@ describe.each(testingNetworks)("Staking input validations", ({
     const params = dataGenerator.generateStakingParams(true);
     const feeRate = 1;
     const {
-      stakingTx, timelock, stakerInfo, finalityProviderPkNoCoordHex,
+      stakingTx, timelock, stakerInfo, finalityProviderPksNoCoordHex,
     } = dataGenerator.generateRandomStakingTransaction(
       network, feeRate, undefined, undefined, undefined, params,
     );
     
     const stakingInstance = new Staking(
       network, stakerInfo,
-      params, finalityProviderPkNoCoordHex, timelock,
+      params, finalityProviderPksNoCoordHex, timelock,
     );
     beforeEach(() => {
       jest.restoreAllMocks();
@@ -26,14 +26,14 @@ describe.each(testingNetworks)("Staking input validations", ({
       expect(() => {
         new Staking(
           network, stakerInfo,
-          params, finalityProviderPkNoCoordHex, params.minStakingTimeBlocks - 1,
+          params, finalityProviderPksNoCoordHex, params.minStakingTimeBlocks - 1,
         );
       }).toThrow('Staking transaction timelock is out of range');
 
       expect(() => {
         new Staking(
           network, stakerInfo,
-          params, finalityProviderPkNoCoordHex, params.maxStakingTimeBlocks + 1,
+          params, finalityProviderPksNoCoordHex, params.maxStakingTimeBlocks + 1,
         );
       }).toThrow('Staking transaction timelock is out of range');
     });
@@ -67,7 +67,10 @@ describe.each(testingNetworks)("Staking input validations", ({
       publicKeyNoCoordHex: publicKeyNoCoord,
       publicKeyWithCoord: publicKey,
     };
-    const finalityProviderPkNoCoordHex = dataGenerator.generateRandomKeyPair().publicKeyNoCoord;
+    const finalityProviderPksNoCoordHex: string[] = [];
+    for (let i = 0; i < dataGenerator.getRandomIntegerBetween(1, 10); i++) {
+      finalityProviderPksNoCoordHex.push(dataGenerator.generateRandomKeyPair().publicKeyNoCoord);
+    }
     const validParams = dataGenerator.generateStakingParams();
 
     it('should pass with valid parameters', () => {
@@ -75,7 +78,7 @@ describe.each(testingNetworks)("Staking input validations", ({
         network,
         stakerInfo,
         validParams,
-        finalityProviderPkNoCoordHex,
+        finalityProviderPksNoCoordHex,
         dataGenerator.generateRandomTimelock(validParams),
       )).not.toThrow();
     });
@@ -86,7 +89,7 @@ describe.each(testingNetworks)("Staking input validations", ({
         network,
         stakerInfo,
         paramsWithoutSlashing,
-        finalityProviderPkNoCoordHex,
+        finalityProviderPksNoCoordHex,
         dataGenerator.generateRandomTimelock(validParams),
       )).not.toThrow();
     });
@@ -98,7 +101,7 @@ describe.each(testingNetworks)("Staking input validations", ({
         network,
         stakerInfo,
         params,
-        finalityProviderPkNoCoordHex,
+        finalityProviderPksNoCoordHex,
         dataGenerator.generateRandomTimelock(validParams),
       )).toThrow(
         'Could not find any covenant public keys'
@@ -115,7 +118,7 @@ describe.each(testingNetworks)("Staking input validations", ({
         network,
         stakerInfo,
         params,
-        finalityProviderPkNoCoordHex,
+        finalityProviderPksNoCoordHex,
         dataGenerator.generateRandomTimelock(validParams),
       )).toThrow(
         'Covenant public key should contains no coordinate'
@@ -129,7 +132,7 @@ describe.each(testingNetworks)("Staking input validations", ({
         network,
         stakerInfo,
         params,
-        finalityProviderPkNoCoordHex,
+        finalityProviderPksNoCoordHex,
         dataGenerator.generateRandomTimelock(validParams),
       )).toThrow(
         'Covenant public keys must be greater than or equal to the quorum'
@@ -143,7 +146,7 @@ describe.each(testingNetworks)("Staking input validations", ({
         network,
         stakerInfo,
         params,
-        finalityProviderPkNoCoordHex,
+        finalityProviderPksNoCoordHex,
         dataGenerator.generateRandomTimelock(validParams),
       )).toThrow(
         'Unbonding time must be greater than 0'
@@ -155,7 +158,7 @@ describe.each(testingNetworks)("Staking input validations", ({
         network,
         stakerInfo,
         params,
-        finalityProviderPkNoCoordHex,
+        finalityProviderPksNoCoordHex,
         dataGenerator.generateRandomTimelock(validParams),
       )).toThrow(
         'Unbonding time must be greater than 0'
@@ -169,7 +172,7 @@ describe.each(testingNetworks)("Staking input validations", ({
         network,
         stakerInfo,
         params,
-        finalityProviderPkNoCoordHex,
+        finalityProviderPksNoCoordHex,
         dataGenerator.generateRandomTimelock(validParams),
       )).toThrow(
         'Unbonding fee must be greater than 0'
@@ -181,7 +184,7 @@ describe.each(testingNetworks)("Staking input validations", ({
         network,
         stakerInfo,
         params,
-        finalityProviderPkNoCoordHex,
+        finalityProviderPksNoCoordHex,
         dataGenerator.generateRandomTimelock(validParams),
       )).toThrow(
         'Unbonding fee must be greater than 0'
@@ -195,7 +198,7 @@ describe.each(testingNetworks)("Staking input validations", ({
         network,
         stakerInfo,
         params,
-        finalityProviderPkNoCoordHex,
+        finalityProviderPksNoCoordHex,
         dataGenerator.generateRandomTimelock(validParams),
       )).toThrow(
         'Max staking amount must be greater or equal to min staking amount'
@@ -209,7 +212,7 @@ describe.each(testingNetworks)("Staking input validations", ({
         network,
         stakerInfo,
         params,
-        finalityProviderPkNoCoordHex,
+        finalityProviderPksNoCoordHex,
         dataGenerator.generateRandomTimelock(validParams),
       )).toThrow(
         'Min staking amount must be greater than unbonding fee plus 1000'
@@ -221,7 +224,7 @@ describe.each(testingNetworks)("Staking input validations", ({
         network,
         stakerInfo,
         params0,
-        finalityProviderPkNoCoordHex,
+        finalityProviderPksNoCoordHex,
         dataGenerator.generateRandomTimelock(validParams),
       )).toThrow(
         'Min staking amount must be greater than unbonding fee plus 1000'
@@ -235,7 +238,7 @@ describe.each(testingNetworks)("Staking input validations", ({
         network,
         stakerInfo,
         params,
-        finalityProviderPkNoCoordHex,
+        finalityProviderPksNoCoordHex,
         dataGenerator.generateRandomTimelock(validParams),
       )).toThrow(
         'Max staking time must be greater or equal to min staking time'
@@ -249,7 +252,7 @@ describe.each(testingNetworks)("Staking input validations", ({
         network,
         stakerInfo,
         params,
-        finalityProviderPkNoCoordHex,
+        finalityProviderPksNoCoordHex,
         dataGenerator.generateRandomTimelock(validParams),
       )).toThrow(
         'Min staking time must be greater than 0'
@@ -261,7 +264,7 @@ describe.each(testingNetworks)("Staking input validations", ({
         network,
         stakerInfo,
         params0,
-        finalityProviderPkNoCoordHex,
+        finalityProviderPksNoCoordHex,
         dataGenerator.generateRandomTimelock(validParams),
       )).toThrow(
         'Min staking time must be greater than 0'
@@ -275,7 +278,7 @@ describe.each(testingNetworks)("Staking input validations", ({
         network,
         stakerInfo,
         params,
-        finalityProviderPkNoCoordHex,
+        finalityProviderPksNoCoordHex,
         dataGenerator.generateRandomTimelock(validParams),
       )).toThrow(
         'Covenant quorum must be greater than 0'
@@ -287,7 +290,7 @@ describe.each(testingNetworks)("Staking input validations", ({
         network,
         stakerInfo,
         params,
-        finalityProviderPkNoCoordHex,
+        finalityProviderPksNoCoordHex,
         dataGenerator.generateRandomTimelock(validParams),
       )).toThrow(
         'Covenant quorum must be greater than 0'
@@ -304,7 +307,7 @@ describe.each(testingNetworks)("Staking input validations", ({
         network,
         stakerInfo,
         params0,
-        finalityProviderPkNoCoordHex,
+        finalityProviderPksNoCoordHex,
         dataGenerator.generateRandomTimelock(validParams),
       )).toThrow(
         'Slashing rate must be greater than 0'
@@ -319,7 +322,7 @@ describe.each(testingNetworks)("Staking input validations", ({
         network,
         stakerInfo,
         params1,
-        finalityProviderPkNoCoordHex,
+        finalityProviderPksNoCoordHex,
         dataGenerator.generateRandomTimelock(validParams),
       )).toThrow(
         'Slashing rate must be less or equal to 1'
@@ -336,7 +339,7 @@ describe.each(testingNetworks)("Staking input validations", ({
         network,
         stakerInfo,
         params,
-        finalityProviderPkNoCoordHex,
+        finalityProviderPksNoCoordHex,
         dataGenerator.generateRandomTimelock(validParams),
       )).toThrow(
         'Slashing public key script is missing'
@@ -353,7 +356,7 @@ describe.each(testingNetworks)("Staking input validations", ({
         network,
         stakerInfo,
         params,
-        finalityProviderPkNoCoordHex,
+        finalityProviderPksNoCoordHex,
         dataGenerator.generateRandomTimelock(validParams),
       )).toThrow(
         'Minimum slashing transaction fee must be greater than 0'

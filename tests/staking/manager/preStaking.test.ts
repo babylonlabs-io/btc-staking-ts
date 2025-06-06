@@ -148,7 +148,7 @@ describe("Staking Manager", () => {
               id: ContractId.STAKING,
               params: {
                 stakerPk: stakerInfo.publicKeyNoCoordHex,
-                finalityProviders: [stakingInput.finalityProviderPkNoCoordHex],
+                finalityProviders: stakingInput.finalityProviderPksNoCoordHex,
                 covenantPks: params[version].covenantNoCoordPks,
                 covenantThreshold: params[version].covenantQuorum,
                 minUnbondingTime: params[version].unbondingTime,
@@ -173,9 +173,7 @@ describe("Staking Manager", () => {
                 id: ContractId.UNBONDING,
                 params: {
                   stakerPk: stakerInfo.publicKeyNoCoordHex,
-                  finalityProviders: [
-                    stakingInput.finalityProviderPkNoCoordHex,
-                  ],
+                  finalityProviders: stakingInput.finalityProviderPksNoCoordHex,
                   covenantPks: params[version].covenantNoCoordPks,
                   covenantThreshold: params[version].covenantQuorum,
                   unbondingTimeBlocks: params[version].unbondingTime,
