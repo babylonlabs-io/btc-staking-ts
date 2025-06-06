@@ -1,9 +1,6 @@
 import { networks, Psbt } from "bitcoinjs-lib";
 
-import {
-  BabylonBtcStakingManager,
-  SigningStep,
-} from "../../../src/staking/manager";
+import { BabylonBtcStakingManager } from "../../../src/staking/manager";
 
 import { babylonProvider, btcProvider } from "./__mock__/providers";
 import {
@@ -69,10 +66,7 @@ describe("Staking Manager", () => {
             4,
           );
 
-        expect(btcProvider.signPsbt).toHaveBeenCalledWith(
-          SigningStep.WITHDRAW_EARLY_UNBONDED,
-          unbondingPsbt,
-        );
+        expect(btcProvider.signPsbt).toHaveBeenCalledWith(unbondingPsbt);
         expect(transaction.toHex()).toBe(
           Psbt.fromHex(signedUnbondingPsbt).extractTransaction().toHex(),
         );
@@ -116,10 +110,7 @@ describe("Staking Manager", () => {
             4,
           );
 
-        expect(btcProvider.signPsbt).toHaveBeenCalledWith(
-          SigningStep.WITHDRAW_STAKING_EXPIRED,
-          unbondingPsbt,
-        );
+        expect(btcProvider.signPsbt).toHaveBeenCalledWith(unbondingPsbt);
         expect(transaction.toHex()).toBe(
           Psbt.fromHex(signedUnbondingPsbt).extractTransaction().toHex(),
         );
@@ -163,10 +154,7 @@ describe("Staking Manager", () => {
             2,
           );
 
-        expect(btcProvider.signPsbt).toHaveBeenCalledWith(
-          SigningStep.WITHDRAW_SLASHING,
-          slashingPsbt,
-        );
+        expect(btcProvider.signPsbt).toHaveBeenCalledWith(slashingPsbt);
         expect(transaction.toHex()).toBe(
           Psbt.fromHex(signedSlashingPsbt).extractTransaction().toHex(),
         );
