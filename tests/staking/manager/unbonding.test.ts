@@ -1,8 +1,8 @@
 import { networks, Psbt, Transaction } from "bitcoinjs-lib";
 
-import { ContractId } from "../../../src";
 import { BabylonBtcStakingManager } from "../../../src/staking/manager";
 
+import { ContractId } from "../../../src/types/manager";
 import { babylonProvider, btcProvider } from "./__mock__/providers";
 import {
   covenantUnbondingSignatures,

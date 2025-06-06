@@ -1,9 +1,10 @@
 import { btcstakingtx } from "@babylonlabs-io/babylon-proto-ts";
 import { networks } from "bitcoinjs-lib";
 
-import { ContractId, type UTXO } from "../../../src";
+import { type UTXO } from "../../../src";
 import { BabylonBtcStakingManager } from "../../../src/staking/manager";
 
+import { ContractId } from "../../../src/types/manager";
 import { babylonProvider, btcProvider } from "./__mock__/providers";
 import {
   babylonAddress,
