@@ -14,7 +14,7 @@ describe.each(testingNetworks)("Observal - Create staking transaction", ({
   network, networkName, datagen: { observableStakingDatagen: dataGenerator }
 }) => {
   let stakerInfo: { address: string, publicKeyNoCoordHex: string, publicKeyWithCoord: string };
-  let finalityProviderPkNoCoord: string;
+  let finalityProviderPksNoCoord: string[];
   let params: ObservableVersionedStakingParams;
   let timelock: number;
   let utxos: UTXO[];
@@ -35,7 +35,7 @@ describe.each(testingNetworks)("Observal - Create staking transaction", ({
       publicKeyNoCoordHex: publicKeyNoCoord,
       publicKeyWithCoord: publicKey,
     };
-    finalityProviderPkNoCoord = dataGenerator.generateRandomKeyPair().publicKeyNoCoord;
+    finalityProviderPksNoCoord = dataGenerator.generateRandomFidelityProviderPksNoCoordHex(1);
     params = dataGenerator.generateStakingParams(true);
     timelock = dataGenerator.generateRandomTimelock(params);
     utxos = dataGenerator.generateRandomUTXOs(
@@ -45,7 +45,7 @@ describe.each(testingNetworks)("Observal - Create staking transaction", ({
     );
     observableStaking = new ObservableStaking(
       network, stakerInfo,
-      params, finalityProviderPkNoCoord, timelock,
+      params, finalityProviderPksNoCoord, timelock,
     );
   });
 
@@ -62,7 +62,7 @@ describe.each(testingNetworks)("Observal - Create staking transaction", ({
       new StakingError(StakingErrorCode.INVALID_INPUT, "some error")
     );
   });
-
+  
   it(`${networkName} should throw an error if fail to build scripts`, async () => {
     jest.spyOn(observableStakingScriptData, "ObservableStakingScriptData").mockImplementation(() => {
       throw new StakingError(StakingErrorCode.SCRIPT_FAILURE, "some error");

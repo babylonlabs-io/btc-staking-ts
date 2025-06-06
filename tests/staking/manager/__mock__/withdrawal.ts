@@ -22,9 +22,11 @@ export const slashingTx = Transaction.fromHex(
 
 export const stakingInput = {
   stakingAmountSat: 10_000,
-  finalityProviderPkNoCoordHex: getPublicKeyNoCoord(
-    "bb762e89f88a060707371b06fb13a896c1adab058df6a25e35463c14c82eca70",
-  ),
+  finalityProviderPksNoCoordHex: [
+    getPublicKeyNoCoord(
+      "bb762e89f88a060707371b06fb13a896c1adab058df6a25e35463c14c82eca70",
+    ),
+  ],
   stakingTimelock: 100,
 };
 

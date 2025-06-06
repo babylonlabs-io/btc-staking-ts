@@ -254,11 +254,11 @@ export class StakingDataGenerator {
     }
     params = params ? params : this.generateStakingParams();
     const timelock = this.generateRandomTimelock(params);
-    const finalityProviderPkNoCoordHex = this.generateRandomKeyPair().publicKeyNoCoord;
+    const finalityProviderPksNoCoordHex = this.generateRandomFidelityProviderPksNoCoordHex();
 
     const staking = new Staking(
       network, stakerInfo,
-      params, finalityProviderPkNoCoordHex, timelock,
+      params, finalityProviderPksNoCoordHex, timelock,
     );
 
     const stakingAmountSat = stakingAmount ? 
@@ -291,7 +291,7 @@ export class StakingDataGenerator {
       stakingInstance: staking,
       stakerInfo,
       params,
-      finalityProviderPkNoCoordHex,
+      finalityProviderPksNoCoordHex,
       stakingAmountSat,
       keyPair: stakerKeyPair,
       stakingTxFee,
@@ -442,6 +442,16 @@ export class StakingDataGenerator {
       scriptPubKey: scriptPubKey.toString("hex"),
     };
   };
+
+  generateRandomFidelityProviderPksNoCoordHex = (
+    numberOfFidelityProviders: number = 10,
+  ) => {
+    const finalityProviderPksNoCoordHex: string[] = [];
+    for (let i = 0; i < numberOfFidelityProviders; i++) {
+      finalityProviderPksNoCoordHex.push(this.generateRandomKeyPair().publicKeyNoCoord);
+    }
+    return finalityProviderPksNoCoordHex;
+  }
 }
 
 export const getRandomPaymentScriptHex = (pubKeyHex: string): string => {

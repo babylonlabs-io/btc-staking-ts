@@ -88,9 +88,9 @@ const stakerInfo = {
 }
 
 const stakerInput = {
-  // The chosen finality provider public key in compressed 32 bytes x-coordinate
-  // only
-  finalityProviderPkNoCoordHex: string,
+  // The chosen finality providers public keys in compressed 32 bytes x-coordinate
+  // only format.
+  finalityProviderPksNoCoordHex: string[],
   // Amount of satoshis staker choose to stake
   stakingAmountSat: number,
   // The number of BTC blocks this staking transaction will be staked for

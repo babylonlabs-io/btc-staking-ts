@@ -17,21 +17,16 @@ describe.each(testingNetworks)("Observable", ({
       publicKeyNoCoordHex: publicKeyNoCoord,
       publicKeyWithCoord: publicKey,
     };
-    const observable = new ObservableStaking(
-      network,
-      stakerInfo,
-      params,
-      publicKeyNoCoord,
-      dataGenerator.generateRandomTimelock(params),
-    );
     const validParams = dataGenerator.generateStakingParams();
+
+    const finalityProviderPksNoCoordHex = dataGenerator.generateRandomFidelityProviderPksNoCoordHex(1);
 
     it('should pass with valid parameters', () => {
       expect(() => new ObservableStaking(
         network,
         stakerInfo,
         params,
-        publicKeyNoCoord,
+        finalityProviderPksNoCoordHex,
         dataGenerator.generateRandomTimelock(params),
       )).not.toThrow();
     });
@@ -43,7 +38,7 @@ describe.each(testingNetworks)("Observable", ({
         network,
         stakerInfo,
         params,
-        publicKeyNoCoord,
+        finalityProviderPksNoCoordHex,
         dataGenerator.generateRandomTimelock(params),
       )).toThrow(
         "Observable staking parameters must include tag" 
@@ -57,10 +52,24 @@ describe.each(testingNetworks)("Observable", ({
         network,
         stakerInfo,
         params,
-        publicKeyNoCoord,
+        finalityProviderPksNoCoordHex,
         dataGenerator.generateRandomTimelock(params),
       )).toThrow(
         "Observable staking parameters must include a positive activation height" 
+      );
+    });
+
+    it('should throw an error if number of finality provider public keys is not 1', () => {
+      const finalityProviderPksNoCoordHex = dataGenerator.generateRandomFidelityProviderPksNoCoordHex(2);
+
+      expect(() => new ObservableStaking(
+        network,
+        stakerInfo,
+        params,
+        finalityProviderPksNoCoordHex,
+        dataGenerator.generateRandomTimelock(params),
+      )).toThrow(
+        "Observable staking requires exactly one finality provider public key"
       );
     });
   });
