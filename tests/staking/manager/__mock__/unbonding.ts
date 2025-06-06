@@ -103,9 +103,11 @@ export const stakingTx = Transaction.fromHex(
 
 export const stakingInput = {
   stakingAmountSat: 11_000,
-  finalityProviderPkNoCoordHex: getPublicKeyNoCoord(
-    "02eb83395c33cf784f7dfb90dcc918b5620ddd67fe6617806f079322dc4db2f0",
-  ),
+  finalityProviderPksNoCoordHex: [
+    getPublicKeyNoCoord(
+      "02eb83395c33cf784f7dfb90dcc918b5620ddd67fe6617806f079322dc4db2f0",
+    ),
+  ],
   stakingTimelock: 100,
 };
 
