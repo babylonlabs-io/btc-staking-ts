@@ -438,6 +438,32 @@ export class BabylonBtcStakingManager {
     const signedUnbondingPsbtHex = await this.btcProvider.signPsbt(
       SigningStep.UNBONDING,
       psbt.toHex(),
+      {
+        contracts: [
+          {
+            id: ContractId.STAKING,
+            params: {
+              stakerPk: stakerBtcInfo.publicKeyNoCoordHex,
+              finalityProviders: [stakingInput.finalityProviderPkNoCoordHex],
+              covenantPks: params.covenantNoCoordPks,
+              covenantThreshold: params.covenantQuorum,
+              minUnbondingTime: params.unbondingTime,
+              stakingDuration: stakingInput.stakingTimelock,
+            },
+          },
+          {
+            id: ContractId.UNBONDING,
+            params: {
+              stakerPk: stakerBtcInfo.publicKeyNoCoordHex,
+              finalityProviders: [stakingInput.finalityProviderPkNoCoordHex],
+              covenantPks: params.covenantNoCoordPks,
+              covenantThreshold: params.covenantQuorum,
+              unbondingTimeBlocks: params.unbondingTime,
+              unbondingFeeSat: params.unbondingFeeSat,
+            },
+          },
+        ],
+      },
     );
     const signedUnbondingTx = Psbt.fromHex(
       signedUnbondingPsbtHex,
@@ -653,13 +679,13 @@ export class BabylonBtcStakingManager {
       feeRate,
     );
 
-    const signedSlashingPsbtHex = await this.btcProvider.signPsbt(
+    const signedWithrawSlashingPsbtHex = await this.btcProvider.signPsbt(
       SigningStep.WITHDRAW_SLASHING,
       psbt.toHex(),
     );
 
     return {
-      transaction: Psbt.fromHex(signedSlashingPsbtHex).extractTransaction(),
+      transaction: Psbt.fromHex(signedWithrawSlashingPsbtHex).extractTransaction(),
       fee,
     };
   }
@@ -760,6 +786,13 @@ export class BabylonBtcStakingManager {
     params: StakingParams,
     inclusionProof?: btcstaking.InclusionProof,
   ) {
+    if (!params.slashing) {
+      throw new StakingError(
+        StakingErrorCode.INVALID_PARAMS,
+        "Slashing parameters are required for creating delegation message",
+      );
+    }
+
     const { unbondingTx, slashingPsbt, unbondingSlashingPsbt } =
       await this.createDelegationTransactionsAndPsbts(
         stakingInstance,
@@ -770,6 +803,29 @@ export class BabylonBtcStakingManager {
     const signedSlashingPsbtHex = await this.btcProvider.signPsbt(
       SigningStep.STAKING_SLASHING,
       slashingPsbt.toHex(),
+      {
+        contracts: [
+          {
+            id: ContractId.STAKING,
+            params: {
+              stakerPk: stakerBtcInfo.publicKeyNoCoordHex,
+              finalityProviders: [stakingInput.finalityProviderPkNoCoordHex],
+              covenantPks: params.covenantNoCoordPks,
+              covenantThreshold: params.covenantQuorum,
+              minUnbondingTime: params.unbondingTime,
+              stakingDuration: stakingInput.stakingTimelock,
+            },
+          },
+          {
+            id: ContractId.SLASHING,
+            params: {
+              stakerPk: stakerBtcInfo.publicKeyNoCoordHex,
+              unbondingTimeBlocks: params.unbondingTime,
+              slashingFeeSat: params.slashing.minSlashingTxFeeSat,
+            },
+          },
+        ],
+      },
     );
     const signedSlashingTx = Psbt.fromHex(
       signedSlashingPsbtHex,
@@ -783,6 +839,29 @@ export class BabylonBtcStakingManager {
     const signedUnbondingSlashingPsbtHex = await this.btcProvider.signPsbt(
       SigningStep.UNBONDING_SLASHING,
       unbondingSlashingPsbt.toHex(),
+      {
+        contracts: [
+          {
+            id: ContractId.UNBONDING,
+            params: {
+              stakerPk: stakerBtcInfo.publicKeyNoCoordHex,
+              finalityProviders: [stakingInput.finalityProviderPkNoCoordHex],
+              covenantPks: params.covenantNoCoordPks,
+              covenantThreshold: params.covenantQuorum,
+              unbondingTimeBlocks: params.unbondingTime,
+              unbondingFeeSat: params.unbondingFeeSat,
+            },
+          },
+          {
+            id: ContractId.SLASHING,
+            params: {
+              stakerPk: stakerBtcInfo.publicKeyNoCoordHex,
+              unbondingTimeBlocks: params.unbondingTime,
+              slashingFeeSat: params.slashing.minSlashingTxFeeSat,
+            },
+          },
+        ],
+      },
     );
     const signedUnbondingSlashingTx = Psbt.fromHex(
       signedUnbondingSlashingPsbtHex,

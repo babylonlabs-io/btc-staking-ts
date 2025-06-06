@@ -9,34 +9,49 @@
 </p>
 <br/>
 
-## Installation
+## 👨🏻‍💻 Installation
 
 ```console
 npm i @babylonlabs-io/btc-staking-ts
 ```
 
-## Version Release
+## 📝 Commit Format & Automated Releases
 
-This library follows a **trunk-based release workflow**, where all development happens on the `main` branch, and versioned releases are cut from dedicated `release/*` branches.
+This project uses [**Conventional Commits**](https://www.conventionalcommits.org/en/v1.0.0/)
+and [**semantic-release**](https://semantic-release.gitbook.io/) to automate
+versioning, changelog generation, and npm publishing.
+However, release branch will be cut wiht the syntax of `release/vY.X` whenever there is a major version bump.
 
-For more details, please refer to the [Babylon Release Process](https://github.com/babylonlabs-io/babylon/blob/main/RELEASE_PROCESS.md). 
+### ✅ How It Works
 
-### Stable Version
+1. All commits must follow the **Conventional Commits** format.
+2. When changes are merged into the `main` branch:
+   - `semantic-release` analyzes commit messages
+   - Determines the appropriate semantic version bump (`major`, `minor`, `patch`)
+   - Updates the `CHANGELOG.md`
+   - Tags the release in Git
+   - Publishes the new version to npm (if configured)
 
-Stable releases are created **only** from release branches such as `release/v1.x`.  
-These branches represent production-ready versions, and all semantic versioning (major/minor/patch) is applied from them.
+### 🧱 Commit Message Examples
 
-### Development Branch
+```console
+feat: add support for slashing script
+fix: handle invalid staking tx gracefully
+docs: update README with commit conventions
+refactor!: remove deprecated method and cleanup types
+```
 
-The `main` branch is the active development branch where all new changes are merged. It may contain features or updates not yet included in a stable release.
+> **Note:** For breaking changes, add a `!` after the type (
+> e.g. `feat!:` or `refactor!:`) and include a description of the breaking
+> change in the commit body.
 
-#### Canary Version
+### 🚀 Releasing
 
-Canary versions are optional pre-releases used for testing. They may be published manually from the `main` branch before a stable release is cut.
+Just commit your changes using the proper format and merge to `main`.
+The CI pipeline will handle versioning and releasing automatically — no manual
+tagging or version bumps needed.
 
-To publish a canary version, ensure update the package.json version to include `-canary.xyz`, then trigger the release pipeline from github action
-
-## Usage Guide
+## 📢 Usage Guide
 
 Details on the usage of the library can be found
 on the [usage guide](./docs/usage.md).
