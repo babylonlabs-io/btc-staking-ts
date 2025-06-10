@@ -2,9 +2,8 @@ export enum ContractId {
   STAKING = "babylon:staking",
   UNBONDING = "babylon:unbonding",
   SLASHING = "babylon:slashing",
-  WITHDRAW_STAKING_EXPIRED = "babylon:withdraw-staking-expired",
-  WITHDRAW_EARLY_UNBONDED = "babylon:withdraw-early-unbonded",
-  WITHDRAW_SLASHING = "babylon:withdraw-slashing",
+  WITHDRAW = "babylon:withdraw",
+  SLASHING_BURN = "babylon:slashing-burn",
 }
 
 export type ContractData = Record<

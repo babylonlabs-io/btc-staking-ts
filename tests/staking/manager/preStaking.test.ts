@@ -163,6 +163,13 @@ describe("Staking Manager", () => {
                 slashingFeeSat: params[version].slashing?.minSlashingTxFeeSat,
               },
             },
+            {
+              id: ContractId.SLASHING_BURN,
+              params: {
+                stakerPk: stakerInfo.publicKeyNoCoordHex,
+                slashingPkScriptHex: params[version].slashing?.slashingPkScriptHex,
+              },
+            },
           ],
         });
         expect(btcProvider.signPsbt).toHaveBeenCalledWith(
@@ -188,6 +195,13 @@ describe("Staking Manager", () => {
                   stakerPk: stakerInfo.publicKeyNoCoordHex,
                   unbondingTimeBlocks: params[version].unbondingTime,
                   slashingFeeSat: params[version].slashing?.minSlashingTxFeeSat,
+                },
+              },
+              {
+                id: ContractId.SLASHING_BURN,
+                params: {
+                  stakerPk: stakerInfo.publicKeyNoCoordHex,
+                  slashingPkScriptHex: params[version].slashing?.slashingPkScriptHex,
                 },
               },
             ],
