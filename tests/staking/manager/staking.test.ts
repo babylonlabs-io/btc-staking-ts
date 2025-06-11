@@ -13,9 +13,11 @@ const unsignedStakingTx = Transaction.fromHex(
 );
 const stakingInput = {
   stakingAmountSat: 11_000,
-  finalityProviderPkNoCoordHex: getPublicKeyNoCoord(
-    "02eb83395c33cf784f7dfb90dcc918b5620ddd67fe6617806f079322dc4db2f0",
-  ),
+  finalityProviderPksNoCoordHex: [
+    getPublicKeyNoCoord(
+      "02eb83395c33cf784f7dfb90dcc918b5620ddd67fe6617806f079322dc4db2f0",
+    ),
+  ],
   stakingTimelock: 100,
 };
 const version = 2;
@@ -92,7 +94,7 @@ describe("Staking Manager", () => {
             id: ContractId.STAKING,
             params: {
               stakerPk: stakerInfo.publicKeyNoCoordHex,
-              finalityProviders: [stakingInput.finalityProviderPkNoCoordHex],
+              finalityProviders: stakingInput.finalityProviderPksNoCoordHex,
               covenantPks: params[version].covenantNoCoordPks,
               covenantThreshold: params[version].covenantQuorum,
               minUnbondingTime: params[version].unbondingTime,

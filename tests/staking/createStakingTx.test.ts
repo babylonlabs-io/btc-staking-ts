@@ -15,10 +15,10 @@ describe.each(testingNetworks)("Create staking transaction", ({
   network, networkName, datagen: { stakingDatagen: dataGenerator }
 }) => {
   let stakerInfo: { address: string, publicKeyNoCoordHex: string, publicKeyWithCoord: string };
-  let finalityProviderPublicKey: string;
   let params: StakingParams;
   let timelock: number;
   let utxos: UTXO[];
+  let finalityProviderPksNoCoordHex: string[] = [];
   const feeRate = 1;
 
   beforeEach(() => {
@@ -36,7 +36,10 @@ describe.each(testingNetworks)("Create staking transaction", ({
       publicKeyNoCoordHex: publicKeyNoCoord,
       publicKeyWithCoord: publicKey,
     };
-    finalityProviderPublicKey = dataGenerator.generateRandomKeyPair().publicKeyNoCoord;
+    // random number of FPs
+    for (let i = 0; i < dataGenerator.getRandomIntegerBetween(1, 10); i++) {
+      finalityProviderPksNoCoordHex.push(dataGenerator.generateRandomKeyPair().publicKeyNoCoord);
+    }
     params = dataGenerator.generateStakingParams(true);
     timelock = dataGenerator.generateRandomTimelock(params);
     utxos = dataGenerator.generateRandomUTXOs(
@@ -53,7 +56,7 @@ describe.each(testingNetworks)("Create staking transaction", ({
     };
     expect(() => new Staking(
       network, stakerInfoWithCoordPk,
-      params, finalityProviderPublicKey, timelock,
+      params, finalityProviderPksNoCoordHex, timelock,
     )).toThrow(
       "Invalid staker public key"
     );
@@ -64,7 +67,7 @@ describe.each(testingNetworks)("Create staking transaction", ({
     };
     expect(() => new Staking(
       network, stakerInfoWithInvalidAddress,
-      params, finalityProviderPublicKey, timelock,
+      params, finalityProviderPksNoCoordHex, timelock,
     )).toThrow(
       "Invalid staker bitcoin address"
     );
@@ -76,7 +79,7 @@ describe.each(testingNetworks)("Create staking transaction", ({
     });
     const staking = new Staking(
       network, stakerInfo,
-      params, finalityProviderPublicKey, timelock,
+      params, finalityProviderPksNoCoordHex, timelock,
     );
 
     expect(() => staking.createStakingTransaction(
@@ -94,7 +97,7 @@ describe.each(testingNetworks)("Create staking transaction", ({
     });
     const staking = new Staking(
       network, stakerInfo,
-      params, finalityProviderPublicKey, timelock,
+      params, finalityProviderPksNoCoordHex, timelock,
     );
 
     expect(() => staking.createStakingTransaction(
@@ -112,7 +115,7 @@ describe.each(testingNetworks)("Create staking transaction", ({
     });
     const staking = new Staking(
       network, stakerInfo,
-      params, finalityProviderPublicKey, timelock,
+      params, finalityProviderPksNoCoordHex, timelock,
     );
 
     expect(() => staking.createStakingTransaction(
@@ -128,7 +131,7 @@ describe.each(testingNetworks)("Create staking transaction", ({
     // Setup
     const staking = new Staking(
       network, stakerInfo,
-      params, finalityProviderPublicKey, timelock,
+      params, finalityProviderPksNoCoordHex, timelock,
     );
     const amount = dataGenerator.getRandomIntegerBetween(
       params.minStakingAmountSat, params.maxStakingAmountSat,
@@ -146,7 +149,7 @@ describe.each(testingNetworks)("Create staking transaction", ({
     const wrongTimelock = dataGenerator.generateRandomTimelock(wrongParams);
     const wrongStaking = new Staking(
       network, stakerInfo,
-      wrongParams, finalityProviderPublicKey, wrongTimelock,
+      wrongParams, finalityProviderPksNoCoordHex, wrongTimelock,
     );
 
     expect(() => wrongStaking.toStakingPsbt(transaction, utxos)).toThrow(
@@ -161,7 +164,7 @@ describe.each(testingNetworks)("Create staking transaction", ({
     // Setup
     const staking = new Staking(
       network, stakerInfo,
-      params, finalityProviderPublicKey, timelock,
+      params, finalityProviderPksNoCoordHex, timelock,
     );
     const amount = dataGenerator.getRandomIntegerBetween(
       params.minStakingAmountSat, params.maxStakingAmountSat,

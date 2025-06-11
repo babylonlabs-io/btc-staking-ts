@@ -138,7 +138,11 @@ describe.each(testingNetworks)('Derive staking output address', ({
   }
 }) => {
   const feeRate = 1;
-  const finalityProviderPkNoCoordHex = dataGenerator.generateRandomKeyPair().publicKeyNoCoord;
+  // Random number of finality providers
+  const finalityProviderPksNoCoordHex: string[] = [];
+  for (let i = 0; i < dataGenerator.getRandomIntegerBetween(1, 10); i++) {
+    finalityProviderPksNoCoordHex.push(dataGenerator.generateRandomKeyPair().publicKeyNoCoord);
+  }
   const { timelock, stakerInfo, params } = dataGenerator.generateRandomStakingTransaction(
     network, feeRate
   );
@@ -146,7 +150,7 @@ describe.each(testingNetworks)('Derive staking output address', ({
   describe("should derive the staking output address from the scripts", () => {
     const staking = new Staking(
       network, stakerInfo,
-      params, finalityProviderPkNoCoordHex, timelock,
+      params, finalityProviderPksNoCoordHex, timelock,
     );
     const scripts = staking.buildScripts();
     const { outputAddress } = deriveStakingOutputInfo(
@@ -161,7 +165,7 @@ describe.each(testingNetworks)('Derive staking output address', ({
     });
     const staking = new Staking(
       network, stakerInfo,
-      params, finalityProviderPkNoCoordHex, timelock,
+      params, finalityProviderPksNoCoordHex, timelock,
     );
     const scripts = staking.buildScripts();
     expect(() => deriveStakingOutputInfo(scripts, network))
@@ -174,7 +178,7 @@ describe.each(testingNetworks)('Derive staking output address', ({
     });
     const staking = new Staking(
       network, stakerInfo,
-      params, finalityProviderPkNoCoordHex, timelock,
+      params, finalityProviderPksNoCoordHex, timelock,
     );
     const scripts = staking.buildScripts();
     expect(() => deriveStakingOutputInfo(scripts, network))

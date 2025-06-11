@@ -22,10 +22,6 @@ describe("stakingScript", () => {
     "49766ccd9e3cd94343e2040474a77fb37cdfd30530d05f9f1e96ae1e2102c86e",
     "hex",
   );
-  const pk6 = Buffer.from(
-    "063deb187a4bf11c114cf825a4726e4c2c35fea5c4c44a20ff08a30a752ec7e0",
-    "hex",
-  );
   const invalidPk = Buffer.from(
     "6f13a6d104446520d1757caec13eaf6fbcf29f488c31e0107e7351d4994cd0",
     "hex",
@@ -197,6 +193,20 @@ describe("stakingScript", () => {
             stakingTimeLock,
             unbondingTimeLock,
           ),
+      ).toThrow("Invalid script data provided");
+    });
+
+    it("should fail if finality provider have duplicate keys", () => {
+      expect(
+        () => 
+          new StakingScriptData(
+          pk1,
+          [pk2, pk2],
+          [pk3, pk4, pk5],
+          2,
+          stakingTimeLock,
+          unbondingTimeLock,
+        ),
       ).toThrow("Invalid script data provided");
     });
   });
@@ -386,6 +396,18 @@ describe("stakingScript", () => {
         2,
         65535, // Maximum valid staking timelock
         65535, // Maximum valid unbonding timelock
+      );
+      expect(scriptData.validate()).toBe(true);
+    });
+
+    it("should not fail for more than 1 finality provider", () => {
+      const scriptData = new StakingScriptData(
+        pk1,
+        [pk2, pk3],
+        [pk4, pk5],
+        2,
+        stakingTimeLock,
+        unbondingTimeLock,
       );
       expect(scriptData.validate()).toBe(true);
     });

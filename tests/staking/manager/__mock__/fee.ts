@@ -34,9 +34,11 @@ export const babylonAddress = "bbn1cyqgpk0nlsutlm5ymkfpya30fqntanc8slpure";
 
 export const stakingInput = {
   stakingAmountSat: 500_000,
-  finalityProviderPkNoCoordHex: getPublicKeyNoCoord(
-    "d23c2c25e1fcf8fd1c21b9a402c19e2e309e531e45e92fb1e9805b6056b0cc76",
-  ),
+  finalityProviderPksNoCoordHex: [
+    getPublicKeyNoCoord(
+      "d23c2c25e1fcf8fd1c21b9a402c19e2e309e531e45e92fb1e9805b6056b0cc76",
+    ),
+  ],
   stakingTimelock: 64000,
 };
 
