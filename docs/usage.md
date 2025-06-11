@@ -73,7 +73,7 @@ Staker inputs define the parameters for Bitcoin staking. Stakers can customize
 their:
 - Staking timelock duration
 - Staking amount
-- Selected finality provider for delegation
+- Selected finality providers for delegation
 
 > **Note**: The other parameters included in the
 > [Bitcoin Staking script](https://github.com/babylonlabs-io/babylon/blob/release/v1.x/docs/staking-script.md)
@@ -179,7 +179,7 @@ manager.
 ## 3. Stake Registration
 
 The Bitcoin staker utilizes the staking inputs
-(stake amount, timelock, finality provider) together
+(stake amount, timelock, finality providers) together
 with the staking parameters to construct the necessary
 transactiosn required by the Bitcoin Staking protocol.
 
