@@ -1,45 +1,12 @@
-export enum ContractId {
-  STAKING = "babylon:staking",
-  UNBONDING = "babylon:unbonding",
-  SLASHING = "babylon:slashing",
-  WITHDRAW = "babylon:withdraw",
-  SLASHING_BURN = "babylon:slashing-burn",
-}
+import { Action } from "./action";
+import { Contract } from "./contract";
 
-export type ContractData = Record<
-  string,
-  string | number | string[] | number[]
->;
-
-export type RegistrationStep =
-  | "staking-slashing"
-  | "unbonding-slashing"
-  | "proof-of-possession"
-  | "create-btc-delegation-msg";
-
-export type WithdrawalType = "staking-expired" | "early-unbonded" | "slashing";
-
-type EventData = any; // not implemented
-
-export interface ManagerEvents {
-  "delegation:create": (step: RegistrationStep, data?: EventData) => void;
-  "delegation:register": (step: RegistrationStep, data?: EventData) => void;
-  "delegation:stake": (data?: EventData) => void;
-  "delegation:unbond": (data?: EventData) => void;
-  "delegation:withdraw": (type: WithdrawalType, data?: EventData) => void;
-}
-
-export type DelegationEvent = keyof ManagerEvents;
-
-export interface Contract {
-  id: ContractId;
-  params: ContractData;
-}
 // Provides additional information about the transaction
 // Allows users to visually compare and verify contract parameters
 // before signing the transaction
 export interface SignPsbtOptions {
-  contracts?: Contract[];
+  contracts: Contract[];
+  actions: Action;
 }
 
 export interface BtcProvider {

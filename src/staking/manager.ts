@@ -18,10 +18,7 @@ import { TransactionResult, UTXO } from "../types";
 import {
   BabylonProvider,
   BtcProvider,
-  Contract,
-  ContractId,
   InclusionProof,
-  ManagerEvents,
   StakingInputs,
 } from "../types/manager";
 import { StakingParams, VersionedStakingParams } from "../types/params";
@@ -37,6 +34,9 @@ import {
   getBabylonParamByVersion,
 } from "../utils/staking/param";
 import { createCovenantWitness } from "./transactions";
+import { ManagerEvents } from "../types/events";
+import { Contract, ContractId } from "../types/contract";
+import { ActionName } from "../types/action";
 
 export class BabylonBtcStakingManager {
   constructor(
@@ -307,7 +307,12 @@ export class BabylonBtcStakingManager {
     this.ee?.emit("delegation:stake");
     const signedStakingPsbtHex = await this.btcProvider.signPsbt(
       stakingPsbt.toHex(),
-      { contracts },
+      { 
+        contracts,
+        actions: {
+          name: ActionName.SIGN_BTC_STAKING_TRANSACTION,
+        },
+      },
     );
 
     return Psbt.fromHex(signedStakingPsbtHex).extractTransaction();
@@ -380,7 +385,12 @@ export class BabylonBtcStakingManager {
     this.ee?.emit("delegation:unbond");
     const signedUnbondingPsbtHex = await this.btcProvider.signPsbt(
       psbt.toHex(),
-      { contracts },
+      { 
+        contracts,
+        actions: {
+          name: ActionName.SIGN_BTC_UNBONDING_TRANSACTION,
+        },
+      },
     );
 
     const signedUnbondingTx = Psbt.fromHex(
@@ -511,7 +521,12 @@ export class BabylonBtcStakingManager {
     this.ee?.emit("delegation:withdraw", "early-unbonded");
     const signedWithdrawalPsbtHex = await this.btcProvider.signPsbt(
       unbondingPsbt.toHex(),
-      { contracts },
+      { 
+        contracts,
+        actions: {
+          name: ActionName.SIGN_BTC_WITHDRAW_TRANSACTION,
+        },
+      },
     );
 
     return {
@@ -572,7 +587,12 @@ export class BabylonBtcStakingManager {
     this.ee?.emit("delegation:withdraw", "staking-expired");
     const signedWithdrawalPsbtHex = await this.btcProvider.signPsbt(
       psbt.toHex(),
-      { contracts },
+      { 
+        contracts,
+        actions: {
+          name: ActionName.SIGN_BTC_WITHDRAW_TRANSACTION,
+        },
+      },
     );
 
     return {
@@ -633,7 +653,12 @@ export class BabylonBtcStakingManager {
     this.ee?.emit("delegation:withdraw", "slashing");
     const signedWithrawSlashingPsbtHex = await this.btcProvider.signPsbt(
       psbt.toHex(),
-      { contracts },
+      { 
+        contracts,
+        actions: {
+          name: ActionName.SIGN_BTC_WITHDRAW_TRANSACTION,
+        },
+      },
     );
 
     return {
@@ -788,7 +813,12 @@ export class BabylonBtcStakingManager {
     this.ee?.emit(channel, "staking-slashing");
     const signedSlashingPsbtHex = await this.btcProvider.signPsbt(
       slashingPsbt.toHex(),
-      { contracts: slashingContracts },
+      { 
+        contracts: slashingContracts,
+        actions: {
+          name: ActionName.SIGN_BTC_SLASHING_TRANSACTION,
+        },
+      },
     );
 
     const signedSlashingTx = Psbt.fromHex(
@@ -833,7 +863,12 @@ export class BabylonBtcStakingManager {
     this.ee?.emit(channel, "unbonding-slashing");
     const signedUnbondingSlashingPsbtHex = await this.btcProvider.signPsbt(
       unbondingSlashingPsbt.toHex(),
-      { contracts: unbondingSlashingContracts },
+      { 
+        contracts: unbondingSlashingContracts,
+        actions: {
+          name: ActionName.SIGN_BTC_UNBONDING_SLASHING_TRANSACTION,
+        },
+      },
     );
 
     const signedUnbondingSlashingTx = Psbt.fromHex(

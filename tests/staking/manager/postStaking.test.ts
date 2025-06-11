@@ -3,7 +3,7 @@ import { networks, Transaction } from "bitcoinjs-lib";
 import { BabylonBtcStakingManager } from "../../../src/staking/manager";
 
 import { btcstakingtx } from "@babylonlabs-io/babylon-proto-ts";
-import { ContractId } from "../../../src/types/manager";
+import { ContractId } from "../../../src/types/contract";
 import { babylonProvider, btcProvider } from "./__mock__/providers";
 import {
   babylonAddress,
@@ -17,6 +17,7 @@ import {
   stakingInput,
   stakingTx,
 } from "./__mock__/registration";
+import { ActionName } from "../../../src/types/action";
 
 describe("Staking Manager", () => {
   describe("postStakeRegistrationBabylonTransaction", () => {
@@ -155,6 +156,9 @@ describe("Staking Manager", () => {
               },
             },
           ],
+          actions: {
+            name: ActionName.SIGN_BTC_SLASHING_TRANSACTION,
+          },
         });
         expect(btcProvider.signPsbt).toHaveBeenCalledWith(
           unbondingSlashingPsbt,
@@ -189,6 +193,9 @@ describe("Staking Manager", () => {
                 },
               },
             ],
+            actions: {
+              name: ActionName.SIGN_BTC_UNBONDING_SLASHING_TRANSACTION,
+            },
           },
         );
         expect(btcProvider.signMessage).toHaveBeenCalledWith(
