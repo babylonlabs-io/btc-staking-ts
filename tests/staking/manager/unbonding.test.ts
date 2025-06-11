@@ -2,7 +2,7 @@ import { networks, Psbt, Transaction } from "bitcoinjs-lib";
 
 import { BabylonBtcStakingManager } from "../../../src/staking/manager";
 
-import { ContractId } from "../../../src/types/manager";
+import { ContractId } from "../../../src/types/contract";
 import { babylonProvider, btcProvider } from "./__mock__/providers";
 import {
   covenantUnbondingSignatures,
@@ -13,6 +13,7 @@ import {
   unbondingPsbt,
   version,
 } from "./__mock__/unbonding";
+import { ActionName } from "../../../src/types/action";
 
 describe("Staking Manager", () => {
   let manager: BabylonBtcStakingManager;
@@ -86,6 +87,9 @@ describe("Staking Manager", () => {
             },
           },
         ],
+        actions: {
+          name: ActionName.SIGN_BTC_UNBONDING_TRANSACTION,
+        },
       });
       expect(transaction).toEqual(
         Psbt.fromHex(signedUnbondingTx).extractTransaction(),

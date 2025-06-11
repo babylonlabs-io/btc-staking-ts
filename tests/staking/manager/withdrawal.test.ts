@@ -12,7 +12,8 @@ import {
   unboundingTx,
   version,
 } from "./__mock__/withdrawal";
-import { ContractId } from "../../../src/types";
+import { ContractId } from "../../../src/types/contract";
+import { ActionName } from "../../../src/types/action";
 
 describe("Staking Manager", () => {
   describe("Create Withdrawal Transaction", () => {
@@ -77,6 +78,9 @@ describe("Staking Manager", () => {
               },
             },
           ],
+          actions: {
+            name: ActionName.SIGN_BTC_WITHDRAW_TRANSACTION,
+          },
         });
         expect(transaction.toHex()).toBe(
           Psbt.fromHex(signedUnbondingPsbt).extractTransaction().toHex(),
@@ -132,6 +136,9 @@ describe("Staking Manager", () => {
               },
             },
           ],
+          actions: {
+            name: ActionName.SIGN_BTC_WITHDRAW_TRANSACTION,
+          },
         });
         expect(transaction.toHex()).toBe(
           Psbt.fromHex(signedwithdrawPsbt).extractTransaction().toHex(),
@@ -186,6 +193,9 @@ describe("Staking Manager", () => {
               },
             },
           ],
+          actions: {
+            name: ActionName.SIGN_BTC_WITHDRAW_TRANSACTION,
+          },
         });
 
         expect(transaction.toHex()).toBe(
