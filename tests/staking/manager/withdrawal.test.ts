@@ -78,7 +78,7 @@ describe("Staking Manager", () => {
               },
             },
           ],
-          actions: {
+          action: {
             name: ActionName.SIGN_BTC_WITHDRAW_TRANSACTION,
           },
         });
@@ -136,7 +136,7 @@ describe("Staking Manager", () => {
               },
             },
           ],
-          actions: {
+          action: {
             name: ActionName.SIGN_BTC_WITHDRAW_TRANSACTION,
           },
         });
@@ -193,7 +193,7 @@ describe("Staking Manager", () => {
               },
             },
           ],
-          actions: {
+          action: {
             name: ActionName.SIGN_BTC_WITHDRAW_TRANSACTION,
           },
         });

@@ -309,7 +309,7 @@ export class BabylonBtcStakingManager {
       stakingPsbt.toHex(),
       { 
         contracts,
-        actions: {
+        action: {
           name: ActionName.SIGN_BTC_STAKING_TRANSACTION,
         },
       },
@@ -387,7 +387,7 @@ export class BabylonBtcStakingManager {
       psbt.toHex(),
       { 
         contracts,
-        actions: {
+        action: {
           name: ActionName.SIGN_BTC_UNBONDING_TRANSACTION,
         },
       },
@@ -523,7 +523,7 @@ export class BabylonBtcStakingManager {
       unbondingPsbt.toHex(),
       { 
         contracts,
-        actions: {
+        action: {
           name: ActionName.SIGN_BTC_WITHDRAW_TRANSACTION,
         },
       },
@@ -589,7 +589,7 @@ export class BabylonBtcStakingManager {
       psbt.toHex(),
       { 
         contracts,
-        actions: {
+        action: {
           name: ActionName.SIGN_BTC_WITHDRAW_TRANSACTION,
         },
       },
@@ -655,7 +655,7 @@ export class BabylonBtcStakingManager {
       psbt.toHex(),
       { 
         contracts,
-        actions: {
+        action: {
           name: ActionName.SIGN_BTC_WITHDRAW_TRANSACTION,
         },
       },
@@ -815,7 +815,7 @@ export class BabylonBtcStakingManager {
       slashingPsbt.toHex(),
       { 
         contracts: slashingContracts,
-        actions: {
+        action: {
           name: ActionName.SIGN_BTC_SLASHING_TRANSACTION,
         },
       },
@@ -865,7 +865,7 @@ export class BabylonBtcStakingManager {
       unbondingSlashingPsbt.toHex(),
       { 
         contracts: unbondingSlashingContracts,
-        actions: {
+        action: {
           name: ActionName.SIGN_BTC_UNBONDING_SLASHING_TRANSACTION,
         },
       },
