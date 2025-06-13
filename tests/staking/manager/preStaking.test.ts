@@ -172,7 +172,7 @@ describe("Staking Manager", () => {
               },
             },
           ],
-          actions: {
+          action: {
             name: ActionName.SIGN_BTC_SLASHING_TRANSACTION,
           },
         });
@@ -209,7 +209,7 @@ describe("Staking Manager", () => {
                 },
               },
             ],
-            actions: {
+            action: {
               name: ActionName.SIGN_BTC_UNBONDING_SLASHING_TRANSACTION,
             },
           },

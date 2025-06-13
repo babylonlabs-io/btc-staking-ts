@@ -6,7 +6,7 @@ import { Contract } from "./contract";
 // before signing the transaction
 export interface SignPsbtOptions {
   contracts: Contract[];
-  actions: Action;
+  action: Action;
 }
 
 export interface BtcProvider {

@@ -100,7 +100,7 @@ describe("Staking Manager", () => {
             },
           },
         ],
-        actions: {
+        action: {
           name: ActionName.SIGN_BTC_STAKING_TRANSACTION,
         },
       });
