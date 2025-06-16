@@ -11,3 +11,4 @@ jobs:
     with:
       run-build: true
       run-unit-tests: true
+      node-version: 24.2
