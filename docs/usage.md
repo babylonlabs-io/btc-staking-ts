@@ -88,8 +88,8 @@ const stakerInfo = {
 }
 
 const stakerInput = {
-  // The chosen finality providers public keys in compressed 32 bytes x-coordinate
-  // only format.
+  // The chosen finality providers public keys in compressed 32 bytes
+  // x-coordinate only hex format.
   finalityProviderPksNoCoordHex: string[],
   // Amount of satoshis staker choose to stake
   stakingAmountSat: number,
@@ -154,6 +154,20 @@ export interface BabylonProvider {
   ) => Promise<Uint8Array>
 }
 ```
+
+The `SignPsbtOptions` interface contains the following fields:
+
+1. `contracts`: An array of contracts to be used for the transaction. These align with 
+   pre-defined contracts for Babylon Genesis in the Unisat verifier plugin 
+   (see [source code](https://github.com/unisat-wallet/bitcoin-address-verifier/tree/master/src/plugins/babylon)). 
+   The signing provider can use this field to derive and verify the tapscript address.
+
+2. `action`: Specifies the type of transaction being signed, such as:
+   - `sign-btc-staking-transaction` 
+   - `sign-btc-withdraw-transaction`
+   - `sign-btc-unbonding-transaction`
+   
+   These values are defined in the `Action` interface and help identify the transaction purpose.
 
 ## 2. Staking Manager Initialization
 
