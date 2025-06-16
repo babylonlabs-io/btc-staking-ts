@@ -1,9 +1,6 @@
 import { networks, Psbt } from "bitcoinjs-lib";
 
-import {
-  BabylonBtcStakingManager,
-  SigningStep,
-} from "../../../src/staking/manager";
+import { BabylonBtcStakingManager } from "../../../src/staking/manager";
 
 import { babylonProvider, btcProvider } from "./__mock__/providers";
 import {
@@ -15,6 +12,8 @@ import {
   unboundingTx,
   version,
 } from "./__mock__/withdrawal";
+import { ContractId } from "../../../src/types/contract";
+import { ActionName } from "../../../src/types/action";
 
 describe("Staking Manager", () => {
   describe("Create Withdrawal Transaction", () => {
@@ -69,10 +68,20 @@ describe("Staking Manager", () => {
             4,
           );
 
-        expect(btcProvider.signPsbt).toHaveBeenCalledWith(
-          SigningStep.WITHDRAW_EARLY_UNBONDED,
-          unbondingPsbt,
-        );
+        expect(btcProvider.signPsbt).toHaveBeenCalledWith(unbondingPsbt, {
+          contracts: [
+            {
+              id: ContractId.WITHDRAW,
+              params: {
+                stakerPk: stakerInfo.publicKeyNoCoordHex,
+                timelockBlocks: params[version].unbondingTime,
+              },
+            },
+          ],
+          action: {
+            name: ActionName.SIGN_BTC_WITHDRAW_TRANSACTION,
+          },
+        });
         expect(transaction.toHex()).toBe(
           Psbt.fromHex(signedUnbondingPsbt).extractTransaction().toHex(),
         );
@@ -101,27 +110,38 @@ describe("Staking Manager", () => {
       });
 
       it("should create withdrawal tx", async () => {
-        const unbondingPsbt =
+        const withdrawPsbt =
           "70736274ff01005e0200000001260d8608c71a9dbe5573a2d25450bc1830c7ace5a9615016e1e5dabac32af0d1000000000064000000010c25000000000000225120f8115abbfc76b4c0d938c09511b76bfe43332b7126534f1082d693f419a9adce000000000001012b1027000000000000225120de38b90b3e98822941d246c36859553591477a0b0eeb25a5bcda525b98849ecf6215c050929b74c1a04954b78b4b6035e97a5e078a5a0f28ec96d547bfee9ace803ac08317b993160b148500d8fc1f6520c7f8ead4ae9537268552dcc20238fb6bb3f5802f5c2c331475f980037e78432f190e3d30cedf9b61556eba388ab7faad9dbd26200874876147fd7522d617e83bf845f7fb4981520e3c2f749ad4a2ca1bd660ef0cad0164b2c001172050929b74c1a04954b78b4b6035e97a5e078a5a0f28ec96d547bfee9ace803ac00000";
-        const signedUnbondingPsbt =
+        const signedwithdrawPsbt =
           "70736274ff01005e0200000001260d8608c71a9dbe5573a2d25450bc1830c7ace5a9615016e1e5dabac32af0d1000000000064000000010c25000000000000225120f8115abbfc76b4c0d938c09511b76bfe43332b7126534f1082d693f419a9adce000000000001012b1027000000000000225120de38b90b3e98822941d246c36859553591477a0b0eeb25a5bcda525b98849ecf0108ca0340726cd5ac48fe5728720d4179a68d4fe59076762f980626a82bc83c9d89c750364b4cd9d0a5acbf9259e2fe3977c7becc5e16b24dde88fe2792095b23ada1ffdf25200874876147fd7522d617e83bf845f7fb4981520e3c2f749ad4a2ca1bd660ef0cad0164b261c050929b74c1a04954b78b4b6035e97a5e078a5a0f28ec96d547bfee9ace803ac08317b993160b148500d8fc1f6520c7f8ead4ae9537268552dcc20238fb6bb3f5802f5c2c331475f980037e78432f190e3d30cedf9b61556eba388ab7faad9dbd0000";
-        btcProvider.signPsbt.mockResolvedValueOnce(signedUnbondingPsbt);
+        btcProvider.signPsbt.mockResolvedValueOnce(signedwithdrawPsbt);
 
         const { transaction, fee } =
           await manager.createSignedBtcWithdrawStakingExpiredTransaction(
             stakerInfo,
             stakingInput,
             version,
+            
             stakingTx,
             4,
           );
 
-        expect(btcProvider.signPsbt).toHaveBeenCalledWith(
-          SigningStep.WITHDRAW_STAKING_EXPIRED,
-          unbondingPsbt,
-        );
+        expect(btcProvider.signPsbt).toHaveBeenCalledWith(withdrawPsbt, {
+          contracts: [
+            {
+              id: ContractId.WITHDRAW,
+              params: {
+                stakerPk: stakerInfo.publicKeyNoCoordHex,
+                timelockBlocks: stakingInput.stakingTimelock,
+              },
+            },
+          ],
+          action: {
+            name: ActionName.SIGN_BTC_WITHDRAW_TRANSACTION,
+          },
+        });
         expect(transaction.toHex()).toBe(
-          Psbt.fromHex(signedUnbondingPsbt).extractTransaction().toHex(),
+          Psbt.fromHex(signedwithdrawPsbt).extractTransaction().toHex(),
         );
         expect(fee).toEqual(516);
       });
@@ -163,10 +183,21 @@ describe("Staking Manager", () => {
             2,
           );
 
-        expect(btcProvider.signPsbt).toHaveBeenCalledWith(
-          SigningStep.WITHDRAW_SLASHING,
-          slashingPsbt,
-        );
+        expect(btcProvider.signPsbt).toHaveBeenCalledWith(slashingPsbt, {
+          contracts: [
+            {
+              id: ContractId.WITHDRAW,
+              params: {
+                stakerPk: stakerInfo.publicKeyNoCoordHex,
+                timelockBlocks: params[version].unbondingTime,
+              },
+            },
+          ],
+          action: {
+            name: ActionName.SIGN_BTC_WITHDRAW_TRANSACTION,
+          },
+        });
+
         expect(transaction.toHex()).toBe(
           Psbt.fromHex(signedSlashingPsbt).extractTransaction().toHex(),
         );

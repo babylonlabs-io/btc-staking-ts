@@ -1,13 +1,21 @@
-/**
- * Enum for standardized contract IDs used in BTC staking operations
- * These IDs are used when signing PSBTs to identify the contract context
- */
+// Contracts are parameters that were used to derive a transaction input/output
+// address. For example, the tapscript address of the staking transaction.
+// The interface for the contract is defined with unisat
+// https://github.com/unisat-wallet/bitcoin-address-verifier/tree/master/src/plugins/babylon
+export interface Contract {
+  id: ContractId;
+  params: ContractData;
+}
 
 export enum ContractId {
   STAKING = "babylon:staking",
   UNBONDING = "babylon:unbonding",
   SLASHING = "babylon:slashing",
-  WITHDRAW_STAKING_EXPIRED = "babylon:withdraw-staking-expired",
-  WITHDRAW_EARLY_UNBONDED = "babylon:withdraw-early-unbonded",
-  WITHDRAW_SLASHING = "babylon:withdraw-slashing",
+  WITHDRAW = "babylon:withdraw",
+  SLASHING_BURN = "babylon:slashing-burn",
 }
+
+export type ContractData = Record<
+  string,
+  string | number | string[] | number[]
+>;

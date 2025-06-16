@@ -1,12 +1,9 @@
 import { networks, Transaction } from "bitcoinjs-lib";
 
-import {
-  BabylonBtcStakingManager,
-  SigningStep,
-} from "../../../src/staking/manager";
+import { BabylonBtcStakingManager } from "../../../src/staking/manager";
 
 import { btcstakingtx } from "@babylonlabs-io/babylon-proto-ts";
-import { ContractId } from "../../../src";
+import { ContractId } from "../../../src/types/contract";
 import { babylonProvider, btcProvider } from "./__mock__/providers";
 import {
   babylonAddress,
@@ -20,6 +17,7 @@ import {
   stakingInput,
   stakingTx,
 } from "./__mock__/registration";
+import { ActionName } from "../../../src/types/action";
 
 describe("Staking Manager", () => {
   describe("postStakeRegistrationBabylonTransaction", () => {
@@ -129,37 +127,40 @@ describe("Staking Manager", () => {
           babylonAddress,
         );
 
-        expect(btcProvider.signPsbt).toHaveBeenCalledWith(
-          SigningStep.STAKING_SLASHING,
-          slashingPsbt,
-          {
-            contracts: [
-              {
-                id: ContractId.STAKING,
-                params: {
-                  stakerPk: stakerInfo.publicKeyNoCoordHex,
-                  finalityProviders: [
-                    stakingInput.finalityProviderPkNoCoordHex,
-                  ],
-                  covenantPks: params[version].covenantNoCoordPks,
-                  covenantThreshold: params[version].covenantQuorum,
-                  minUnbondingTime: params[version].unbondingTime,
-                  stakingDuration: stakingInput.stakingTimelock,
-                },
+        expect(btcProvider.signPsbt).toHaveBeenCalledWith(slashingPsbt, {
+          contracts: [
+            {
+              id: ContractId.STAKING,
+              params: {
+                stakerPk: stakerInfo.publicKeyNoCoordHex,
+                finalityProviders: [stakingInput.finalityProviderPkNoCoordHex],
+                covenantPks: params[version].covenantNoCoordPks,
+                covenantThreshold: params[version].covenantQuorum,
+                minUnbondingTime: params[version].unbondingTime,
+                stakingDuration: stakingInput.stakingTimelock,
               },
-              {
-                id: ContractId.SLASHING,
-                params: {
-                  stakerPk: stakerInfo.publicKeyNoCoordHex,
-                  unbondingTimeBlocks: params[version].unbondingTime,
-                  slashingFeeSat: params[version].slashing?.minSlashingTxFeeSat,
-                },
+            },
+            {
+              id: ContractId.SLASHING,
+              params: {
+                stakerPk: stakerInfo.publicKeyNoCoordHex,
+                unbondingTimeBlocks: params[version].unbondingTime,
+                slashingFeeSat: params[version].slashing?.minSlashingTxFeeSat,
               },
-            ],
+            },
+            {
+              id: ContractId.SLASHING_BURN,
+              params: {
+                stakerPk: stakerInfo.publicKeyNoCoordHex,
+                slashingPkScriptHex: params[version].slashing?.slashingPkScriptHex,
+              },
+            },
+          ],
+          action: {
+            name: ActionName.SIGN_BTC_SLASHING_TRANSACTION,
           },
-        );
+        });
         expect(btcProvider.signPsbt).toHaveBeenCalledWith(
-          SigningStep.UNBONDING_SLASHING,
           unbondingSlashingPsbt,
           {
             contracts: [
@@ -184,17 +185,26 @@ describe("Staking Manager", () => {
                   slashingFeeSat: params[version].slashing?.minSlashingTxFeeSat,
                 },
               },
+              {
+                id: ContractId.SLASHING_BURN,
+                params: {
+                  stakerPk: stakerInfo.publicKeyNoCoordHex,
+                  slashingPkScriptHex: params[version].slashing?.slashingPkScriptHex,
+                },
+              },
             ],
+            action: {
+              name: ActionName.SIGN_BTC_UNBONDING_SLASHING_TRANSACTION,
+            },
           },
         );
         expect(btcProvider.signMessage).toHaveBeenCalledWith(
-          SigningStep.PROOF_OF_POSSESSION,
           babylonAddress,
           signType,
         );
         expect(
           btcstakingtx.MsgCreateBTCDelegation.toJSON(
-            babylonProvider.signTransaction.mock.calls[0][1].value,
+            babylonProvider.signTransaction.mock.calls[0][0].value,
           ),
         ).toEqual(postStakingDelegationMsg);
       },

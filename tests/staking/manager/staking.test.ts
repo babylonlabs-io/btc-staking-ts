@@ -1,13 +1,12 @@
 import { networks, Psbt, Transaction } from "bitcoinjs-lib";
 
-import { ContractId, getPublicKeyNoCoord, type UTXO } from "../../../src";
-import {
-  BabylonBtcStakingManager,
-  SigningStep,
-} from "../../../src/staking/manager";
+import { getPublicKeyNoCoord, type UTXO } from "../../../src";
+import { BabylonBtcStakingManager } from "../../../src/staking/manager";
 
 import { babylonProvider, btcProvider } from "./__mock__/providers";
 import { params, stakerInfo, utxos } from "./__mock__/staking";
+import { ContractId } from "../../../src/types/contract";
+import { ActionName } from "../../../src/types/action";
 
 const unsignedStakingTx = Transaction.fromHex(
   "0200000001d66d8d533edc3bcc5c5a5b0ec4b1ec7180761226cfe6a38e7af48fe2028c6a220100000000ffffffff02f82a000000000000225120c3177fd7052d79a2d50a5c60217f0b5855371fe5f9a5322bafa8fcd24a3c31a354da820000000000225120f8115abbfc76b4c0d938c09511b76bfe43332b7126534f1082d693f419a9adce00000000",
@@ -87,25 +86,24 @@ describe("Staking Manager", () => {
         version,
       );
 
-      expect(btcProvider.signPsbt).toHaveBeenLastCalledWith(
-        SigningStep.STAKING,
-        unsignedTx,
-        {
-          contracts: [
-            {
-              id: ContractId.STAKING,
-              params: {
-                stakerPk: stakerInfo.publicKeyNoCoordHex,
-                finalityProviders: [stakingInput.finalityProviderPkNoCoordHex],
-                covenantPks: params[version].covenantNoCoordPks,
-                covenantThreshold: params[version].covenantQuorum,
-                minUnbondingTime: params[version].unbondingTime,
-                stakingDuration: stakingInput.stakingTimelock,
-              },
+      expect(btcProvider.signPsbt).toHaveBeenLastCalledWith(unsignedTx, {
+        contracts: [
+          {
+            id: ContractId.STAKING,
+            params: {
+              stakerPk: stakerInfo.publicKeyNoCoordHex,
+              finalityProviders: [stakingInput.finalityProviderPkNoCoordHex],
+              covenantPks: params[version].covenantNoCoordPks,
+              covenantThreshold: params[version].covenantQuorum,
+              minUnbondingTime: params[version].unbondingTime,
+              stakingDuration: stakingInput.stakingTimelock,
             },
-          ],
+          },
+        ],
+        action: {
+          name: ActionName.SIGN_BTC_STAKING_TRANSACTION,
         },
-      );
+      });
       expect(tx).toEqual(Psbt.fromHex(signedTx).extractTransaction());
     });
   });

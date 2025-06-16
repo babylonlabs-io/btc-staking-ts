@@ -131,7 +131,6 @@ Below we define the expected interface for both of the above providers.
 export interface BtcProvider {
   // Sign a PSBT
   signPsbt(
-    signingStep: SigningStep,
     psbtHex: string,
     options?: SignPsbtOptions
   ): Promise<string>;
@@ -139,16 +138,15 @@ export interface BtcProvider {
   // This is optional and only required if you would like to use the
   // `createProofOfPossession` function
   signMessage?: (
-    signingStep: SigningStep, message: string, type: "ecdsa" || "bip322-simple"
+    message: string, type: "ecdsa" || "bip322-simple"
   ) => Promise<string>;
 }
 
 export interface BabylonProvider {
-  // Signs a Babylon chain transaction using the provided signing step.
+  // Signs a Babylon chain transaction.
   // This is primarily used for signing MsgCreateBTCDelegation transactions
   // which register the BTC delegation on the Babylon Genesis chain.
   signTransaction: <T extends object>(
-    signingStep: SigningStep,
     msg: {
       typeUrl: string;
       value: T;
