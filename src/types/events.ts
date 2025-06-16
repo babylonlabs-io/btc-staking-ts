@@ -10,11 +10,11 @@ type EventData = any; // not implemented
 
 // Events are emitted by manager and used for the staking dashboard UI only.
 export interface ManagerEvents {
-  "delegation:create": (step: RegistrationStep, data?: EventData) => void;
-  "delegation:register": (step: RegistrationStep, data?: EventData) => void;
+  "delegation:create": (data?: EventData) => void;
+  "delegation:register": (data?: EventData) => void;
   "delegation:stake": (data?: EventData) => void;
   "delegation:unbond": (data?: EventData) => void;
-  "delegation:withdraw": (type: WithdrawalType, data?: EventData) => void;
+  "delegation:withdraw": (data?: EventData) => void;
 }
 
 export type DelegationEvent = keyof ManagerEvents;
