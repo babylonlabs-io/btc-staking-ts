@@ -42,7 +42,7 @@ export interface BabylonProvider {
 }
 
 export interface StakingInputs {
-  finalityProviderPkNoCoordHex: string;
+  finalityProviderPksNoCoordHex: string[];
   stakingAmountSat: number;
   stakingTimelock: number;
 }

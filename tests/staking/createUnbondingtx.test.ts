@@ -16,7 +16,7 @@ describe.each(testingNetworks)("Create unbonding transaction", ({
     timelock,
     stakerInfo,
     params,
-    finalityProviderPkNoCoordHex,
+    finalityProviderPksNoCoordHex,
     stakingAmountSat,
   } = dataGenerator.generateRandomStakingTransaction(
     network,
@@ -30,7 +30,7 @@ describe.each(testingNetworks)("Create unbonding transaction", ({
     jest.restoreAllMocks();
     staking = new Staking(
       network, stakerInfo,
-      params, finalityProviderPkNoCoordHex, timelock,
+      params, finalityProviderPksNoCoordHex, timelock,
     );
   });
 
