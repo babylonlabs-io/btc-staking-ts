@@ -28,7 +28,7 @@
     "btc-staking"
   ],
   "engines": {
-    "node": "22.3.0"
+    "node": "24.2.0"
   },
   "husky": {
     "hooks": {
