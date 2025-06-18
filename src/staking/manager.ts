@@ -732,6 +732,7 @@ export class BabylonBtcStakingManager {
     }
 
     this.ee?.emit(channel, {
+      bech32Address,
       type: "proof-of-possession",
     });
 
