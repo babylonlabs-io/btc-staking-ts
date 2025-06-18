@@ -6,7 +6,7 @@ export type RegistrationStep =
 
 export type WithdrawalType = "staking-expired" | "early-unbonded" | "slashing";
 
-type EventData = any; // not implemented
+type EventData = Record<string, string | number | string[] | number[]>;
 
 // Events are emitted by manager and used for the staking dashboard UI only.
 export interface ManagerEvents {
