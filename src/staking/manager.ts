@@ -37,6 +37,7 @@ import {
   getBabylonParamByVersion,
 } from "../utils/staking/param";
 import { createCovenantWitness } from "./transactions";
+import { sha256 } from "bitcoinjs-lib/src/crypto";
 
 export class BabylonBtcStakingManager {
   constructor(
@@ -731,13 +732,19 @@ export class BabylonBtcStakingManager {
       sigType = BTCSigType.BIP322;
     }
 
+    // Constructe the context hash in hex format
+    const contextHash = sha256(
+      Buffer.from("btcstaking/0/staker_pop/bsn-devnet-1/bbn13837feaxn8t0zvwcjwhw7lhpgdcx4s36eqteah", "utf8"),
+    ).toString("hex");
+    const messageToSign = contextHash + bech32Address;
+
     this.ee?.emit(channel, {
-      bech32Address,
+      messageToSign,
       type: "proof-of-possession",
     });
 
     const signedBabylonAddress = await this.btcProvider.signMessage(
-      bech32Address,
+      messageToSign,
       sigType === BTCSigType.BIP322 ? "bip322-simple" : "ecdsa",
     );
 
