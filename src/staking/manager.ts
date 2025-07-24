@@ -9,6 +9,7 @@ import {
   ProofOfPossessionBTC,
 } from "@babylonlabs-io/babylon-proto-ts/dist/generated/babylon/btcstaking/v1/pop";
 import { Psbt, Transaction, networks } from "bitcoinjs-lib";
+import { sha256 } from "bitcoinjs-lib/src/crypto";
 import type { Emitter } from "nanoevents";
 
 import { StakerInfo, Staking } from ".";
@@ -39,12 +40,23 @@ import {
 import { createCovenantWitness } from "./transactions";
 
 export class BabylonBtcStakingManager {
+  private chainId?: string;
+  private popUpgradeHeight: number;
+  private stakingModuleAddress?: string;
+  private getCurrentHeight?: () => Promise<number>;
+
   constructor(
     private network: networks.Network,
     private stakingParams: VersionedStakingParams[],
     private btcProvider: BtcProvider,
     private babylonProvider: BabylonProvider,
     private ee?: Emitter<ManagerEvents>,
+    options?: {
+      chainId?: string;
+      popUpgradeHeight?: number;
+      stakingModuleAddress?: string;
+      getCurrentHeight?: () => Promise<number>;
+    },
   ) {
     this.network = network;
 
@@ -52,6 +64,26 @@ export class BabylonBtcStakingManager {
       throw new Error("No staking parameters provided");
     }
     this.stakingParams = stakingParams;
+
+    // Store POP upgrade options
+    this.chainId = options?.chainId;
+    this.popUpgradeHeight = options?.popUpgradeHeight ?? 0;
+    this.stakingModuleAddress = options?.stakingModuleAddress;
+    this.getCurrentHeight = options?.getCurrentHeight;
+  }
+
+  /**
+   * Creates the context string for the staker POP following RFC-036.
+   * @returns The SHA-256 hash of the context string.
+   */
+  private createStakerPopContext(): string {
+    if (!this.chainId || !this.stakingModuleAddress) {
+      throw new Error(
+        "chainId and stakingModuleAddress required for context generation",
+      );
+    }
+    const contextString = `btcstaking/0/staker_pop/${this.chainId}/${this.stakingModuleAddress}`;
+    return sha256(Buffer.from(contextString, "utf8")).toString("hex");
   }
 
   /**
@@ -731,13 +763,32 @@ export class BabylonBtcStakingManager {
       sigType = BTCSigType.BIP322;
     }
 
+    // Determine message format based on the height. If the height is greater or equal to the POP upgrade height,
+    // we use the new format with the context hash. Otherwise, we use the babylon address that doesn't have the context hash.
+    let messageToSign = bech32Address;
+
+    if (this.popUpgradeHeight !== undefined && this.getCurrentHeight) {
+      try {
+        const currentHeight = await this.getCurrentHeight();
+        if (currentHeight >= this.popUpgradeHeight) {
+          const contextHash = this.createStakerPopContext();
+          messageToSign = contextHash + bech32Address;
+        }
+      } catch (error) {
+        // If the height detection fails, we throw an error
+        throw new Error(
+          `Failed to get current height for POP context: ${error instanceof Error ? error.message : String(error)}`
+        );
+      }
+    }
+
     this.ee?.emit(channel, {
       bech32Address,
       type: "proof-of-possession",
     });
 
     const signedBabylonAddress = await this.btcProvider.signMessage(
-      bech32Address,
+      messageToSign,
       sigType === BTCSigType.BIP322 ? "bip322-simple" : "ecdsa",
     );
 
