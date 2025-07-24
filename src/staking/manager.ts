@@ -41,7 +41,7 @@ import { createCovenantWitness } from "./transactions";
 
 export class BabylonBtcStakingManager {
   private chainId?: string;
-  private popUpgradeHeight: number;
+  private popUpgradeHeight?: number;
   private stakingModuleAddress?: string;
   private getCurrentHeight?: () => Promise<number>;
 
@@ -67,7 +67,7 @@ export class BabylonBtcStakingManager {
 
     // Store POP upgrade options
     this.chainId = options?.chainId;
-    this.popUpgradeHeight = options?.popUpgradeHeight ?? 0;
+    this.popUpgradeHeight = options?.popUpgradeHeight;
     this.stakingModuleAddress = options?.stakingModuleAddress;
     this.getCurrentHeight = options?.getCurrentHeight;
   }
