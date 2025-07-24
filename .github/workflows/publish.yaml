@@ -15,4 +15,4 @@ jobs:
       run-build: true
       run-unit-tests: true
       use-semantic-release: true
-      node-version: 24
+      node-version: 24.2
