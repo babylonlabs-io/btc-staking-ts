@@ -42,7 +42,6 @@ export interface BabylonProvider {
 
   /**
    * Gets the current height of the Babylon Genesis chain.
-   * This is used for determining the POP context format based on upgrade height.
    *
    * @returns {Promise<number>} The current Babylon chain height
    */

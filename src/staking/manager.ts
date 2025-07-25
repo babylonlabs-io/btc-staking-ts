@@ -9,7 +9,6 @@ import {
   ProofOfPossessionBTC,
 } from "@babylonlabs-io/babylon-proto-ts/dist/generated/babylon/btcstaking/v1/pop";
 import { Psbt, Transaction, networks } from "bitcoinjs-lib";
-import { sha256 } from "bitcoinjs-lib/src/crypto";
 import type { Emitter } from "nanoevents";
 
 import { StakerInfo, Staking } from ".";
@@ -31,6 +30,10 @@ import { reverseBuffer } from "../utils";
 import { isValidBabylonAddress } from "../utils/babylon";
 import { isNativeSegwit, isTaproot } from "../utils/btc";
 import {
+  createPopMessageToSign,
+  UpgradeConfig,
+} from "../utils/pop";
+import {
   deriveStakingOutputInfo,
   findMatchingTxOutputIndex,
 } from "../utils/staking";
@@ -42,8 +45,7 @@ import {
 import { createCovenantWitness } from "./transactions";
 
 export class BabylonBtcStakingManager {
-  private popUpgradeHeight?: number;
-  private popVersion?: number;
+  private upgradeConfig?: UpgradeConfig;
 
   constructor(
     private network: networks.Network,
@@ -51,10 +53,7 @@ export class BabylonBtcStakingManager {
     private btcProvider: BtcProvider,
     private babylonProvider: BabylonProvider,
     private ee?: Emitter<ManagerEvents>,
-    upgradeConfig?: {
-      popUpgradeHeight?: number;
-      popVersion?: number;
-    },
+    upgradeConfig?: UpgradeConfig,
   ) {
     this.network = network;
 
@@ -63,12 +62,8 @@ export class BabylonBtcStakingManager {
     }
     this.stakingParams = stakingParams;
 
-    // Store POP upgrade options
-    this.popUpgradeHeight = upgradeConfig?.popUpgradeHeight;
-    this.popVersion = upgradeConfig?.popVersion ?? 0;
+    this.upgradeConfig = upgradeConfig;
   }
-
-
 
   /**
    * Creates a signed Pre-Staking Registration transaction that is ready to be
@@ -747,7 +742,12 @@ export class BabylonBtcStakingManager {
       sigType = BTCSigType.BIP322;
     }
 
-    const messageToSign = await this.createPopMessageToSign(bech32Address);
+    // Get the message to sign for the proof of possession
+    const messageToSign = await createPopMessageToSign(
+      bech32Address,
+      this.babylonProvider,
+      this.upgradeConfig?.pop,
+    );
 
     this.ee?.emit(channel, {
       bech32Address,
@@ -1012,21 +1012,6 @@ export class BabylonBtcStakingManager {
   }
 
   /**
-   * Creates the context string for the staker POP following RFC-036.
-   * See: https://github.com/babylonlabs-io/pm/blob/main/rfc/rfc-036-replay-attack-protection.md
-   * @param chainId - The Babylon chain ID
-   * @param popContextVersion - The POP context version (defaults to 0)
-   * @returns The hex encoded SHA-256 hash of the context string.
-   */
-  private createStakerPopContext(
-    chainId: string,
-    popContextVersion: number = 0,
-  ): string {
-    const contextString = `btcstaking/${popContextVersion}/staker_pop/${chainId}/${STAKING_MODULE_ADDRESS}`;
-    return sha256(Buffer.from(contextString, "utf8")).toString("hex");
-  }
-
-  /**
    * Gets the inclusion proof for the staking transaction.
    * See the type `InclusionProof` for more information
    * @param inclusionProof - The inclusion proof.
@@ -1050,44 +1035,6 @@ export class BabylonBtcStakingManager {
       key: inclusionProofKey,
       proof: Uint8Array.from(Buffer.from(proofHex, "hex")),
     });
-  }
-
-  /**
-   * Creates the message to sign for proof of possession based on the current
-   * Babylon tip height and POP upgrade configuration.
-   * 
-   * @param bech32Address - The staker's bech32 address
-   * @returns The message to sign (either just the address or context hash + address)
-   */
-  private async createPopMessageToSign(bech32Address: string): Promise<string> {
-    // If no upgrade height is configured, use legacy format
-    if (this.popUpgradeHeight === undefined) {
-      return bech32Address;
-    }
-
-    // Get current Babylon tip height
-    let currentHeight: number;
-    try {
-      currentHeight = await this.babylonProvider.getCurrentHeight();
-    } catch (error) {
-      throw new Error(
-        `Failed to get current height for POP context: ${error instanceof Error ? error.message : String(error)}`
-      );
-    }
-
-    // RFC-036: If the Babylon tip height is greater than or equal to the POP context
-    // upgrade height, use the new context format. See:
-    // https://github.com/babylonlabs-io/pm/blob/main/rfc/rfc-036-replay-attack-protection.md
-    // (Section: "Handle complexity on Client side")
-    // Here, currentHeight refers to the Babylon tip height.
-    if (currentHeight >= this.popUpgradeHeight) {
-      const chainId = await this.babylonProvider.getChainId();
-      const contextHash = this.createStakerPopContext(chainId, this.popVersion);
-      return contextHash + bech32Address;
-    }
-
-    // Use legacy format (just the bech32 address)
-    return bech32Address;
   }
 }
 

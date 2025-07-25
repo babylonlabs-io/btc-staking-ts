@@ -8,3 +8,5 @@ export const babylonProvider = {
   getCurrentHeight: jest.fn(),
   getChainId: jest.fn(),
 };
+
+export const mockChainId = "bbn-1";
