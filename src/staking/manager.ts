@@ -14,6 +14,7 @@ import type { Emitter } from "nanoevents";
 
 import { StakerInfo, Staking } from ".";
 import { BABYLON_REGISTRY_TYPE_URLS } from "../constants/registry";
+import { STAKING_MODULE_ADDRESS } from "../constants/staking";
 import { StakingError, StakingErrorCode } from "../error";
 import { TransactionResult, UTXO } from "../types";
 import { ActionName } from "../types/action";
@@ -37,13 +38,12 @@ import {
   getBabylonParamByBtcHeight,
   getBabylonParamByVersion,
 } from "../utils/staking/param";
+
 import { createCovenantWitness } from "./transactions";
 
 export class BabylonBtcStakingManager {
-  private chainId?: string;
   private popUpgradeHeight?: number;
-  private stakingModuleAddress?: string;
-  private getCurrentHeight?: () => Promise<number>;
+  private popVersion?: number;
 
   constructor(
     private network: networks.Network,
@@ -51,11 +51,9 @@ export class BabylonBtcStakingManager {
     private btcProvider: BtcProvider,
     private babylonProvider: BabylonProvider,
     private ee?: Emitter<ManagerEvents>,
-    options?: {
-      chainId?: string;
+    upgradeConfig?: {
       popUpgradeHeight?: number;
-      stakingModuleAddress?: string;
-      getCurrentHeight?: () => Promise<number>;
+      popVersion?: number;
     },
   ) {
     this.network = network;
@@ -66,25 +64,11 @@ export class BabylonBtcStakingManager {
     this.stakingParams = stakingParams;
 
     // Store POP upgrade options
-    this.chainId = options?.chainId;
-    this.popUpgradeHeight = options?.popUpgradeHeight;
-    this.stakingModuleAddress = options?.stakingModuleAddress;
-    this.getCurrentHeight = options?.getCurrentHeight;
+    this.popUpgradeHeight = upgradeConfig?.popUpgradeHeight;
+    this.popVersion = upgradeConfig?.popVersion ?? 0;
   }
 
-  /**
-   * Creates the context string for the staker POP following RFC-036.
-   * @returns The SHA-256 hash of the context string.
-   */
-  private createStakerPopContext(): string {
-    if (!this.chainId || !this.stakingModuleAddress) {
-      throw new Error(
-        "chainId and stakingModuleAddress required for context generation",
-      );
-    }
-    const contextString = `btcstaking/0/staker_pop/${this.chainId}/${this.stakingModuleAddress}`;
-    return sha256(Buffer.from(contextString, "utf8")).toString("hex");
-  }
+
 
   /**
    * Creates a signed Pre-Staking Registration transaction that is ready to be
@@ -763,24 +747,7 @@ export class BabylonBtcStakingManager {
       sigType = BTCSigType.BIP322;
     }
 
-    // Determine message format based on the height. If the height is greater or equal to the POP upgrade height,
-    // we use the new format with the context hash. Otherwise, we use the babylon address that doesn't have the context hash.
-    let messageToSign = bech32Address;
-
-    if (this.popUpgradeHeight !== undefined && this.getCurrentHeight) {
-      try {
-        const currentHeight = await this.getCurrentHeight();
-        if (currentHeight >= this.popUpgradeHeight) {
-          const contextHash = this.createStakerPopContext();
-          messageToSign = contextHash + bech32Address;
-        }
-      } catch (error) {
-        // If the height detection fails, we throw an error
-        throw new Error(
-          `Failed to get current height for POP context: ${error instanceof Error ? error.message : String(error)}`
-        );
-      }
-    }
+    const messageToSign = await this.createPopMessageToSign(bech32Address);
 
     this.ee?.emit(channel, {
       bech32Address,
@@ -1045,6 +1012,21 @@ export class BabylonBtcStakingManager {
   }
 
   /**
+   * Creates the context string for the staker POP following RFC-036.
+   * See: https://github.com/babylonlabs-io/pm/blob/main/rfc/rfc-036-replay-attack-protection.md
+   * @param chainId - The Babylon chain ID
+   * @param popContextVersion - The POP context version (defaults to 0)
+   * @returns The hex encoded SHA-256 hash of the context string.
+   */
+  private createStakerPopContext(
+    chainId: string,
+    popContextVersion: number = 0,
+  ): string {
+    const contextString = `btcstaking/${popContextVersion}/staker_pop/${chainId}/${STAKING_MODULE_ADDRESS}`;
+    return sha256(Buffer.from(contextString, "utf8")).toString("hex");
+  }
+
+  /**
    * Gets the inclusion proof for the staking transaction.
    * See the type `InclusionProof` for more information
    * @param inclusionProof - The inclusion proof.
@@ -1068,6 +1050,44 @@ export class BabylonBtcStakingManager {
       key: inclusionProofKey,
       proof: Uint8Array.from(Buffer.from(proofHex, "hex")),
     });
+  }
+
+  /**
+   * Creates the message to sign for proof of possession based on the current
+   * Babylon tip height and POP upgrade configuration.
+   * 
+   * @param bech32Address - The staker's bech32 address
+   * @returns The message to sign (either just the address or context hash + address)
+   */
+  private async createPopMessageToSign(bech32Address: string): Promise<string> {
+    // If no upgrade height is configured, use legacy format
+    if (this.popUpgradeHeight === undefined) {
+      return bech32Address;
+    }
+
+    // Get current Babylon tip height
+    let currentHeight: number;
+    try {
+      currentHeight = await this.babylonProvider.getCurrentHeight();
+    } catch (error) {
+      throw new Error(
+        `Failed to get current height for POP context: ${error instanceof Error ? error.message : String(error)}`
+      );
+    }
+
+    // RFC-036: If the Babylon tip height is greater than or equal to the POP context
+    // upgrade height, use the new context format. See:
+    // https://github.com/babylonlabs-io/pm/blob/main/rfc/rfc-036-replay-attack-protection.md
+    // (Section: "Handle complexity on Client side")
+    // Here, currentHeight refers to the Babylon tip height.
+    if (currentHeight >= this.popUpgradeHeight) {
+      const chainId = await this.babylonProvider.getChainId();
+      const contextHash = this.createStakerPopContext(chainId, this.popVersion);
+      return contextHash + bech32Address;
+    }
+
+    // Use legacy format (just the bech32 address)
+    return bech32Address;
   }
 }
 

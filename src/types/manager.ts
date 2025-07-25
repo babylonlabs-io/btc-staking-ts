@@ -39,6 +39,22 @@ export interface BabylonProvider {
     typeUrl: string;
     value: T;
   }) => Promise<Uint8Array>;
+
+  /**
+   * Gets the current height of the Babylon Genesis chain.
+   * This is used for determining the POP context format based on upgrade height.
+   *
+   * @returns {Promise<number>} The current Babylon chain height
+   */
+  getCurrentHeight: () => Promise<number>;
+
+  /**
+   * Gets the chain ID of the Babylon Genesis chain.
+   * This is used for creating the POP context string following RFC-036.
+   *
+   * @returns {Promise<string>} The Babylon chain ID
+   */
+  getChainId: () => Promise<string>;
 }
 
 export interface StakingInputs {
