@@ -76,3 +76,31 @@ export interface InclusionProof {
   // The block hash of the block that contains the transaction
   blockHashHex: string;
 }
+
+/**
+ * Upgrade configuration for Babylon POP (Proof of Possession) context.
+ * This is used to determine when to switch to the new POP context format
+ * based on the Babylon chain height and version.
+ */
+export interface UpgradeConfig {
+  /**
+   * POP context upgrade configuration.
+   */
+  pop: PopUpgradeConfig;
+}
+
+/**
+ * Configuration for POP context upgrade.
+ * - upgradeBabyHeight: The Babylon chain height at which the POP context upgrade is activated.
+ * - version: The version of the POP context to use after the upgrade.
+ */
+export interface PopUpgradeConfig {
+  /**
+   * The Babylon chain height at which the POP context upgrade is activated.
+   */
+  upgradeBabyHeight: number;
+  /**
+   * The version of the POP context to use after the upgrade.
+   */
+  version: number;
+}

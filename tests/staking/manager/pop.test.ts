@@ -173,7 +173,7 @@ describe("Staking Manager - POP Integration", () => {
           mockBech32Address,
           mockBtcAddress,
         ),
-      ).rejects.toThrow("Failed to get current height for POP context: Network error");
+      ).rejects.toThrow("Network error");
     });
   });
 
