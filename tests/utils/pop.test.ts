@@ -3,7 +3,6 @@ import { sha256 } from "bitcoinjs-lib/src/crypto";
 import {
   createStakerPopContext,
   buildPopMessage,
-  createPopMessageToSign,
 } from "../../src/utils/pop";
 import { PopUpgradeConfig } from "../../src/types";
 import { STAKING_MODULE_ADDRESS } from "../../src/constants/staking";
@@ -73,23 +72,17 @@ describe("POP Utility Functions", () => {
           100,
           mockBech32Address,
           mockChainId,
-          mockUpgradeConfig.upgradeBabyHeight,
-          mockUpgradeConfig.version,
+          { upgradeHeight: mockUpgradeConfig.upgradeBabyHeight, version: mockUpgradeConfig.version },
         );
 
         expect(result).toBe(mockBech32Address);
       });
 
       it("should return bech32 address when upgrade height is undefined", () => {
-        const config = { ...mockUpgradeConfig };
-        delete (config as any).upgradeBabyHeight;
-
         const result = buildPopMessage(
           300,
           mockBech32Address,
           mockChainId,
-          config.upgradeBabyHeight,
-          config.version,
         );
 
         expect(result).toBe(mockBech32Address);
@@ -102,8 +95,7 @@ describe("POP Utility Functions", () => {
           200,
           mockBech32Address,
           mockChainId,
-          mockUpgradeConfig.upgradeBabyHeight,
-          mockUpgradeConfig.version,
+          { upgradeHeight: mockUpgradeConfig.upgradeBabyHeight, version: mockUpgradeConfig.version },
         );
 
         const expectedContextString = `btcstaking/0/staker_pop/${mockChainId}/${STAKING_MODULE_ADDRESS}`;
@@ -118,8 +110,7 @@ describe("POP Utility Functions", () => {
           300,
           mockBech32Address,
           mockChainId,
-          mockUpgradeConfig.upgradeBabyHeight,
-          mockUpgradeConfig.version,
+          { upgradeHeight: mockUpgradeConfig.upgradeBabyHeight, version: mockUpgradeConfig.version },
         );
 
         const expectedContextString = `btcstaking/0/staker_pop/${mockChainId}/${STAKING_MODULE_ADDRESS}`;
@@ -139,8 +130,7 @@ describe("POP Utility Functions", () => {
           300,
           mockBech32Address,
           mockChainId,
-          customConfig.upgradeBabyHeight,
-          customConfig.version,
+          { upgradeHeight: customConfig.upgradeBabyHeight, version: customConfig.version },
         );
 
         const expectedContextString = `btcstaking/1/staker_pop/${mockChainId}/${STAKING_MODULE_ADDRESS}`;
@@ -160,8 +150,7 @@ describe("POP Utility Functions", () => {
           100,
           mockBech32Address,
           mockChainId,
-          config.upgradeBabyHeight,
-          config.version,
+          { upgradeHeight: config.upgradeBabyHeight, version: config.version },
         );
 
         const expectedContextString = `btcstaking/0/staker_pop/${mockChainId}/${STAKING_MODULE_ADDRESS}`;
@@ -178,8 +167,7 @@ describe("POP Utility Functions", () => {
           300,
           "",
           mockChainId,
-          mockUpgradeConfig.upgradeBabyHeight,
-          mockUpgradeConfig.version,
+          { upgradeHeight: mockUpgradeConfig.upgradeBabyHeight, version: mockUpgradeConfig.version },
         );
 
         const expectedContextString = `btcstaking/0/staker_pop/${mockChainId}/${STAKING_MODULE_ADDRESS}`;
@@ -194,8 +182,7 @@ describe("POP Utility Functions", () => {
           Number.MAX_SAFE_INTEGER,
           mockBech32Address,
           mockChainId,
-          mockUpgradeConfig.upgradeBabyHeight,
-          mockUpgradeConfig.version,
+          { upgradeHeight: mockUpgradeConfig.upgradeBabyHeight, version: mockUpgradeConfig.version },
         );
 
         const expectedContextString = `btcstaking/0/staker_pop/${mockChainId}/${STAKING_MODULE_ADDRESS}`;
@@ -210,8 +197,7 @@ describe("POP Utility Functions", () => {
           300,
           mockBech32Address,
           "",
-          mockUpgradeConfig.upgradeBabyHeight,
-          mockUpgradeConfig.version,
+          { upgradeHeight: mockUpgradeConfig.upgradeBabyHeight, version: mockUpgradeConfig.version },
         );
 
         const expectedContextString = `btcstaking/0/staker_pop//${STAKING_MODULE_ADDRESS}`;
@@ -223,37 +209,35 @@ describe("POP Utility Functions", () => {
     });
   });
 
-  describe("createPopMessageToSign", () => {
+  describe("buildPopMessage (createPopMessageToSign replacement)", () => {
     describe("Success Cases", () => {
       it("should return legacy format when no upgrade config provided", () => {
-        const result = createPopMessageToSign(
+        const result = buildPopMessage(
+          300,
           mockBech32Address,
           mockChainId,
-          300,
         );
 
         expect(result).toBe(mockBech32Address);
       });
 
       it("should return legacy format when height is below upgrade height", () => {
-        const result = createPopMessageToSign(
+        const result = buildPopMessage(
+          100,
           mockBech32Address,
           mockChainId,
-          100,
-          200, // upgradeBabyHeight
-          0,   // version
+          { upgradeHeight: 200, version: 0 },
         );
 
         expect(result).toBe(mockBech32Address);
       });
 
       it("should return new format when height is above upgrade height", () => {
-        const result = createPopMessageToSign(
+        const result = buildPopMessage(
+          300,
           mockBech32Address,
           mockChainId,
-          300,
-          200, // upgradeBabyHeight
-          0,   // version
+          { upgradeHeight: 200, version: 0 },
         );
 
         const expectedContextString = `btcstaking/0/staker_pop/${mockChainId}/${STAKING_MODULE_ADDRESS}`;
@@ -264,12 +248,11 @@ describe("POP Utility Functions", () => {
       });
 
       it("should use custom version when provided", () => {
-        const result = createPopMessageToSign(
+        const result = buildPopMessage(
+          300,
           mockBech32Address,
           mockChainId,
-          300,
-          200, // upgradeBabyHeight
-          1,   // version
+          { upgradeHeight: 200, version: 1 },
         );
 
         const expectedContextString = `btcstaking/1/staker_pop/${mockChainId}/${STAKING_MODULE_ADDRESS}`;
@@ -282,22 +265,21 @@ describe("POP Utility Functions", () => {
 
     describe("Edge Cases", () => {
       it("should handle empty bech32 address", () => {
-        const result = createPopMessageToSign(
+        const result = buildPopMessage(
+          100,
           "",
           mockChainId,
-          100,
         );
 
         expect(result).toBe("");
       });
 
       it("should handle zero height", () => {
-        const result = createPopMessageToSign(
+        const result = buildPopMessage(
+          0,
           mockBech32Address,
           mockChainId,
-          0,
-          0, // upgradeBabyHeight
-          0, // version
+          { upgradeHeight: 0, version: 0 },
         );
 
         // Should use new format since height (0) >= upgrade height (0)
@@ -309,12 +291,11 @@ describe("POP Utility Functions", () => {
       });
 
       it("should handle very large height values", () => {
-        const result = createPopMessageToSign(
+        const result = buildPopMessage(
+          Number.MAX_SAFE_INTEGER,
           mockBech32Address,
           mockChainId,
-          Number.MAX_SAFE_INTEGER,
-          1000, // upgradeBabyHeight
-          0,    // version
+          { upgradeHeight: 1000, version: 0 },
         );
 
         const expectedContextString = `btcstaking/0/staker_pop/${mockChainId}/${STAKING_MODULE_ADDRESS}`;

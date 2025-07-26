@@ -30,7 +30,7 @@ import { StakingParams, VersionedStakingParams } from "../types/params";
 import { reverseBuffer } from "../utils";
 import { isValidBabylonAddress } from "../utils/babylon";
 import { isNativeSegwit, isTaproot } from "../utils/btc";
-import { createPopMessageToSign } from "../utils/pop";
+import { buildPopMessage } from "../utils/pop";
 import {
   deriveStakingOutputInfo,
   findMatchingTxOutputIndex,
@@ -744,16 +744,19 @@ export class BabylonBtcStakingManager {
     const babyTipHeight = await this.babylonProvider.getCurrentHeight();
 
     // Get the message to sign for the proof of possession
-    const messageToSign = createPopMessageToSign(
+    const messageToSign = buildPopMessage(
+      babyTipHeight,
       bech32Address,
       chainId,
-      babyTipHeight,
-      this.upgradeConfig?.pop?.upgradeBabyHeight,
-      this.upgradeConfig?.pop?.version,
+      this.upgradeConfig?.pop ? {
+        upgradeHeight: this.upgradeConfig.pop.upgradeBabyHeight,
+        version: this.upgradeConfig.pop.version,
+      } : undefined,
     );
 
     this.ee?.emit(channel, {
       bech32Address,
+      messageToSign,
       type: "proof-of-possession",
     });
 

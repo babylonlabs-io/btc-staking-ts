@@ -85,7 +85,7 @@ export interface UpgradeConfig {
   /**
    * POP context upgrade configuration.
    */
-  pop: PopUpgradeConfig;
+  pop?: PopUpgradeConfig;
 }
 
 /**

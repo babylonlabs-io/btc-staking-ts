@@ -42,11 +42,10 @@ export function buildPopMessage(
   currentHeight: number,
   bech32Address: string,
   chainId: string,
-  upgradeBabyHeight?: number,
-  version?: number,
+  upgradeConfig?: { upgradeHeight: number; version: number },
 ): string {
   // If no upgrade height is configured, use legacy format
-  if (upgradeBabyHeight === undefined || version === undefined) {
+  if (upgradeConfig === undefined) {
     return bech32Address;
   }
 
@@ -54,32 +53,10 @@ export function buildPopMessage(
   // upgrade height, use the new context format. See:
   // https://github.com/babylonlabs-io/pm/blob/main/rfc/rfc-036-replay-attack-protection.md
   // (Section: "Handle complexity on Client side")
-  if (currentHeight >= upgradeBabyHeight) {
-    const contextHash = createStakerPopContext(chainId, version);
+  if (currentHeight >= upgradeConfig.upgradeHeight) {
+    const contextHash = createStakerPopContext(chainId, upgradeConfig.version);
     return contextHash + bech32Address;
   }
 
   return bech32Address;
-}
-
-/**
- * Creates the message to sign for proof of possession based on the current
- * Babylon tip height and POP upgrade configuration.
- * This is a standalone, testable version of the POP message creation logic.
- * 
- * @param bech32Address - The staker's bech32 address
- * @param chainId - The Babylon chain ID
- * @param babyTipHeight - The current Babylon tip height
- * @param upgradeBabyHeight - Optional upgrade height
- * @param version - Optional POP context version
- * @returns The message to sign (either just the address or context hash + address)
- */
-export function createPopMessageToSign(
-  bech32Address: string,
-  chainId: string,
-  babyTipHeight: number,
-  upgradeBabyHeight?: number,
-  version?: number,
-): string {
-  return buildPopMessage(babyTipHeight, bech32Address, chainId, upgradeBabyHeight, version);
 }
