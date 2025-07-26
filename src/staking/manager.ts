@@ -13,7 +13,6 @@ import type { Emitter } from "nanoevents";
 
 import { StakerInfo, Staking } from ".";
 import { BABYLON_REGISTRY_TYPE_URLS } from "../constants/registry";
-import { STAKING_MODULE_ADDRESS } from "../constants/staking";
 import { StakingError, StakingErrorCode } from "../error";
 import { TransactionResult, UTXO } from "../types";
 import { ActionName } from "../types/action";
@@ -756,7 +755,6 @@ export class BabylonBtcStakingManager {
     );
 
     this.ee?.emit(channel, {
-      bech32Address,
       messageToSign,
       type: "proof-of-possession",
     });
