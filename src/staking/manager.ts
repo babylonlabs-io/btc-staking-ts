@@ -742,15 +742,16 @@ export class BabylonBtcStakingManager {
 
     const chainId = await this.babylonProvider.getChainId();
     const babyTipHeight = await this.babylonProvider.getCurrentHeight();
+    const upgradeConfig = this.upgradeConfig?.pop;
 
     // Get the message to sign for the proof of possession
     const messageToSign = buildPopMessage(
       babyTipHeight,
       bech32Address,
       chainId,
-      this.upgradeConfig?.pop ? {
-        upgradeHeight: this.upgradeConfig.pop.upgradeBabyHeight,
-        version: this.upgradeConfig.pop.version,
+      upgradeConfig ? {
+        upgradeHeight: upgradeConfig.upgradeBabyHeight,
+        version: upgradeConfig.version,
       } : undefined,
     );
 

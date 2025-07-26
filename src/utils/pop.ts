@@ -1,7 +1,6 @@
 import { sha256 } from "bitcoinjs-lib/src/crypto";
 
 import { STAKING_MODULE_ADDRESS } from "../constants/staking";
-import { PopUpgradeConfig } from "../types";
 
 /**
  * Creates the context string for the staker POP following RFC-036.
@@ -34,8 +33,7 @@ export function createStakerPopContext(
  * @param currentHeight - The current Babylon tip height
  * @param bech32Address - The staker's bech32 address
  * @param chainId - The Babylon chain ID
- * @param upgradeBabyHeight - Optional upgrade height
- * @param version - Optional POP context version
+ * @param upgradeConfig - Optional upgrade configuration with height and version
  * @returns The message to sign (either just the address or context hash + address)
  */
 export function buildPopMessage(
@@ -44,16 +42,13 @@ export function buildPopMessage(
   chainId: string,
   upgradeConfig?: { upgradeHeight: number; version: number },
 ): string {
-  // If no upgrade height is configured, use legacy format
-  if (upgradeConfig === undefined) {
-    return bech32Address;
-  }
-
-  // RFC-036: If the Babylon tip height is greater than or equal to the POP context
-  // upgrade height, use the new context format. See:
+  // RFC-036: If upgrade is configured and current height >= upgrade height, use new context format
   // https://github.com/babylonlabs-io/pm/blob/main/rfc/rfc-036-replay-attack-protection.md
-  // (Section: "Handle complexity on Client side")
-  if (currentHeight >= upgradeConfig.upgradeHeight) {
+  if (
+    upgradeConfig?.upgradeHeight !== undefined &&
+    upgradeConfig.version !== undefined &&
+    currentHeight >= upgradeConfig.upgradeHeight
+  ) {
     const contextHash = createStakerPopContext(chainId, upgradeConfig.version);
     return contextHash + bech32Address;
   }
