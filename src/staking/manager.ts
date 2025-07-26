@@ -23,11 +23,13 @@ import {
   BtcProvider,
   InclusionProof,
   StakingInputs,
+  UpgradeConfig,
 } from "../types/manager";
 import { StakingParams, VersionedStakingParams } from "../types/params";
 import { reverseBuffer } from "../utils";
 import { isValidBabylonAddress } from "../utils/babylon";
 import { isNativeSegwit, isTaproot } from "../utils/btc";
+import { buildPopMessage } from "../utils/pop";
 import {
   deriveStakingOutputInfo,
   findMatchingTxOutputIndex,
@@ -36,15 +38,19 @@ import {
   getBabylonParamByBtcHeight,
   getBabylonParamByVersion,
 } from "../utils/staking/param";
+
 import { createCovenantWitness } from "./transactions";
 
 export class BabylonBtcStakingManager {
+  private upgradeConfig?: UpgradeConfig;
+
   constructor(
     private network: networks.Network,
     private stakingParams: VersionedStakingParams[],
     private btcProvider: BtcProvider,
     private babylonProvider: BabylonProvider,
     private ee?: Emitter<ManagerEvents>,
+    upgradeConfig?: UpgradeConfig,
   ) {
     this.network = network;
 
@@ -52,6 +58,8 @@ export class BabylonBtcStakingManager {
       throw new Error("No staking parameters provided");
     }
     this.stakingParams = stakingParams;
+
+    this.upgradeConfig = upgradeConfig;
   }
 
   /**
@@ -731,13 +739,28 @@ export class BabylonBtcStakingManager {
       sigType = BTCSigType.BIP322;
     }
 
-    this.ee?.emit(channel, {
+    const chainId = await this.babylonProvider.getChainId();
+    const babyTipHeight = await this.babylonProvider.getCurrentHeight();
+    const upgradeConfig = this.upgradeConfig?.pop;
+
+    // Get the message to sign for the proof of possession
+    const messageToSign = buildPopMessage(
+      babyTipHeight,
       bech32Address,
+      chainId,
+      upgradeConfig ? {
+        upgradeHeight: upgradeConfig.upgradeBabyHeight,
+        version: upgradeConfig.version,
+      } : undefined,
+    );
+
+    this.ee?.emit(channel, {
+      messageToSign,
       type: "proof-of-possession",
     });
 
     const signedBabylonAddress = await this.btcProvider.signMessage(
-      bech32Address,
+      messageToSign,
       sigType === BTCSigType.BIP322 ? "bip322-simple" : "ecdsa",
     );
 
