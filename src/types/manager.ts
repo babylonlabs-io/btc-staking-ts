@@ -49,7 +49,6 @@ export interface BabylonProvider {
 
   /**
    * Gets the chain ID of the Babylon Genesis chain.
-   * This is used for creating the POP context string following RFC-036.
    *
    * @returns {Promise<string>} The Babylon chain ID
    */
