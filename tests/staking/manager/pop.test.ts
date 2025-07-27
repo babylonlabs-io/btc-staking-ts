@@ -22,7 +22,11 @@ describe("Staking Manager - POP Integration", () => {
     it("should use legacy format when height is below upgrade height", async () => {
       const mockGetCurrentHeight = jest.fn().mockResolvedValue(100);
       babylonProvider.getCurrentHeight.mockImplementation(mockGetCurrentHeight);
-      
+
+      const upgradeConfig = {
+        upgradeHeight: 200,
+        version: 0,
+      };
       const manager = new BabylonBtcStakingManager(
         networks.bitcoin,
         params,
@@ -30,10 +34,7 @@ describe("Staking Manager - POP Integration", () => {
         babylonProvider,
         undefined,
         {
-          pop: {
-            upgradeBabyHeight: 200,
-            version: 0,
-          },
+          pop: upgradeConfig,
         },
       );
 
@@ -51,7 +52,10 @@ describe("Staking Manager - POP Integration", () => {
       expect(mockGetCurrentHeight).toHaveBeenCalled();
     });
 
-    it("should use legacy format when no upgrade options provided", async () => {
+    it("should use legacy format when no upgrade options provided and optional babylon provider methods are not provided", async () => {
+      babylonProvider.getCurrentHeight.mockResolvedValue(undefined);
+      babylonProvider.getChainId.mockResolvedValue(undefined);
+
       const manager = new BabylonBtcStakingManager(
         networks.bitcoin,
         params,
@@ -78,6 +82,10 @@ describe("Staking Manager - POP Integration", () => {
       const mockGetCurrentHeight = jest.fn().mockResolvedValue(300);
       babylonProvider.getCurrentHeight.mockImplementation(mockGetCurrentHeight);
       
+      const upgradeConfig = {
+        upgradeHeight: 200,
+        version: 0,
+      };
       const manager = new BabylonBtcStakingManager(
         networks.bitcoin,
         params,
@@ -85,10 +93,7 @@ describe("Staking Manager - POP Integration", () => {
         babylonProvider,
         undefined,
         {
-          pop: {
-            upgradeBabyHeight: 200,
-            version: 0,
-          },
+          pop: upgradeConfig,
         },
       );
 
@@ -113,7 +118,11 @@ describe("Staking Manager - POP Integration", () => {
     it("should use new format when popContextUpgradeHeight is 0 (always use new format)", async () => {
       const mockGetCurrentHeight = jest.fn().mockResolvedValue(100);
       babylonProvider.getCurrentHeight.mockImplementation(mockGetCurrentHeight);
-      
+
+      const upgradeConfig = {
+        upgradeHeight: 0,
+        version: 0,
+      };
       const manager = new BabylonBtcStakingManager(
         networks.bitcoin,
         params,
@@ -121,10 +130,7 @@ describe("Staking Manager - POP Integration", () => {
         babylonProvider,
         undefined,
         {
-          pop: {
-            upgradeBabyHeight: 0,
-            version: 0,
-          },
+          pop: upgradeConfig,
         },
       );
 
@@ -152,6 +158,10 @@ describe("Staking Manager - POP Integration", () => {
         .fn()
         .mockRejectedValue(new Error("Network error"));
       babylonProvider.getCurrentHeight.mockImplementation(mockGetCurrentHeight);
+      const upgradeConfig = {
+        upgradeHeight: 200,
+        version: 0,
+      };
 
       const manager = new BabylonBtcStakingManager(
         networks.bitcoin,
@@ -160,10 +170,7 @@ describe("Staking Manager - POP Integration", () => {
         babylonProvider,
         undefined,
         {
-          pop: {
-            upgradeBabyHeight: 200,
-            version: 0,
-          },
+          pop: upgradeConfig,
         },
       );
 
@@ -183,6 +190,10 @@ describe("Staking Manager - POP Integration", () => {
         "bc1p5d7rjq7g6rdk2yhzks9smlaqtedr4dekq08ge8ztwac72sfr9rusxg3297";
       const mockGetCurrentHeight = jest.fn().mockResolvedValue(300);
       babylonProvider.getCurrentHeight.mockImplementation(mockGetCurrentHeight);
+      const upgradeConfig = {
+        upgradeHeight: 200,
+        version: 0,
+      };
       
       const manager = new BabylonBtcStakingManager(
         networks.bitcoin,
@@ -191,10 +202,7 @@ describe("Staking Manager - POP Integration", () => {
         babylonProvider,
         undefined,
         {
-          pop: {
-            upgradeBabyHeight: 200,
-            version: 0,
-          },
+          pop: upgradeConfig,
         },
       );
 

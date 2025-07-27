@@ -52,15 +52,16 @@ describe("POP Utility Functions", () => {
 
   describe("buildPopMessage", () => {
     const mockUpgradeConfig: PopUpgradeConfig = {
-      upgradeBabyHeight: 200,
+      upgradeHeight: 200,
       version: 0,
     };
 
     describe("Legacy Format", () => {
       it("should return bech32 address when no upgrade config provided", () => {
+        const currentHeight = 300;
         const result = buildPopMessage(
-          300,
           mockBech32Address,
+          currentHeight,
           mockChainId,
         );
 
@@ -68,11 +69,16 @@ describe("POP Utility Functions", () => {
       });
 
       it("should return bech32 address when current height is below upgrade height", () => {
+        const currentHeight = 100;
+        const upgradeConfig = {
+          upgradeHeight: mockUpgradeConfig.upgradeHeight,
+          version: mockUpgradeConfig.version,
+        };
         const result = buildPopMessage(
-          100,
           mockBech32Address,
+          currentHeight,
           mockChainId,
-          { upgradeHeight: mockUpgradeConfig.upgradeBabyHeight, version: mockUpgradeConfig.version },
+          upgradeConfig,
         );
 
         expect(result).toBe(mockBech32Address);
@@ -80,8 +86,8 @@ describe("POP Utility Functions", () => {
 
       it("should return bech32 address when upgrade height is undefined", () => {
         const result = buildPopMessage(
-          300,
           mockBech32Address,
+          300,
           mockChainId,
         );
 
@@ -91,11 +97,16 @@ describe("POP Utility Functions", () => {
 
     describe("New Format", () => {
       it("should return context hash + address when current height equals upgrade height", () => {
+        const currentHeight = 200;
+        const upgradeConfig = {
+          upgradeHeight: mockUpgradeConfig.upgradeHeight,
+          version: mockUpgradeConfig.version,
+        };
         const result = buildPopMessage(
-          200,
           mockBech32Address,
+          currentHeight,
           mockChainId,
-          { upgradeHeight: mockUpgradeConfig.upgradeBabyHeight, version: mockUpgradeConfig.version },
+          upgradeConfig,
         );
 
         const expectedContextString = `btcstaking/0/staker_pop/${mockChainId}/${STAKING_MODULE_ADDRESS}`;
@@ -106,11 +117,16 @@ describe("POP Utility Functions", () => {
       });
 
       it("should return context hash + address when current height is above upgrade height", () => {
+        const currentHeight = 300;
+        const upgradeConfig = {
+          upgradeHeight: mockUpgradeConfig.upgradeHeight,
+          version: mockUpgradeConfig.version,
+        };
         const result = buildPopMessage(
-          300,
           mockBech32Address,
+          currentHeight,
           mockChainId,
-          { upgradeHeight: mockUpgradeConfig.upgradeBabyHeight, version: mockUpgradeConfig.version },
+          upgradeConfig,
         );
 
         const expectedContextString = `btcstaking/0/staker_pop/${mockChainId}/${STAKING_MODULE_ADDRESS}`;
@@ -121,16 +137,17 @@ describe("POP Utility Functions", () => {
       });
 
       it("should use custom version when provided", () => {
-        const customConfig: PopUpgradeConfig = {
-          upgradeBabyHeight: 200,
+        const currentHeight = 300;
+        const customConfig = {
+          upgradeHeight: 200,
           version: 1,
         };
 
         const result = buildPopMessage(
-          300,
           mockBech32Address,
+          currentHeight,
           mockChainId,
-          { upgradeHeight: customConfig.upgradeBabyHeight, version: customConfig.version },
+          customConfig,
         );
 
         const expectedContextString = `btcstaking/1/staker_pop/${mockChainId}/${STAKING_MODULE_ADDRESS}`;
@@ -141,16 +158,17 @@ describe("POP Utility Functions", () => {
       });
 
       it("should always use new format when upgrade height is 0", () => {
-        const config: PopUpgradeConfig = {
-          upgradeBabyHeight: 0,
+        const currentHeight = 100;
+        const customConfig: PopUpgradeConfig = {
+          upgradeHeight: 0,
           version: 0,
         };
 
         const result = buildPopMessage(
-          100,
           mockBech32Address,
+          currentHeight,
           mockChainId,
-          { upgradeHeight: config.upgradeBabyHeight, version: config.version },
+          customConfig,
         );
 
         const expectedContextString = `btcstaking/0/staker_pop/${mockChainId}/${STAKING_MODULE_ADDRESS}`;
@@ -163,11 +181,17 @@ describe("POP Utility Functions", () => {
 
     describe("Edge Cases", () => {
       it("should handle empty bech32 address", () => {
+        const currentHeight = 300;
+        const upgradeConfig = {
+          upgradeHeight: mockUpgradeConfig.upgradeHeight,
+          version: mockUpgradeConfig.version,
+        };
+
         const result = buildPopMessage(
-          300,
           "",
+          300,
           mockChainId,
-          { upgradeHeight: mockUpgradeConfig.upgradeBabyHeight, version: mockUpgradeConfig.version },
+          upgradeConfig,
         );
 
         const expectedContextString = `btcstaking/0/staker_pop/${mockChainId}/${STAKING_MODULE_ADDRESS}`;
@@ -178,11 +202,16 @@ describe("POP Utility Functions", () => {
       });
 
       it("should handle very large height values", () => {
+        const currentHeight = Number.MAX_SAFE_INTEGER;
+        const upgradeConfig = {
+          upgradeHeight: mockUpgradeConfig.upgradeHeight,
+          version: mockUpgradeConfig.version,
+        };
         const result = buildPopMessage(
-          Number.MAX_SAFE_INTEGER,
           mockBech32Address,
+          currentHeight,
           mockChainId,
-          { upgradeHeight: mockUpgradeConfig.upgradeBabyHeight, version: mockUpgradeConfig.version },
+          upgradeConfig,
         );
 
         const expectedContextString = `btcstaking/0/staker_pop/${mockChainId}/${STAKING_MODULE_ADDRESS}`;
@@ -193,11 +222,16 @@ describe("POP Utility Functions", () => {
       });
 
       it("should handle empty chain ID", () => {
+        const currentHeight = 300;
+        const upgradeConfig = {
+          upgradeHeight: mockUpgradeConfig.upgradeHeight,
+          version: mockUpgradeConfig.version,
+        };
         const result = buildPopMessage(
-          300,
           mockBech32Address,
+          currentHeight,
           "",
-          { upgradeHeight: mockUpgradeConfig.upgradeBabyHeight, version: mockUpgradeConfig.version },
+          upgradeConfig,
         );
 
         const expectedContextString = `btcstaking/0/staker_pop//${STAKING_MODULE_ADDRESS}`;
@@ -212,9 +246,10 @@ describe("POP Utility Functions", () => {
   describe("buildPopMessage (createPopMessageToSign replacement)", () => {
     describe("Success Cases", () => {
       it("should return legacy format when no upgrade config provided", () => {
+        const currentHeight = 300;
         const result = buildPopMessage(
-          300,
           mockBech32Address,
+          currentHeight,
           mockChainId,
         );
 
@@ -222,22 +257,32 @@ describe("POP Utility Functions", () => {
       });
 
       it("should return legacy format when height is below upgrade height", () => {
+        const currentHeight = 100;
+        const upgradeConfig = {
+          upgradeHeight: 200,
+          version: 0,
+        };
         const result = buildPopMessage(
-          100,
           mockBech32Address,
+          currentHeight,
           mockChainId,
-          { upgradeHeight: 200, version: 0 },
+          upgradeConfig,
         );
 
         expect(result).toBe(mockBech32Address);
       });
 
       it("should return new format when height is above upgrade height", () => {
+        const currentHeight = 300;
+        const upgradeConfig = {
+          upgradeHeight: 200,
+          version: 0,
+        };
         const result = buildPopMessage(
-          300,
           mockBech32Address,
+          currentHeight,
           mockChainId,
-          { upgradeHeight: 200, version: 0 },
+          upgradeConfig,
         );
 
         const expectedContextString = `btcstaking/0/staker_pop/${mockChainId}/${STAKING_MODULE_ADDRESS}`;
@@ -248,11 +293,16 @@ describe("POP Utility Functions", () => {
       });
 
       it("should use custom version when provided", () => {
+        const currentHeight = 300;
+        const upgradeConfig = {
+          upgradeHeight: 200,
+          version: 1,
+        };
         const result = buildPopMessage(
-          300,
           mockBech32Address,
+          currentHeight,
           mockChainId,
-          { upgradeHeight: 200, version: 1 },
+          upgradeConfig,
         );
 
         const expectedContextString = `btcstaking/1/staker_pop/${mockChainId}/${STAKING_MODULE_ADDRESS}`;
@@ -265,21 +315,33 @@ describe("POP Utility Functions", () => {
 
     describe("Edge Cases", () => {
       it("should handle empty bech32 address", () => {
+        const currentHeight = 100;
+        const upgradeConfig = {
+          upgradeHeight: 200,
+          version: 0,
+        };
         const result = buildPopMessage(
-          100,
           "",
+          currentHeight,
           mockChainId,
+          upgradeConfig,
         );
 
         expect(result).toBe("");
       });
 
       it("should handle zero height", () => {
+        const currentHeight = 0;
+        const upgradeConfig: PopUpgradeConfig = {
+          upgradeHeight: 0,
+          version: 0,
+        };
+
         const result = buildPopMessage(
-          0,
           mockBech32Address,
+          currentHeight,
           mockChainId,
-          { upgradeHeight: 0, version: 0 },
+          upgradeConfig,
         );
 
         // Should use new format since height (0) >= upgrade height (0)
@@ -291,11 +353,16 @@ describe("POP Utility Functions", () => {
       });
 
       it("should handle very large height values", () => {
+        const currentHeight = Number.MAX_SAFE_INTEGER;
+        const upgradeConfig = {
+          upgradeHeight: 1000,
+          version: 0,
+        };
         const result = buildPopMessage(
-          Number.MAX_SAFE_INTEGER,
           mockBech32Address,
+          currentHeight,
           mockChainId,
-          { upgradeHeight: 1000, version: 0 },
+          upgradeConfig,
         );
 
         const expectedContextString = `btcstaking/0/staker_pop/${mockChainId}/${STAKING_MODULE_ADDRESS}`;
