@@ -45,14 +45,14 @@ export interface BabylonProvider {
    *
    * @returns {Promise<number>} The current Babylon chain height
    */
-  getCurrentHeight: () => Promise<number>;
+  getCurrentHeight?: () => Promise<number>;
 
   /**
    * Gets the chain ID of the Babylon Genesis chain.
    *
    * @returns {Promise<string>} The Babylon chain ID
    */
-  getChainId: () => Promise<string>;
+  getChainId?: () => Promise<string>;
 }
 
 export interface StakingInputs {
@@ -90,14 +90,14 @@ export interface UpgradeConfig {
 
 /**
  * Configuration for POP context upgrade.
- * - upgradeBabyHeight: The Babylon chain height at which the POP context upgrade is activated.
+ * - upgradeHeight: The Babylon chain height at which the POP context upgrade is activated.
  * - version: The version of the POP context to use after the upgrade.
  */
 export interface PopUpgradeConfig {
   /**
    * The Babylon chain height at which the POP context upgrade is activated.
    */
-  upgradeBabyHeight: number;
+  upgradeHeight: number;
   /**
    * The version of the POP context to use after the upgrade.
    */

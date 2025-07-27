@@ -37,16 +37,18 @@ export function createStakerPopContext(
  * @returns The message to sign (either just the address or context hash + address)
  */
 export function buildPopMessage(
-  currentHeight: number,
   bech32Address: string,
-  chainId: string,
+  currentHeight?: number,
+  chainId?: string,
   upgradeConfig?: { upgradeHeight: number; version: number },
 ): string {
   // RFC-036: If upgrade is configured and current height >= upgrade height, use new context format
   // https://github.com/babylonlabs-io/pm/blob/main/rfc/rfc-036-replay-attack-protection.md
   if (
+    chainId !== undefined &&
     upgradeConfig?.upgradeHeight !== undefined &&
     upgradeConfig.version !== undefined &&
+    currentHeight !== undefined &&
     currentHeight >= upgradeConfig.upgradeHeight
   ) {
     const contextHash = createStakerPopContext(chainId, upgradeConfig.version);
