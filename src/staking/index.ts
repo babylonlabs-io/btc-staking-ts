@@ -17,11 +17,12 @@ import {
   validateStakingTimelock,
   validateStakingTxInputData,
 } from "../utils/staking";
-import { stakingPsbt, unbondingPsbt } from "./psbt";
+import { stakingExpansionPsbt, stakingPsbt, unbondingPsbt } from "./psbt";
 import { StakingScriptData, StakingScripts } from "./stakingScript";
 import {
   slashEarlyUnbondedTransaction,
   slashTimelockUnbondedTransaction,
+  stakingExpansionTransaction,
   stakingTransaction,
   unbondingTransaction,
   withdrawEarlyUnbondedTransaction,
@@ -63,7 +64,7 @@ export class Staking {
       );
     }
     if (
-      finalityProviderPksNoCoordHex.length === 0 || 
+      finalityProviderPksNoCoordHex.length === 0 ||
       !finalityProviderPksNoCoordHex.every(isValidNoCoordPublicKey)
     ) {
       throw new StakingError(
@@ -124,6 +125,51 @@ export class Staking {
   }
 
   /**
+   * buildScriptsForFinalityProviders builds staking scripts using specific finality providers.
+   * This is used for expansion transactions where we need scripts for the original finality providers
+   * to spend the previous staking UTXO.
+   *
+   * @param {string[]} finalityProviderPksNoCoordHex - The finality provider public keys to use.
+   * @returns {StakingScripts} - The staking scripts.
+   */
+  private buildScriptsForFinalityProviders(
+    finalityProviderPksNoCoordHex: string[],
+  ): StakingScripts {
+    const { covenantQuorum, covenantNoCoordPks, unbondingTime } = this.params;
+    // Create staking script data with the provided finality providers
+    let stakingScriptData;
+    try {
+      stakingScriptData = new StakingScriptData(
+        Buffer.from(this.stakerInfo.publicKeyNoCoordHex, "hex"),
+        finalityProviderPksNoCoordHex.map((pk) => Buffer.from(pk, "hex")),
+        toBuffers(covenantNoCoordPks),
+        covenantQuorum,
+        this.stakingTimelock,
+        unbondingTime,
+      );
+    } catch (error: unknown) {
+      throw StakingError.fromUnknown(
+        error,
+        StakingErrorCode.SCRIPT_FAILURE,
+        "Cannot build staking script data for finality providers",
+      );
+    }
+
+    // Build scripts
+    let scripts;
+    try {
+      scripts = stakingScriptData.buildScripts();
+    } catch (error: unknown) {
+      throw StakingError.fromUnknown(
+        error,
+        StakingErrorCode.SCRIPT_FAILURE,
+        "Cannot build staking scripts for finality providers",
+      );
+    }
+    return scripts;
+  }
+
+  /**
    * Create a staking transaction for staking.
    *
    * @param {number} stakingAmountSat - The amount to stake in satoshis.
@@ -172,6 +218,56 @@ export class Staking {
   }
 
   /**
+   * Create a staking expansion transaction using exact provided UTXOs.
+   *
+   * This method is specifically designed for staking expansion transactions
+   * that require exactly the provided UTXOs (previous staking + funding)
+   * without performing UTXO selection optimization.
+   *
+   * @param {number} stakingAmountSat - The amount to stake in satoshis.
+   * @param {UTXO[]} inputUTXOs - The exact UTXOs to use as inputs (all will be used).
+   * @param {number} feeRate - The fee rate for the transaction in satoshis per byte.
+   * @returns {TransactionResult} - An object containing the unsigned transaction and fee
+   * @throws {StakingError} - If the transaction cannot be built
+   */
+  public createStakingExpansionTransaction(
+    stakingAmountSat: number,
+    inputUTXOs: UTXO[],
+    feeRate: number,
+  ): TransactionResult {
+    validateStakingTxInputData(
+      stakingAmountSat,
+      this.stakingTimelock,
+      this.params,
+      inputUTXOs,
+      feeRate,
+    );
+
+    const scripts = this.buildScripts();
+
+    try {
+      const { transaction, fee } = stakingExpansionTransaction(
+        scripts,
+        stakingAmountSat,
+        this.stakerInfo.address,
+        inputUTXOs,
+        this.network,
+        feeRate,
+      );
+      return {
+        transaction,
+        fee,
+      };
+    } catch (error: unknown) {
+      throw StakingError.fromUnknown(
+        error,
+        StakingErrorCode.BUILD_TRANSACTION_FAILURE,
+        "Cannot build unsigned staking expansion transaction",
+      );
+    }
+  }
+
+  /**
    * Create a staking psbt based on the existing staking transaction.
    *
    * @param {Transaction} stakingTx - The staking transaction.
@@ -194,6 +290,47 @@ export class Staking {
       stakingTx,
       this.network,
       inputUTXOs,
+      isTaproot(this.stakerInfo.address, this.network)
+        ? Buffer.from(this.stakerInfo.publicKeyNoCoordHex, "hex")
+        : undefined,
+    );
+  }
+
+  /**
+   * Create a staking expansion psbt with proper script path handling for the previous staking UTXO.
+   *
+   * @param {Transaction} stakingTx - The staking expansion transaction.
+   * @param {UTXO[]} inputUTXOs - The UTXOs to use as inputs for the staking expansion
+   * transaction. This should include both the previous staking UTXO and funding UTXOs.
+   * @param {string[]} originalFinalityProviderPksNoCoordHex - The original finality provider public keys
+   * from the delegation being expanded (used for spending the previous staking UTXO).
+   * @returns {Psbt} - The psbt with proper taproot script path configuration.
+   */
+  public toStakingExpansionPsbt(
+    stakingTx: Transaction,
+    inputUTXOs: UTXO[],
+    originalFinalityProviderPksNoCoordHex: string[],
+  ): Psbt {
+    // Check the staking output index can be found
+    const scripts = this.buildScripts();
+    const stakingOutputInfo = deriveStakingOutputInfo(scripts, this.network);
+    const stakingOutputIndex = findMatchingTxOutputIndex(
+      stakingTx,
+      stakingOutputInfo.outputAddress,
+      this.network,
+    );
+
+    // Create scripts for the original finality providers (for spending previous staking UTXO)
+    const originalScripts = this.buildScriptsForFinalityProviders(
+      originalFinalityProviderPksNoCoordHex,
+    );
+
+    return stakingExpansionPsbt(
+      stakingTx,
+      stakingOutputIndex,
+      this.network,
+      inputUTXOs,
+      originalScripts,
       isTaproot(this.stakerInfo.address, this.network)
         ? Buffer.from(this.stakerInfo.publicKeyNoCoordHex, "hex")
         : undefined,
@@ -367,7 +504,7 @@ export class Staking {
       stakingTx,
       outputAddress,
       this.network,
-    )
+    );
 
     // create the slash timelock unbonded transaction
     try {

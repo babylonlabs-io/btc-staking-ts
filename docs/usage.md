@@ -15,12 +15,22 @@ documentation](https://github.com/babylonlabs-io/babylon/blob/release/v1.x/docs/
   - [1. Prerequisites](#1-prerequisites)
     - [1.1 Staking Parameters](#11-staking-parameters)
     - [1.2 Bitcoin Staker information](#12-bitcoin-staker-information)
+      - [Staker's Bitcoin Details](#stakers-bitcoin-details)
+  - [Staker's Babylon Genesis Details](#stakers-babylon-genesis-details)
     - [1.3 Signing Providers](#13-signing-providers)
   - [2. Staking Manager Initialization](#2-staking-manager-initialization)
   - [3. Stake Registration](#3-stake-registration)
     - [3.1 Post-Staking Registration](#31-post-staking-registration)
     - [3.2 Pre-Staking Registration](#32-pre-staking-registration)
-  - [4. Unbonding Transaction](#4-unbonding-transaction)
+  - [4. BTC Staking Expansion](#4-btc-staking-expansion)
+    - [4.1 Overview](#41-overview)
+    - [4.2 Expansion Parameters](#42-expansion-parameters)
+    - [4.3 Creating Expansion Transactions](#43-creating-expansion-transactions)
+      - [4.3.1 Complete Expansion Transaction (Two-Phase Process)](#431-complete-expansion-transaction-two-phase-process)
+        - [Phase 1: Create Babylon Registration Message](#phase-1-create-babylon-registration-message)
+        - [Phase 2: Sign and Broadcast BTC Transaction\*\*](#phase-2-sign-and-broadcast-btc-transaction)
+    - [4.4 UTXO Requirements for Expansion](#44-utxo-requirements-for-expansion)
+  - [5. Unbonding Transaction](#5-unbonding-transaction)
   - [5. Withdrawal Transaction](#5-withdrawal-transaction)
   - [6. Fee Calculation](#6-fee-calculation)
     - [6.1 Bitcoin Transaction Fee](#61-bitcoin-transaction-fee)
@@ -37,11 +47,12 @@ They are versioned parameters, with each version corresponding
 to a range of Bitcoin heights.
 
 You can retrieve the parameters as follows:
-* By querying the `/babylon/btcstaking/v1/params` endpoint
+
+- By querying the `/babylon/btcstaking/v1/params` endpoint
   of an RPC/LCD node. You can find the available RPC/LCD nodes
   of each active network in the
   [Babylon networks repository](https://github.com/babylonlabs-io/networks).
-* By querying the `/v2/network-info` endpoint of the
+- By querying the `/v2/network-info` endpoint of the
   [Babylon Staking API](https://docs.babylonlabs.io/api/staking-api/get-network-info/)
   that exposes the indexed Babylon parameters.
 
@@ -57,9 +68,10 @@ constructing and validating Bitcoin Staking transactions, please refer to the
 
 ### 1.2 Bitcoin Staker information
 
-**Staker's Bitcoin Details**
+#### Staker's Bitcoin Details
 
 The staker's *Bitcoin address* serves two key purposes within this library:
+
 - Acts as the change address when creating Bitcoin staking transactions
 - Serves as the withdrawal address when creating Bitcoin withdrawal transactions
 
@@ -71,6 +83,7 @@ Bitcoin transactions as it is used to construct the tapscript.
 
 Staker inputs define the parameters for Bitcoin staking. Stakers can customize
 their:
+
 - Staking timelock duration
 - Staking amount
 - Selected finality providers for delegation
@@ -98,10 +111,10 @@ const stakerInput = {
 }
 ```
 
-**Staker's Babylon Genesis Details**
+## Staker's Babylon Genesis Details
 
 The Babylon Genesis address specifies the address of the staker on the Babylon
-Genesis blockchain. It is used as the signer of the 
+Genesis blockchain. It is used as the signer of the
 Babylon Genesis transaction to register the stake and
 to create the Proof of Possession (PoP),
 which must be signed during the registration process.
@@ -119,6 +132,7 @@ A Provider is a construct that maintains a private key that can be used for
 signing operations (e.g., a wallet).
 
 For the purposes of this library, two providers are required:
+
 - **Bitcoin Provider**: Responsible for signing Bitcoin transactions and
 arbitrary messages through the ECDSA or BIP-322 algorithms.
 - **Babylon Genesis Provider**: Responsible for signing Babylon Genesis
@@ -184,6 +198,7 @@ with the staking parameters to construct the necessary
 transactiosn required by the Bitcoin Staking protocol.
 
 These transactions include:
+
 - BTC Staking Transaction: The Bitcoin transaction that locks the stake in
   the self-custodial Bitcoin staking script.
 - Slashing Transaction: A pre-signed transaction consenting to slashing in
@@ -209,8 +224,7 @@ For more details about the two types, refer to the
 
 > **Important**: Phase-1 stakers should always use the post-staking
 > registration method to register their phase-1 stakes. For newly created
-> phase-2 stakes, both methods can be used. 
-
+> phase-2 stakes, both methods can be used.
 
 ### 3.1 Post-Staking Registration
 
@@ -221,6 +235,7 @@ This process is particularly suitable for Babylon Phase-1 stakes.
 
 The post-staking registration consists of multiple transactions and messages,
 some requiring  signatures from the BTC Provider:
+
 - Bitcoin staking transaction (already on the Bitcoin network) and a proof of
   inclusion
 - Bitcoin unbonding transaction
@@ -228,7 +243,7 @@ some requiring  signatures from the BTC Provider:
 - Bitcoin slashing unbonding transaction (**requires signing**)
 - Proof of Possession (**requires signing**)
 
-The final constructed message will be signed by the Babylon Provider as a 
+The final constructed message will be signed by the Babylon Provider as a
 Babylon Genesis transaction, ready for submission to the network.
 
 ```ts
@@ -249,6 +264,7 @@ const {
 The Pre-staking registration flow is for stakers who seek verification from the
 Babylon chain before submitting their BTC staking transaction to the Bitcoin
 ledger. It is a multi-step process, involving:
+
 1. The registration of the stake on the Babylon Genesis chain.
 2. After verification is received, the submission of the signed Bitcoin
    staking transaction to the Bitcoin ledger.
@@ -256,15 +272,16 @@ ledger. It is a multi-step process, involving:
    the Babylon Genesis chain is notified about its inclusion.
 
 The registration to the Babylon Genesis blockchain
-consists of the submission of multiple transactions and messages, some requiring 
+consists of the submission of multiple transactions and messages, some requiring
 signatures from the BTC Provider:
+
 - Bitcoin staking transaction
 - Bitcoin unbonding transaction
 - Bitcoin slashing transaction (**requires signing**)
 - Bitcoin slashing unbonding transaction (**requires signing**)
 - Proof of Possession (**requires signing**)
 
-First, we create the initial registration message that will be signed 
+First, we create the initial registration message that will be signed
 by the Babylon Provider as a Babylon Genesis transaction,
 ready for submission to the network.
 
@@ -284,6 +301,7 @@ const {
 Next, we monitor for the transaction receiving verification by the Babylon
 blockchain. We can do so by querying the Babylon node and checking for the
 `VERIFIED` status as follows:
+
 - By querying the `/babylon/btcstaking/v1/btc_delegation/:staking_tx_hash_hex`
   endpoint of an RPC/LCD node. For more details, see this
   [Babylon API documentation](https://docs.babylonlabs.io/api/babylon-gRPC/btc-delegation/).
@@ -294,6 +312,7 @@ blockchain. We can do so by querying the Babylon node and checking for the
 After the stake has been marked as verified by the Babylon Genesis chain,
 we can construct the Bitcoin Staking transaction that is ready to be
 broadcast to the Bitcoin ledger.
+
 ```ts
 const signedBtcStakingTx = await manager.createSignedBtcStakingTransaction({
   stakerInfo,
@@ -309,7 +328,142 @@ sufficient confirmations, an off-chain program called the
 [vigilante BTC Staking tracker](https://github.com/babylonlabs-io/vigilante)
 notifies the Babylon chain about the staking transaction's inclusion.
 
-## 4. Unbonding Transaction
+## 4. BTC Staking Expansion
+
+### 4.1 Overview
+
+BTC staking expansion allows users to modify existing active BTC delegations in multiple ways without going through the unbonding process. This feature supports:
+
+1. **Timelock Extension**: Extend staking duration before expiration
+2. **Finality Provider Expansion**: Add new finality providers for multi-chain staking
+3. **Stake Amount Increases**: Add more BTC to existing delegations
+
+Main benefits:
+
+- **Combined Operations**: Simultaneously modify timelock, FPs, and staking amounts
+- **Zero downtime**: Maintain continuous rewards and voting power
+- **No unbonding period**: Avoid the standard unbonding waiting period
+- **Efficient capital utilization**: Expand existing stakes rather than creating new ones
+
+### 4.2 Expansion Parameters
+
+The expansion functionality uses the `StakingExpansionInputs` interface:
+
+```typescript
+interface StakingExpansionInputs {
+  // The chosen finality providers public keys
+  // For timelock renewal or stake increase: use same FPs as original stake
+  // For FP expansion: include existing + new FPs
+  finalityProviderPksNoCoordHex: string[];
+  // Amount of satoshis for the expanded stake
+  stakingAmountSat: number;
+  // The number of BTC blocks this expansion will be staked for
+  // For timelock renewal: use extended timelock value
+  // For FP expansion or stake increase: can use same or extended timelock
+  stakingTimelock: number;
+  // Hash of the previous staking transaction being expanded
+  previousStakingTxHash: string;
+  // Raw funding transaction bytes (for fees and *optional* additional stake)
+  fundingTx: Uint8Array;
+}
+```
+
+### 4.3 Creating Expansion Transactions
+
+The manager provides several methods for creating expansion transactions:
+
+#### 4.3.1 Complete Expansion Transaction (Two-Phase Process)
+
+##### Phase 1: Create Babylon Registration Message
+
+```typescript
+const expansionResult = await manager.createBtcStakeExpansionTransaction(
+  stakerInfo,
+  stakingExpansionInputs,
+  babylonBtcTipHeight,
+  inputUTXOs,
+  feeRate,
+  babylonAddress,
+);
+
+// Returns:
+// {
+//   signedBabylonTx: Uint8Array,  // Ready to broadcast to Babylon
+//   stakingTx: Transaction        // Unsigned BTC staking transaction
+// }
+```
+
+##### Phase 2: Sign and Broadcast BTC Transaction**
+
+After the Babylon transaction is verified, sign and broadcast the BTC transaction:
+
+```typescript
+const signedBtcTx = await manager.createSignedBtcStakingExpansionTransaction(
+  stakerInfo,
+  stakingExpansionInputs,
+  expansionResult.stakingTx,
+  inputUTXOs,
+  stakingParamsVersion,
+  covenantSignatures,
+  originalFinalityProviderPksNoCoordHex,
+);
+
+// Broadcast the signed transaction to Bitcoin network
+await btcProvider.pushTx(signedBtcTx.toHex());
+```
+
+**Parameters:**
+
+- `stakerBtcInfo` - The staker's BTC information (address and public key)
+- `stakingInput` - The new staking parameters for the expansion
+- `unsignedStakingTx` - The unsigned staking transaction
+- `inputUTXOs` - Array of UTXOs including previous staking UTXO and funding UTXO
+- `stakingParamsVersion` - The staking parameters version used
+- `previousStakingCovenantSignatures` - Covenant signatures for spending the previous staking UTXO
+- `originalFinalityProviderPksNoCoordHex` - Original finality provider public keys from the delegation being expanded
+
+**Returns:** A signed Bitcoin transaction ready for broadcast
+
+### 4.4 UTXO Requirements for Expansion
+
+Expansion transactions require specific UTXO setup:
+
+1. **Previous Staking UTXO**: The UTXO from the delegation being expanded
+
+   ```typescript
+   const previousStakingUtxo = {
+     txid: previousStakingTxHash,
+     vout: previousStakingOutput,
+     value: previousStakingAmount,
+     scriptPubKey: stakingScriptPubKey,
+     rawTxHex: previousStakingTxHex,
+   };
+   ```
+
+2. **Funding UTXO**: Additional funding for fees and stake increases
+
+   ```typescript
+   const fundingUtxo = {
+     txid: fundingTxId,
+     vout: outputIndex,
+     value: fundingAmount,
+     scriptPubKey: fundingScriptPubKey,
+     rawTxHex: fundingTxHex,
+   };
+   ```
+
+**Important Notes:**
+
+1. **Active Delegations Only**: Only active (non-unbonding) delegations can be expanded
+2. **Two-Phase Process**: Expansion requires Babylon registration followed by BTC transaction signing
+3. **UTXO Requirements**: Must provide both previous staking UTXO and funding UTXO
+4. **Covenant Signatures**: Phase 2 requires covenant signatures obtained after Babylon verification
+5. **No Stake Reduction**: Cannot reduce the stake amount or remove existing finality providers
+6. **Finality Provider Order**: When adding FPs, preserve original order and append new ones
+7. **Timelock Renewal**: Adding finality providers requires timelock renewal
+8. **Funding Validation**: Ensure funding UTXO has sufficient value for increases and fees
+
+## 5. Unbonding Transaction
 
 This step allows stakers to unbond their active staking transactions on demand
 before the committed timelock expires. After unbonding, the funds will become
@@ -322,6 +476,7 @@ transaction ready for submission to the Bitcoin network.
 
 You can retrieve the unsigned unbonding transaction and covenant committee
 signatures through either:
+
 - By querying the `/babylon/btcstaking/v1/btc_delegation/:staking_tx_hash_hex`
   endpoint of an RPC/LCD node. For more details, see this
   [Babylon API documentation](https://docs.babylonlabs.io/api/babylon-gRPC/btc-delegation/).
@@ -343,6 +498,7 @@ const { signedUnbondingTx } = await manager.createSignedBtcUnbondingTransaction(
 ## 5. Withdrawal Transaction
 
 There are 3 different types of withdrawal transactions:
+
 1. Withdraw from early unbonding (`createSignedBtcWithdrawEarlyUnbondedTransaction`)
    - Used when the unbonding period has passed
 2. Withdraw from expired timelock (`createSignedBtcWithdrawStakingExpiredTransaction`)
@@ -356,6 +512,7 @@ For more customized transaction options,
 please refer to the [advanced usage documentation](docs/advanced-btc-tx.md).
 
 The required input transaction varies depending on the withdrawal method:
+
 - Early unbonding withdrawal requires the unbonding transaction
 - Timelock expiry withdrawal requires the staking transaction
 - Slashed stake withdrawal requires the slashing transaction
@@ -363,13 +520,13 @@ The required input transaction varies depending on the withdrawal method:
 You can retrieve the Bitcoin staking transaction, unsigned unbonding transaction
 , slashing transaction and staking input made at the time of creating the staking
 transaction through either:
+
 - By querying the `/babylon/btcstaking/v1/btc_delegation/:staking_tx_hash_hex`
   endpoint of an RPC/LCD node. For more details, see this
   [Babylon API documentation](https://docs.babylonlabs.io/api/babylon-gRPC/btc-delegation/).
 - By queryign the `/v2/delegation?staking_tx_hash_hex=xxx` endpoint from the
   Babylon Staking API. For more details, see this
   [Staking API documentation](https://docs.babylonlabs.io/api/staking-api/get-a-delegation/).
-
 
 ```ts
 // 1. Withdraw from early unbonding (when unbonding period has passed)
@@ -435,4 +592,4 @@ the Babylon Genesis transaction fees for the `pre-staking registration`
 and `post-staking registration` operations. This feature will be added in a
 future release.
 For now please refer to the
-[simple-staking example](https://github.com/babylonlabs-io/simple-staking/blob/main/src/app/hooks/client/rpc/mutation/useBbnTransaction.ts#L27). 
+[simple-staking example](https://github.com/babylonlabs-io/simple-staking/blob/main/src/app/hooks/client/rpc/mutation/useBbnTransaction.ts#L27).

@@ -1,17 +1,36 @@
-import { Psbt, Transaction, networks, payments, script, address, opcodes } from "bitcoinjs-lib";
+import {
+  Psbt,
+  Transaction,
+  address,
+  networks,
+  opcodes,
+  payments,
+  script,
+} from "bitcoinjs-lib";
 import { Taptree } from "bitcoinjs-lib/src/types";
 
 import { BTC_DUST_SAT } from "../constants/dustSat";
 import { internalPubkey } from "../constants/internalPubkey";
+import { NON_RBF_SEQUENCE, TRANSACTION_VERSION } from "../constants/psbt";
+import { REDEEM_VERSION } from "../constants/transaction";
 import { UTXO } from "../types/UTXO";
+import { CovenantSignature } from "../types/covenantSignatures";
 import { PsbtResult, TransactionResult } from "../types/transaction";
 import { isValidBitcoinAddress, transactionIdToHash } from "../utils/btc";
-import { getStakingTxInputUTXOsAndFees, getWithdrawTxFee } from "../utils/fee";
-import { inputValueSum } from "../utils/fee/utils";
-import { buildStakingTransactionOutputs, deriveUnbondingOutputInfo } from "../utils/staking";
-import { NON_RBF_SEQUENCE, TRANSACTION_VERSION } from "../constants/psbt";
-import { CovenantSignature } from "../types/covenantSignatures";
-import { REDEEM_VERSION } from "../constants/transaction";
+import {
+  getEstimatedSize,
+  getStakingTxInputUTXOsAndFees,
+  getWithdrawTxFee,
+  rateBasedTxBufferFee,
+} from "../utils/fee";
+import {
+  getEstimatedChangeOutputSize,
+  inputValueSum,
+} from "../utils/fee/utils";
+import {
+  buildStakingTransactionOutputs,
+  deriveUnbondingOutputInfo,
+} from "../utils/staking";
 
 // https://bips.xyz/370
 const BTC_LOCKTIME_HEIGHT_TIME_CUTOFF = 500000000;
@@ -76,7 +95,12 @@ export function stakingTransaction(
   }
 
   // Build outputs and estimate the fee
-  const stakingOutputs = buildStakingTransactionOutputs(scripts, network, amount);
+  const stakingOutputs = buildStakingTransactionOutputs(
+    scripts,
+    network,
+    amount,
+  );
+
   const { selectedUTXOs, fee } = getStakingTxInputUTXOsAndFees(
     inputUTXOs,
     amount,
@@ -86,14 +110,10 @@ export function stakingTransaction(
 
   const tx = new Transaction();
   tx.version = TRANSACTION_VERSION;
-  
+
   for (let i = 0; i < selectedUTXOs.length; ++i) {
     const input = selectedUTXOs[i];
-    tx.addInput(
-      transactionIdToHash(input.txid),
-      input.vout,
-      NON_RBF_SEQUENCE,
-    );
+    tx.addInput(transactionIdToHash(input.txid), input.vout, NON_RBF_SEQUENCE);
   }
 
   stakingOutputs.forEach((o) => {
@@ -102,6 +122,125 @@ export function stakingTransaction(
 
   // Add a change output only if there's any amount leftover from the inputs
   const inputsSum = inputValueSum(selectedUTXOs);
+  // Check if the change amount is above the dust limit, and if so, add it as a change output
+  if (inputsSum - (amount + fee) > BTC_DUST_SAT) {
+    tx.addOutput(
+      address.toOutputScript(changeAddress, network),
+      inputsSum - (amount + fee),
+    );
+  }
+
+  // Set the locktime field if provided. If not provided, the locktime will be set to 0 by default
+  // Only height based locktime is supported
+  if (lockHeight) {
+    if (lockHeight >= BTC_LOCKTIME_HEIGHT_TIME_CUTOFF) {
+      throw new Error("Invalid lock height");
+    }
+    tx.locktime = lockHeight;
+  }
+
+  return {
+    transaction: tx,
+    fee,
+  };
+}
+
+/**
+ * Constructs an unsigned BTC Staking Expansion transaction.
+ *
+ * This function is specifically designed for staking expansion transactions
+ * that require exactly the provided UTXOs (2: previous staking + funding)
+ * without performing UTXO selection optimization.
+ *
+ * Outputs:
+ * - transaction: The unsigned expansion transaction with all provided UTXOs as inputs.
+ * - fee: The total fee amount for the transaction.
+ *
+ * Inputs:
+ * - scripts: Scripts for different transaction types (timelockScript, unbondingScript, slashingScript).
+ * - amount: Amount to stake in the expansion.
+ * - changeAddress: Address to send the change to.
+ * - inputUTXOs: Exact UTXOs to use as inputs (no selection logic applied).
+ * - network: Bitcoin network.
+ * - feeRate: Fee rate in satoshis per byte.
+ * - lockHeight: Optional block height locktime.
+ *
+ * @param {Object} scripts - Scripts used to construct the taproot output.
+ * @param {number} amount - The amount to stake in the expansion.
+ * @param {string} changeAddress - The address to send the change to.
+ * @param {UTXO[]} inputUTXOs - Exact UTXOs to use as inputs (all will be used).
+ * @param {networks.Network} network - The Bitcoin network.
+ * @param {number} feeRate - The fee rate in satoshis per byte.
+ * @param {number} [lockHeight] - The optional block height locktime.
+ * @returns {TransactionResult} - An object containing the unsigned transaction and fee
+ */
+export function stakingExpansionTransaction(
+  scripts: {
+    timelockScript: Buffer;
+    unbondingScript: Buffer;
+    slashingScript: Buffer;
+    dataEmbedScript?: Buffer;
+  },
+  amount: number,
+  changeAddress: string,
+  inputUTXOs: UTXO[],
+  network: networks.Network,
+  feeRate: number,
+  lockHeight?: number,
+): TransactionResult {
+  // Check that amount and fee are bigger than 0
+  if (amount <= 0 || feeRate <= 0) {
+    throw new Error("Amount and fee rate must be bigger than 0");
+  }
+
+  // Check whether the change address is a valid Bitcoin address.
+  if (!isValidBitcoinAddress(changeAddress, network)) {
+    throw new Error("Invalid change address");
+  }
+
+  if (inputUTXOs.length === 0) {
+    throw new Error("No input UTXOs provided for expansion transaction");
+  }
+
+  // Build outputs
+  const stakingOutputs = buildStakingTransactionOutputs(
+    scripts,
+    network,
+    amount,
+  );
+
+  // Calculate fee using all provided UTXOs
+  const estimatedSize = getEstimatedSize(inputUTXOs, stakingOutputs);
+  let fee = estimatedSize * feeRate + rateBasedTxBufferFee(feeRate);
+
+  // Check if there will be change and add change output fee if needed
+  const inputsSum = inputValueSum(inputUTXOs);
+  if (inputsSum - (amount + fee) > BTC_DUST_SAT) {
+    fee += getEstimatedChangeOutputSize() * feeRate;
+  }
+
+  // Verify we have sufficient funds
+  if (inputsSum < amount + fee) {
+    throw new Error(
+      `Insufficient funds for expansion: need ${amount + fee}, have ${inputsSum}`,
+    );
+  }
+
+  const tx = new Transaction();
+  tx.version = TRANSACTION_VERSION;
+
+  // Add all provided UTXOs
+  for (let i = 0; i < inputUTXOs.length; ++i) {
+    const input = inputUTXOs[i];
+    tx.addInput(transactionIdToHash(input.txid), input.vout, NON_RBF_SEQUENCE);
+  }
+
+  // Add staking outputs
+  stakingOutputs.forEach((o) => {
+    tx.addOutput(o.scriptPubKey, o.value);
+  });
+
+  // Add a change output only if there's any amount leftover from the inputs
   // Check if the change amount is above the dust limit, and if so, add it as a change output
   if (inputsSum - (amount + fee) > BTC_DUST_SAT) {
     tx.addOutput(
@@ -370,7 +509,7 @@ function withdrawalTransaction(
     value: outputValue,
   });
 
-  // Withdraw transaction has no time-based restrictions and can be included 
+  // Withdraw transaction has no time-based restrictions and can be included
   // in the next block immediately.
   psbt.setLocktime(0);
 
@@ -585,14 +724,14 @@ function slashingTransaction(
   if (opcodes.OP_RETURN != slashingOutput[0]) {
     if (slashingAmount <= BTC_DUST_SAT) {
       throw new Error("Slashing amount is less than dust limit");
-    }  
+    }
   }
 
   const userFunds = stakingAmount - slashingAmount - minimumFee;
   if (userFunds <= BTC_DUST_SAT) {
     throw new Error("User funds are less than dust limit");
   }
- 
+
   const psbt = new Psbt({ network });
   psbt.setVersion(TRANSACTION_VERSION);
 
@@ -627,7 +766,7 @@ function slashingTransaction(
     value: userFunds,
   });
 
-  // Slashing transaction has no time-based restrictions and can be included 
+  // Slashing transaction has no time-based restrictions and can be included
   // in the next block immediately.
   psbt.setLocktime(0);
 
@@ -667,18 +806,17 @@ export function unbondingTransaction(
 
   const outputValue = stakingTx.outs[outputIndex].value - unbondingFee;
   if (outputValue < BTC_DUST_SAT) {
-    throw new Error("Output value is less than dust limit for unbonding transaction");
+    throw new Error(
+      "Output value is less than dust limit for unbonding transaction",
+    );
   }
   // Add the unbonding output
   if (!unbondingOutputInfo.outputAddress) {
     throw new Error("Unbonding output address is not defined");
   }
-  tx.addOutput(
-    unbondingOutputInfo.scriptPubKey,
-    outputValue,
-  );
+  tx.addOutput(unbondingOutputInfo.scriptPubKey, outputValue);
 
-  // Unbonding transaction has no time-based restrictions and can be included 
+  // Unbonding transaction has no time-based restrictions and can be included
   // in the next block immediately.
   tx.locktime = 0;
 
@@ -699,16 +837,16 @@ export const createCovenantWitness = (
 ) => {
   if (covenantSigs.length < covenantQuorum) {
     throw new Error(
-      `Not enough covenant signatures. Required: ${covenantQuorum}, `
-      + `got: ${covenantSigs.length}`
+      `Not enough covenant signatures. Required: ${covenantQuorum}, ` +
+        `got: ${covenantSigs.length}`,
     );
   }
   // Verify all btcPkHex from covenantSigs exist in paramsCovenants
   for (const sig of covenantSigs) {
     const btcPkHexBuf = Buffer.from(sig.btcPkHex, "hex");
-    if (!paramsCovenants.some(covenant => covenant.equals(btcPkHexBuf))) {
+    if (!paramsCovenants.some((covenant) => covenant.equals(btcPkHexBuf))) {
       throw new Error(
-        `Covenant signature public key ${sig.btcPkHex} not found in params covenants`
+        `Covenant signature public key ${sig.btcPkHex} not found in params covenants`,
       );
     }
   }

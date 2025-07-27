@@ -47,6 +47,14 @@ export interface StakingInputs {
   stakingTimelock: number;
 }
 
+export interface StakingExpansionInputs {
+  finalityProviderPksNoCoordHex: string[];
+  stakingAmountSat: number;
+  stakingTimelock: number;
+  previousStakingTxHash: string;
+  fundingTx: Uint8Array;
+}
+
 // Inclusion proof for a BTC staking transaction that is included in a BTC block
 // This is used for post-staking registration on the Babylon chain
 // You can refer to https://electrumx.readthedocs.io/en/latest/protocol-methods.html#blockchain-transaction-get-merkle

@@ -11,9 +11,7 @@ import {
   WITHDRAW_TX_BUFFER_SIZE,
 } from "../../constants/fee";
 import { UTXO } from "../../types/UTXO";
-import {
-  TransactionOutput,
-} from "../../types/psbtOutputs";
+import { TransactionOutput } from "../../types/psbtOutputs";
 import {
   getEstimatedChangeOutputSize,
   getInputSizeByScript,
@@ -94,7 +92,6 @@ export const getStakingTxInputUTXOsAndFees = (
   };
 };
 
-
 /**
  * Calculates the estimated fee for a withdrawal transaction.
  * The fee calculation is based on estimated constants for input size,
@@ -118,7 +115,6 @@ export const getWithdrawTxFee = (feeRate: number): number => {
   );
 };
 
-
 /**
  * Calculates the estimated transaction size using a heuristic formula which
  * includes the input size, output size, and a fixexd buffer for the transaction size.
@@ -130,7 +126,7 @@ export const getWithdrawTxFee = (feeRate: number): number => {
  * @param outputs - The outputs in the transaction.
  * @returns The estimated transaction size in bytes.
  */
-const getEstimatedSize = (
+export const getEstimatedSize = (
   inputUtxos: UTXO[],
   outputs: TransactionOutput[],
 ): number => {
@@ -175,7 +171,7 @@ const getEstimatedSize = (
  * @param feeRate - The fee rate in satoshis per byte.
  * @returns The buffer amount in satoshis to be added to the transaction fee.
  */
-const rateBasedTxBufferFee = (feeRate: number): number => {
+export const rateBasedTxBufferFee = (feeRate: number): number => {
   return feeRate <= WALLET_RELAY_FEE_RATE_THRESHOLD
     ? LOW_RATE_ESTIMATION_ACCURACY_BUFFER
     : 0;

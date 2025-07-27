@@ -8,7 +8,7 @@ import {
   BTCSigType,
   ProofOfPossessionBTC,
 } from "@babylonlabs-io/babylon-proto-ts/dist/generated/babylon/btcstaking/v1/pop";
-import { Psbt, Transaction, networks } from "bitcoinjs-lib";
+import { Psbt, Transaction, address, networks } from "bitcoinjs-lib";
 import type { Emitter } from "nanoevents";
 
 import { StakerInfo, Staking } from ".";
@@ -17,11 +17,13 @@ import { StakingError, StakingErrorCode } from "../error";
 import { TransactionResult, UTXO } from "../types";
 import { ActionName } from "../types/action";
 import { Contract, ContractId } from "../types/contract";
+import { CovenantSignature } from "../types/covenantSignatures";
 import { ManagerEvents } from "../types/events";
 import {
   BabylonProvider,
   BtcProvider,
   InclusionProof,
+  StakingExpansionInputs,
   StakingInputs,
 } from "../types/manager";
 import { StakingParams, VersionedStakingParams } from "../types/params";
@@ -715,7 +717,7 @@ export class BabylonBtcStakingManager {
    * @returns The proof of possession.
    */
   async createProofOfPossession(
-    channel: "delegation:create" | "delegation:register",
+    channel: "delegation:create" | "delegation:register" | "delegation:expand",
     bech32Address: string,
     stakerBtcAddress: string,
   ): Promise<ProofOfPossessionBTC> {
@@ -1017,6 +1019,397 @@ export class BabylonBtcStakingManager {
       key: inclusionProofKey,
       proof: Uint8Array.from(Buffer.from(proofHex, "hex")),
     });
+  }
+
+  /**
+   * Creates a signed BTC staking expansion transaction with covenant signatures
+   * for spending the previous staking UTXO. This is similar to createSignedBtcStakingTransaction
+   * but handles covenant signatures for the previous staking input.
+   * @param stakerBtcInfo - The staker BTC info
+   * @param stakingInput - The staking inputs
+   * @param unsignedStakingTx - The unsigned staking transaction
+   * @param inputUTXOs - The input UTXOs (including previous staking UTXO)
+   * @param stakingParamsVersion - The params version
+   * @param previousStakingCovenantSignatures - Covenant signatures for the previous staking UTXO
+   * @param originalFinalityProviderPksNoCoordHex - The original finality provider public keys from the delegation being expanded
+   * @returns The signed staking transaction
+   */
+  async createSignedBtcStakingExpansionTransaction(
+    stakerBtcInfo: StakerInfo,
+    stakingInput: StakingInputs,
+    unsignedStakingTx: Transaction,
+    inputUTXOs: UTXO[],
+    stakingParamsVersion: number,
+    previousStakingCovenantSignatures: CovenantSignature[],
+    originalFinalityProviderPksNoCoordHex: string[],
+  ) {
+    const params = getBabylonParamByVersion(
+      stakingParamsVersion,
+      this.stakingParams,
+    );
+
+    if (inputUTXOs.length === 0) {
+      throw new Error("No input UTXOs provided");
+    }
+
+    const staking = new Staking(
+      this.network,
+      stakerBtcInfo,
+      params,
+      stakingInput.finalityProviderPksNoCoordHex,
+      stakingInput.stakingTimelock,
+    );
+
+    const stakingPsbt = staking.toStakingExpansionPsbt(
+      unsignedStakingTx,
+      inputUTXOs,
+      originalFinalityProviderPksNoCoordHex,
+    );
+
+    const contracts: Contract[] = [
+      {
+        id: ContractId.STAKING,
+        params: {
+          stakerPk: stakerBtcInfo.publicKeyNoCoordHex,
+          finalityProviders: stakingInput.finalityProviderPksNoCoordHex,
+          covenantPks: params.covenantNoCoordPks,
+          covenantThreshold: params.covenantQuorum,
+          minUnbondingTime: params.unbondingTime,
+          stakingDuration: stakingInput.stakingTimelock,
+        },
+      },
+    ];
+
+    const signedStakingPsbtHex = await this.btcProvider.signPsbt(
+      stakingPsbt.toHex(),
+      {
+        contracts,
+        action: {
+          name: ActionName.SIGN_BTC_STAKING_TRANSACTION,
+        },
+      },
+    );
+
+    const signedStakingTx =
+      Psbt.fromHex(signedStakingPsbtHex).extractTransaction();
+
+    if (previousStakingCovenantSignatures.length > 0) {
+      const scripts = staking.buildScripts();
+      const stakingOutputInfo = deriveStakingOutputInfo(scripts, this.network);
+
+      const previousStakingInputIndex = inputUTXOs.findIndex((utxo) => {
+        if (!utxo.scriptPubKey) return false;
+
+        try {
+          // Convert the UTXO's scriptPubKey to an address and compare with expected staking address
+          const utxoAddress = address.fromOutputScript(
+            Buffer.from(utxo.scriptPubKey, "hex"),
+            this.network,
+          );
+          return utxoAddress === stakingOutputInfo.outputAddress;
+        } catch (error) {
+          throw new Error("Invalid previous staking UTXO");
+        }
+      });
+
+      if (previousStakingInputIndex >= 0) {
+        const covenantBuffers = params.covenantNoCoordPks.map((covenant) =>
+          Buffer.from(covenant, "hex"),
+        );
+
+        const witness = createCovenantWitness(
+          signedStakingTx.ins[previousStakingInputIndex].witness,
+          covenantBuffers,
+          previousStakingCovenantSignatures,
+          params.covenantQuorum,
+        );
+        signedStakingTx.ins[previousStakingInputIndex].witness = witness;
+      } else {
+        throw new Error(
+          "Could not find previous staking input for covenant signatures",
+        );
+      }
+    }
+    return signedStakingTx;
+  }
+
+  /**
+   * Creates a BTC staking expansion transaction for expanding an existing delegation
+   * @param stakerBtcInfo - The staker's BTC information
+   * @param stakingExpansionInput - The staking expansion input parameters
+   * @param babylonBtcTipHeight - The BTC tip height from Babylon chain
+   * @param inputUTXOs - The input UTXOs for funding the expansion
+   * @param feeRate - The fee rate for the expansion transaction
+   * @param babylonAddress - The Babylon address for receiving rewards
+   * @returns The signed babylon expansion transaction and staking transaction
+   */
+  async createBtcStakeExpansionTransaction(
+    stakerBtcInfo: StakerInfo,
+    stakingExpansionInput: StakingExpansionInputs,
+    babylonBtcTipHeight: number,
+    inputUTXOs: UTXO[],
+    feeRate: number,
+    babylonAddress: string,
+  ): Promise<{
+    signedBabylonTx: Uint8Array;
+    stakingTx: Transaction;
+  }> {
+    if (babylonBtcTipHeight === 0) {
+      throw new Error("Babylon BTC tip height cannot be 0");
+    }
+    if (inputUTXOs.length === 0) {
+      throw new Error("No input UTXOs provided");
+    }
+    if (!isValidBabylonAddress(babylonAddress)) {
+      throw new Error("Invalid Babylon address");
+    }
+    if (!stakingExpansionInput.previousStakingTxHash) {
+      throw new Error("Previous staking transaction hash is required");
+    }
+
+    // Get the Babylon params based on the BTC tip height from Babylon chain
+    const params = getBabylonParamByBtcHeight(
+      babylonBtcTipHeight,
+      this.stakingParams,
+    );
+
+    const staking = new Staking(
+      this.network,
+      stakerBtcInfo,
+      params,
+      stakingExpansionInput.finalityProviderPksNoCoordHex,
+      stakingExpansionInput.stakingTimelock,
+    );
+
+    const { transaction } = staking.createStakingExpansionTransaction(
+      stakingExpansionInput.stakingAmountSat,
+      inputUTXOs,
+      feeRate,
+    );
+
+    const msg = await this.createBtcStakeExpansionMsg(
+      "delegation:expand",
+      staking,
+      stakingExpansionInput,
+      transaction,
+      babylonAddress,
+      stakerBtcInfo,
+      params,
+    );
+
+    this.ee?.emit("delegation:expand", {
+      type: "create-btc-stake-expansion-msg",
+    });
+
+    const result = {
+      signedBabylonTx: await this.babylonProvider.signTransaction(msg),
+      stakingTx: transaction,
+    };
+
+    return result;
+  }
+
+  /**
+   * Creates the BTC stake expansion message for the Babylon chain
+   * @param channel - The event channel for tracking
+   * @param stakingInstance - The staking instance
+   * @param stakingExpansionInput - The staking expansion input parameters
+   * @param stakingTx - The staking transaction
+   * @param bech32Address - The Babylon address
+   * @param stakerBtcInfo - The staker's BTC information
+   * @param params - The staking parameters
+   * @returns The protobuf message
+   */
+  private async createBtcStakeExpansionMsg(
+    channel: "delegation:expand",
+    stakingInstance: Staking,
+    stakingExpansionInput: StakingExpansionInputs,
+    stakingTx: Transaction,
+    bech32Address: string,
+    stakerBtcInfo: StakerInfo,
+    params: StakingParams,
+  ) {
+    if (!params.slashing) {
+      throw new StakingError(
+        StakingErrorCode.INVALID_PARAMS,
+        "Slashing parameters are required for creating expansion message",
+      );
+    }
+
+    const { unbondingTx, slashingPsbt, unbondingSlashingPsbt } =
+      await this.createDelegationTransactionsAndPsbts(
+        stakingInstance,
+        stakingTx,
+      );
+
+    const slashingContracts: Contract[] = [
+      {
+        id: ContractId.STAKING,
+        params: {
+          stakerPk: stakerBtcInfo.publicKeyNoCoordHex,
+          finalityProviders:
+            stakingExpansionInput.finalityProviderPksNoCoordHex,
+          covenantPks: params.covenantNoCoordPks,
+          covenantThreshold: params.covenantQuorum,
+          minUnbondingTime: params.unbondingTime,
+          stakingDuration: stakingExpansionInput.stakingTimelock,
+        },
+      },
+      {
+        id: ContractId.SLASHING,
+        params: {
+          stakerPk: stakerBtcInfo.publicKeyNoCoordHex,
+          unbondingTimeBlocks: params.unbondingTime,
+          slashingFeeSat: params.slashing.minSlashingTxFeeSat,
+        },
+      },
+      {
+        id: ContractId.SLASHING_BURN,
+        params: {
+          stakerPk: stakerBtcInfo.publicKeyNoCoordHex,
+          slashingPkScriptHex: params.slashing.slashingPkScriptHex,
+        },
+      },
+    ];
+
+    // Sign the slashing PSBT
+    this.ee?.emit(channel, {
+      stakerPk: stakerBtcInfo.publicKeyNoCoordHex,
+      finalityProviders: stakingExpansionInput.finalityProviderPksNoCoordHex,
+      covenantPks: params.covenantNoCoordPks,
+      covenantThreshold: params.covenantQuorum,
+      unbondingTimeBlocks: params.unbondingTime,
+      stakingDuration: stakingExpansionInput.stakingTimelock,
+      slashingFeeSat: params.slashing.minSlashingTxFeeSat,
+      slashingPkScriptHex: params.slashing.slashingPkScriptHex,
+      type: "staking-slashing",
+    });
+
+    const signedSlashingPsbtHex = await this.btcProvider.signPsbt(
+      slashingPsbt.toHex(),
+      {
+        contracts: slashingContracts,
+        action: {
+          name: ActionName.SIGN_BTC_SLASHING_TRANSACTION,
+        },
+      },
+    );
+
+    const signedSlashingTx = Psbt.fromHex(
+      signedSlashingPsbtHex,
+    ).extractTransaction();
+    const slashingSig =
+      extractFirstSchnorrSignatureFromTransaction(signedSlashingTx);
+    if (!slashingSig) {
+      throw new Error("No signature found in the staking output slashing PSBT");
+    }
+
+    const unbondingSlashingContracts: Contract[] = [
+      {
+        id: ContractId.UNBONDING,
+        params: {
+          stakerPk: stakerBtcInfo.publicKeyNoCoordHex,
+          finalityProviders:
+            stakingExpansionInput.finalityProviderPksNoCoordHex,
+          covenantPks: params.covenantNoCoordPks,
+          covenantThreshold: params.covenantQuorum,
+          unbondingTimeBlocks: params.unbondingTime,
+          unbondingFeeSat: params.unbondingFeeSat,
+        },
+      },
+      {
+        id: ContractId.SLASHING,
+        params: {
+          stakerPk: stakerBtcInfo.publicKeyNoCoordHex,
+          unbondingTimeBlocks: params.unbondingTime,
+          slashingFeeSat: params.slashing.minSlashingTxFeeSat,
+        },
+      },
+      {
+        id: ContractId.SLASHING_BURN,
+        params: {
+          stakerPk: stakerBtcInfo.publicKeyNoCoordHex,
+          slashingPkScriptHex: params.slashing.slashingPkScriptHex,
+        },
+      },
+    ];
+
+    // Sign the unbonding slashing PSBT
+    this.ee?.emit(channel, {
+      stakerPk: stakerBtcInfo.publicKeyNoCoordHex,
+      finalityProviders: stakingExpansionInput.finalityProviderPksNoCoordHex,
+      covenantPks: params.covenantNoCoordPks,
+      covenantThreshold: params.covenantQuorum,
+      unbondingTimeBlocks: params.unbondingTime,
+      unbondingFeeSat: params.unbondingFeeSat,
+      slashingFeeSat: params.slashing.minSlashingTxFeeSat,
+      slashingPkScriptHex: params.slashing.slashingPkScriptHex,
+      type: "unbonding-slashing",
+    });
+
+    const signedUnbondingSlashingPsbtHex = await this.btcProvider.signPsbt(
+      unbondingSlashingPsbt.toHex(),
+      {
+        contracts: unbondingSlashingContracts,
+        action: {
+          name: ActionName.SIGN_BTC_UNBONDING_SLASHING_TRANSACTION,
+        },
+      },
+    );
+
+    const signedUnbondingSlashingTx = Psbt.fromHex(
+      signedUnbondingSlashingPsbtHex,
+    ).extractTransaction();
+    const unbondingSignatures = extractFirstSchnorrSignatureFromTransaction(
+      signedUnbondingSlashingTx,
+    );
+    if (!unbondingSignatures) {
+      throw new Error("No signature found in the unbonding slashing PSBT");
+    }
+
+    const proofOfPossession = await this.createProofOfPossession(
+      channel,
+      bech32Address,
+      stakerBtcInfo.address,
+    );
+
+    // Prepare the final protobuf message
+    const msg: btcstakingtx.MsgBtcStakeExpand =
+      btcstakingtx.MsgBtcStakeExpand.fromPartial({
+        stakerAddr: bech32Address,
+        pop: proofOfPossession,
+        btcPk: Uint8Array.from(
+          Buffer.from(stakerBtcInfo.publicKeyNoCoordHex, "hex"),
+        ),
+        fpBtcPkList: stakingExpansionInput.finalityProviderPksNoCoordHex.map(
+          (pk) => Uint8Array.from(Buffer.from(pk, "hex")),
+        ),
+        stakingTime: stakingExpansionInput.stakingTimelock,
+        stakingValue: stakingExpansionInput.stakingAmountSat,
+        stakingTx: Uint8Array.from(stakingTx.toBuffer()),
+        slashingTx: Uint8Array.from(
+          Buffer.from(clearTxSignatures(signedSlashingTx).toHex(), "hex"),
+        ),
+        delegatorSlashingSig: Uint8Array.from(slashingSig),
+        unbondingTime: params.unbondingTime,
+        unbondingTx: Uint8Array.from(unbondingTx.toBuffer()),
+        unbondingValue:
+          stakingExpansionInput.stakingAmountSat - params.unbondingFeeSat,
+        unbondingSlashingTx: Uint8Array.from(
+          Buffer.from(
+            clearTxSignatures(signedUnbondingSlashingTx).toHex(),
+            "hex",
+          ),
+        ),
+        delegatorUnbondingSlashingSig: Uint8Array.from(unbondingSignatures),
+        previousStakingTxHash: stakingExpansionInput.previousStakingTxHash,
+        fundingTx: stakingExpansionInput.fundingTx,
+      });
+
+    return {
+      typeUrl: BABYLON_REGISTRY_TYPE_URLS.MsgBtcStakeExpand,
+      value: msg,
+    };
   }
 }
 
