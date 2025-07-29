@@ -39,7 +39,7 @@ import {
   getBabylonParamByVersion,
 } from "../utils/staking/param";
 
-import { createCovenantWitness } from "./transactions";
+import { createCovenantWitness, expandStakingTransaction } from "./transactions";
 
 export class BabylonBtcStakingManager {
   private upgradeConfig?: UpgradeConfig;
@@ -142,6 +142,97 @@ export class BabylonBtcStakingManager {
   }
 
   /**
+   * Create a signed staking expansion transaction that is ready to be sent to
+   * the Babylon chain.
+   */
+  async stakingExpansionRegistrationBabylonTransaction(
+    stakerBtcInfo: StakerInfo,
+    stakingInput: StakingInputs,
+    babylonBtcTipHeight: number,
+    inputUTXOs: UTXO[],
+    feeRate: number,
+    babylonAddress: string,
+    // Previous staking transaction info
+    previousStakingTxInfo: {
+      stakingTx: Transaction,
+      stakingOutputIndex: number,
+      paramVersion: number,
+      stakingInput: StakingInputs,
+    },
+  ): Promise<{
+    signedBabylonTx: Uint8Array;
+    stakingTx: Transaction;
+  }> {
+    // TODO:
+    // Validate the new staking input is valid by comparing with the previous staking transaction
+    // 2. Check new FPs is super set of previous FPs
+
+    // Param for the expandsion staking transaction
+    const params = getBabylonParamByBtcHeight(
+      babylonBtcTipHeight,
+      this.stakingParams,
+    );
+
+    const paramsForPreviousStakingTx = getBabylonParamByVersion(
+      previousStakingTxInfo.paramVersion,
+      this.stakingParams,
+    );
+
+    const staking = new Staking(
+      this.network,
+      stakerBtcInfo,
+      params,
+      stakingInput.finalityProviderPksNoCoordHex,
+      stakingInput.stakingTimelock,
+    );
+
+    const previousStaking = new Staking(
+      this.network,
+      stakerBtcInfo,
+      paramsForPreviousStakingTx,
+      previousStakingTxInfo.stakingInput.finalityProviderPksNoCoordHex,
+      previousStakingTxInfo.stakingInput.stakingTimelock,
+    );
+
+    // TODO: Copy below to make as a standalone method for calculating fee
+    const {
+      transaction: expandedStakingTx,
+      // fee: expandedStakingTxFee,
+    } = expandStakingTransaction(
+      this.network,
+      staking.buildScripts(),
+      stakingInput.stakingAmountSat,
+      stakerBtcInfo.address,
+      feeRate,
+      inputUTXOs,
+      {
+        stakingTx: previousStakingTxInfo.stakingTx,
+        scripts: previousStaking.buildScripts(),
+      },
+    )
+
+    // Create delegation message without including inclusion proof
+    const msg = await this.createBtcDelegationMsg(
+      "delegation:expand",
+      staking,
+      stakingInput,
+      expandedStakingTx,
+      babylonAddress,
+      stakerBtcInfo,
+      params,
+    );
+
+    this.ee?.emit("delegation:expand", {
+      type: "create-btc-delegation-msg",
+    });
+
+    return {
+      signedBabylonTx: await this.babylonProvider.signTransaction(msg),
+      stakingTx: expandedStakingTx,
+    };
+  }
+
+  /**
    * Creates a signed post-staking registration transaction that is ready to be
    * sent to the Babylon chain. This is used when a staking transaction is
    * already created and included in a BTC block and we want to register it on
@@ -205,7 +296,9 @@ export class BabylonBtcStakingManager {
       babylonAddress,
       stakerBtcInfo,
       params,
-      this.getInclusionProof(inclusionProof),
+      {
+        inclusionProof: this.getInclusionProof(inclusionProof),
+      },
     );
 
     this.ee?.emit("delegation:register", {
@@ -723,7 +816,7 @@ export class BabylonBtcStakingManager {
    * @returns The proof of possession.
    */
   async createProofOfPossession(
-    channel: "delegation:create" | "delegation:register",
+    channel: "delegation:create" | "delegation:register" | "delegation:expand",
     bech32Address: string,
     stakerBtcAddress: string,
   ): Promise<ProofOfPossessionBTC> {
@@ -824,19 +917,32 @@ export class BabylonBtcStakingManager {
    * @param stakerBtcInfo - The staker's BTC information such as address and
    * public key
    * @param params - The staking parameters.
-   * @param inclusionProof - The inclusion proof of the staking transaction.
+   * @param options - The options for the BTC delegation.
+   * @param options.inclusionProof - The inclusion proof of the staking
+   * transaction.
+   * @param options.delegtionExpansionInfo - The information for the BTC
+   * delegation expansion.
    * @returns The protobuf message.
    */
   private async createBtcDelegationMsg(
-    channel: "delegation:create" | "delegation:register",
+    channel: "delegation:create" | "delegation:register" | "delegation:expand",
     stakingInstance: Staking,
     stakingInput: StakingInputs,
     stakingTx: Transaction,
     bech32Address: string,
     stakerBtcInfo: StakerInfo,
     params: StakingParams,
-    inclusionProof?: btcstaking.InclusionProof,
-  ) {
+    options?: {
+      inclusionProof?: btcstaking.InclusionProof,
+      delegtionExpansionInfo?: {
+        previousStakingTx: Transaction,
+        fundingTx: Transaction,
+      }
+    }
+  ): Promise<{
+    typeUrl: string,
+    value: btcstakingtx.MsgCreateBTCDelegation | btcstakingtx.MsgBtcStakeExpand,
+  }> {
     if (!params.slashing) {
       throw new StakingError(
         StakingErrorCode.INVALID_PARAMS,
@@ -982,35 +1088,55 @@ export class BabylonBtcStakingManager {
       stakerBtcInfo.address,
     );
 
-    // Prepare the final protobuf message
+    const commonMsg = {
+      stakerAddr: bech32Address,
+      pop: proofOfPossession,
+      btcPk: Uint8Array.from(
+        Buffer.from(stakerBtcInfo.publicKeyNoCoordHex, "hex"),
+      ),
+      fpBtcPkList: stakingInput.finalityProviderPksNoCoordHex.map((pk) =>
+        Uint8Array.from(Buffer.from(pk, "hex")),
+      ),
+      stakingTime: stakingInput.stakingTimelock,
+      stakingValue: stakingInput.stakingAmountSat,
+      stakingTx: Uint8Array.from(stakingTx.toBuffer()),
+      slashingTx: Uint8Array.from(
+        Buffer.from(clearTxSignatures(signedSlashingTx).toHex(), "hex"),
+      ),
+      delegatorSlashingSig: Uint8Array.from(slashingSig),
+      unbondingTime: params.unbondingTime,
+      unbondingTx: Uint8Array.from(unbondingTx.toBuffer()),
+      unbondingValue: stakingInput.stakingAmountSat - params.unbondingFeeSat,
+      unbondingSlashingTx: Uint8Array.from(
+        Buffer.from(
+          clearTxSignatures(signedUnbondingSlashingTx).toHex(),
+          "hex",
+        ),
+      ),
+      delegatorUnbondingSlashingSig: Uint8Array.from(unbondingSignatures),
+    }
+
+    // If the delegation is an expansion, we use the MsgBtcStakeExpand message
+    if (options?.delegtionExpansionInfo) {
+      const fundingTx = Uint8Array.from(
+        options.delegtionExpansionInfo.fundingTx.toBuffer());
+      const msg = btcstakingtx.MsgBtcStakeExpand.fromPartial({
+        ...commonMsg,
+        previousStakingTxHash:
+          options.delegtionExpansionInfo.previousStakingTx.getId(),
+        fundingTx,
+      });
+      return {
+        typeUrl: BABYLON_REGISTRY_TYPE_URLS.MsgBtcStakeExpand,
+        value: msg,
+      }
+    }
+
+    // Otherwise, it's a new staking delegation
     const msg: btcstakingtx.MsgCreateBTCDelegation =
       btcstakingtx.MsgCreateBTCDelegation.fromPartial({
-        stakerAddr: bech32Address,
-        pop: proofOfPossession,
-        btcPk: Uint8Array.from(
-          Buffer.from(stakerBtcInfo.publicKeyNoCoordHex, "hex"),
-        ),
-        fpBtcPkList: stakingInput.finalityProviderPksNoCoordHex.map((pk) =>
-          Uint8Array.from(Buffer.from(pk, "hex")),
-        ),
-        stakingTime: stakingInput.stakingTimelock,
-        stakingValue: stakingInput.stakingAmountSat,
-        stakingTx: Uint8Array.from(stakingTx.toBuffer()),
-        slashingTx: Uint8Array.from(
-          Buffer.from(clearTxSignatures(signedSlashingTx).toHex(), "hex"),
-        ),
-        delegatorSlashingSig: Uint8Array.from(slashingSig),
-        unbondingTime: params.unbondingTime,
-        unbondingTx: Uint8Array.from(unbondingTx.toBuffer()),
-        unbondingValue: stakingInput.stakingAmountSat - params.unbondingFeeSat,
-        unbondingSlashingTx: Uint8Array.from(
-          Buffer.from(
-            clearTxSignatures(signedUnbondingSlashingTx).toHex(),
-            "hex",
-          ),
-        ),
-        delegatorUnbondingSlashingSig: Uint8Array.from(unbondingSignatures),
-        stakingTxInclusionProof: inclusionProof,
+        ...commonMsg,
+        stakingTxInclusionProof: options?.inclusionProof,
       });
 
     return {

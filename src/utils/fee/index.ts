@@ -94,6 +94,87 @@ export const getStakingTxInputUTXOsAndFees = (
   };
 };
 
+/**
+ * Calculates the required funding UTXO and fees for a staking expansion transaction.
+ * 
+ * This function selects a single UTXO from available UTXOs to cover:
+ * 1. Transaction fees for the expansion
+ * 2. Any additional staking amount beyond the previous stake
+ * 
+ * @param availableUTXOs - List of available UTXOs to choose from for funding
+ * @param previousStakingTx - Details of the previous staking transaction being expanded
+ * @param stakingAmount - Total staking amount for the expansion (includes previous + additional)
+ * @param feeRate - Fee rate in satoshis per byte
+ * @param outputs - Transaction outputs for the expansion
+ * @returns Object containing the selected funding UTXO and calculated fee
+ */
+export const getExpandStakingTxInputUTXOAndFees = (
+  availableUTXOs: UTXO[],
+  feeRate: number,
+  outputs: TransactionOutput[],
+): {
+  selectedUTXO: UTXO;
+  fee: number;
+} => {
+  // Validate that we have UTXOs to work with
+  if (availableUTXOs.length === 0) {
+    throw new Error("Insufficient funds");
+  }
+
+  // Filter out invalid UTXOs by checking if their script can be decompiled
+  // This ensures we only work with properly formatted Bitcoin scripts
+  const validUTXOs = availableUTXOs.filter((utxo) => {
+    const script = Buffer.from(utxo.scriptPubKey, "hex");
+    return !!bitcoinScript.decompile(script);
+  });
+
+  if (validUTXOs.length === 0) {
+    throw new Error("Insufficient funds: no valid UTXOs available for staking");
+  }
+
+  // Sort available UTXOs from lowest to highest value for optimal selection
+  // This helps us avoid selecting large UTXOs which can be used
+  // for other activities.
+  const sortedUTXOs = validUTXOs.sort((a, b) => a.value - b.value);
+
+
+  // Iterate through UTXOs to find one that can cover the required fees
+  for (const utxo of sortedUTXOs) {
+    // Calculate the estimated transaction size including:
+    // - Base transaction size (additional UTXOs + Outputs)
+    // - Previous staking transaction output as the input for the expansion tx
+    // Note: Staking transactions use P2TR (Taproot) format, hence P2TR_INPUT_SIZE
+    const estimatedSize = getEstimatedSize([utxo], outputs) + P2TR_INPUT_SIZE;
+    
+    // Calculate base fee: size * rate + buffer fee for network congestion
+    let estimatedFee = estimatedSize * feeRate + rateBasedTxBufferFee(feeRate);
+    
+    // Check if this UTXO has enough value to cover the estimated fee
+    if (utxo.value >= estimatedFee) {
+      // Check if there will be change left after paying the fee
+      // If change amount is above dust threshold, we need to add a change output
+      // which increases the transaction size and fee
+      if (utxo.value - estimatedFee > BTC_DUST_SAT) {
+        // Add fee for the change output
+        estimatedFee += getEstimatedChangeOutputSize() * feeRate;
+      }
+      
+      return {
+        selectedUTXO: utxo,
+        fee: estimatedFee,
+      };
+    }
+  }
+  
+  const largestUTXOAmount = sortedUTXOs[sortedUTXOs.length - 1].value;
+  // If no UTXO can cover the fees, throw an error
+  throw new Error(
+    `Insufficient funds: unable to find a UTXO to cover the fees for the
+    staking expansion transaction. The largest UTXO amount
+    is ${largestUTXOAmount} sats.`,
+  );
+};
+
 
 /**
  * Calculates the estimated fee for a withdrawal transaction.
