@@ -39,7 +39,7 @@ import {
   getBabylonParamByVersion,
 } from "../utils/staking/param";
 
-import { createCovenantWitness, expandStakingTransaction } from "./transactions";
+import { createCovenantWitness } from "./transactions";
 
 export class BabylonBtcStakingManager {
   private upgradeConfig?: UpgradeConfig;
@@ -501,6 +501,169 @@ export class BabylonBtcStakingManager {
     );
 
     return Psbt.fromHex(signedStakingPsbtHex).extractTransaction();
+  }
+
+  /**
+   * Creates a signed staking expansion transaction that is ready to be sent to
+   * the BTC network.
+   * 
+   * @param {StakerInfo} stakerBtcInfo - The staker's BTC information including
+   * address and public key
+   * @param {StakingInputs} stakingInput - The staking inputs for the expansion
+   * @param {Transaction} unsignedStakingExpansionTx - The unsigned staking
+   * expansion transaction
+   * @param {UTXO[]} inputUTXOs - Available UTXOs for the funding input
+   * @param {number} stakingParamsVersion - The version of staking parameters
+   * that was used when registering the staking expansion delegation.
+   * @param {Object} previousStakingTxInfo - Information about the previous
+   * staking transaction
+   * @param {Array} covenantStakingExpansionSignatures - Covenant committee
+   * signatures for the expansion
+   * @returns {Promise<Transaction>} The fully signed staking expansion
+   * transaction
+   * @throws {Error} If signing fails, validation fails, or required data is
+   * missing
+   */
+  async createSignedBtcStakingExpansionTransaction(
+    stakerBtcInfo: StakerInfo,
+    stakingInput: StakingInputs,
+    unsignedStakingExpansionTx: Transaction,
+    inputUTXOs: UTXO[],
+    stakingParamsVersion: number,
+    previousStakingTxInfo: {
+      stakingTx: Transaction,
+      paramVersion: number,
+      stakingInput: StakingInputs,
+    },
+    covenantStakingExpansionSignatures: {
+      btcPkHex: string;
+      sigHex: string;
+    }[],
+  ): Promise<Transaction> {
+    validateStakingExpansionInputs(
+      {
+        inputUTXOs,
+        stakingInput,
+        previousStakingInput: previousStakingTxInfo.stakingInput,
+      },
+    );
+
+    // Get the staking parameters for the current version
+    // These parameters define the covenant committee and other staking rules
+    const params = getBabylonParamByVersion(
+      stakingParamsVersion,
+      this.stakingParams,
+    );
+
+    // Validate that input UTXOs are provided for the funding input
+    if (inputUTXOs.length === 0) {
+      throw new Error("No input UTXOs provided");
+    }
+
+    // Create a new staking instance with the current parameters
+    // This will be used to build the PSBT for the expansion transaction
+    const staking = new Staking(
+      this.network,
+      stakerBtcInfo,
+      params,
+      stakingInput.finalityProviderPksNoCoordHex,
+      stakingInput.stakingTimelock,
+    );
+
+    // Create the PSBT for the staking expansion transaction
+    // This PSBT will have two inputs: the previous staking output and a
+    // funding UTXO
+    const stakingExpansionPsbt = staking.toStakingExpansionPsbt(
+      unsignedStakingExpansionTx,
+      inputUTXOs,
+      getBabylonParamByVersion(
+        previousStakingTxInfo.paramVersion,
+        this.stakingParams,
+      ),
+      previousStakingTxInfo,
+    );
+
+    // Define the contract information for the PSBT signing
+    const contracts: Contract[] = [
+      {
+        id: ContractId.STAKING,
+        params: {
+          stakerPk: stakerBtcInfo.publicKeyNoCoordHex,
+          finalityProviders: stakingInput.finalityProviderPksNoCoordHex,
+          covenantPks: params.covenantNoCoordPks,
+          covenantThreshold: params.covenantQuorum,
+          minUnbondingTime: params.unbondingTime,
+          stakingDuration: stakingInput.stakingTimelock,
+        },
+      },
+    ];
+
+    // Emit an event to notify listeners about the staking expansion
+    // This can be used for logging, monitoring, or UI updates
+    this.ee?.emit("delegation:stake", {
+      stakerPk: stakerBtcInfo.publicKeyNoCoordHex,
+      finalityProviders: stakingInput.finalityProviderPksNoCoordHex,
+      covenantPks: params.covenantNoCoordPks,
+      covenantThreshold: params.covenantQuorum,
+      unbondingTimeBlocks: params.unbondingTime,
+      stakingDuration: stakingInput.stakingTimelock,
+      type: "staking",
+    });
+
+    // Sign the PSBT using the BTC provider (wallet)
+    // The wallet will sign the transaction based on the contract information
+    // provided
+    const signedStakingPsbtHex = await this.btcProvider.signPsbt(
+      stakingExpansionPsbt.toHex(),
+      {
+        contracts,
+        action: {
+          name: ActionName.SIGN_BTC_STAKING_TRANSACTION,
+        },
+      },
+    );
+
+    // Extract the signed transaction from the PSBT
+    const signedStakingExpansionTx = Psbt.fromHex(
+      signedStakingPsbtHex,
+    ).extractTransaction();
+    
+    // Validate that the signed transaction hash matches the unsigned
+    // transaction hash
+    // This ensures that the signing process didn't change the transaction
+    // structure
+    if (
+      signedStakingExpansionTx.getId() !== unsignedStakingExpansionTx.getId()
+    ) {
+      throw new Error(
+        "Staking expansion transaction hash does not match the computed hash",
+      );
+    }
+
+    // Add covenant committee signatures to the transaction
+    // Convert covenant public keys from hex strings to buffers
+    const covenantBuffers = params.covenantNoCoordPks.map((covenant) =>
+      Buffer.from(covenant, "hex"),
+    );
+    
+    // Create the witness that includes both the staker's signature and covenant
+    // signatures
+    // The witness is the data that proves the transaction is authorized
+    const witness = createCovenantWitness(
+      // The first input of the staking expansion transaction is the previous
+      // staking output. We will attach the covenant signatures to this input
+      // to unbond the previousstaking output.
+      signedStakingExpansionTx.ins[0].witness,
+      covenantBuffers,
+      covenantStakingExpansionSignatures,
+      params.covenantQuorum,
+    );
+    
+    // Overwrite the witness to include the covenant staking expansion signatures
+    // This makes the transaction valid for submission to the Bitcoin network
+    signedStakingExpansionTx.ins[0].witness = witness;
+
+    return signedStakingExpansionTx;
   }
 
   /**
@@ -1336,14 +1499,14 @@ const validateStakingExpansionInputs = (
     previousStakingInput,
     babylonAddress,
   }: {
-    babylonBtcTipHeight: number,
+    babylonBtcTipHeight?: number,
     inputUTXOs: UTXO[],
     stakingInput: StakingInputs,
     previousStakingInput: StakingInputs,
     babylonAddress?: string,
   }
 ) => {
-  if (!babylonBtcTipHeight) {
+  if (babylonBtcTipHeight === 0) {
     throw new Error("Babylon BTC tip height cannot be 0");
   }
   if (!inputUTXOs || inputUTXOs.length === 0) {

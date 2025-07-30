@@ -1,4 +1,6 @@
-import { Psbt, Transaction, networks, payments, script, address, opcodes } from "bitcoinjs-lib";
+import {
+  Psbt, Transaction, networks, payments, script, address, opcodes
+} from "bitcoinjs-lib";
 import { Taptree } from "bitcoinjs-lib/src/types";
 
 import { BTC_DUST_SAT } from "../constants/dustSat";
@@ -6,9 +8,18 @@ import { internalPubkey } from "../constants/internalPubkey";
 import { UTXO } from "../types/UTXO";
 import { PsbtResult, TransactionResult } from "../types/transaction";
 import { isValidBitcoinAddress, transactionIdToHash } from "../utils/btc";
-import { getExpandStakingTxInputUTXOAndFees, getStakingTxInputUTXOsAndFees, getWithdrawTxFee } from "../utils/fee";
+import {
+  getStakingExpansionTxInputUTXOAndFees,
+  getStakingTxInputUTXOsAndFees,
+  getWithdrawTxFee,
+} from "../utils/fee";
 import { inputValueSum } from "../utils/fee/utils";
-import { buildStakingTransactionOutputs, deriveStakingOutputInfo, deriveUnbondingOutputInfo, findMatchingTxOutputIndex } from "../utils/staking";
+import {
+  buildStakingTransactionOutputs,
+  deriveStakingOutputInfo,
+  deriveUnbondingOutputInfo,
+  findMatchingTxOutputIndex,
+} from "../utils/staking";
 import { NON_RBF_SEQUENCE, TRANSACTION_VERSION } from "../constants/psbt";
 import { CovenantSignature } from "../types/covenantSignatures";
 import { REDEEM_VERSION } from "../constants/transaction";
@@ -147,7 +158,7 @@ export function stakingTransaction(
  * @returns TransactionResult containing the built transaction and
  * calculated fee
  */
-export function expandStakingTransaction(
+export function stakingExpansionTransaction(
   network: networks.Network,
   scripts: {
     timelockScript: Buffer;
@@ -213,7 +224,7 @@ export function expandStakingTransaction(
 
   // Select a single funding UTXO and calculate the required fee
   // The funding UTXO will be used as the second input to cover transaction fees
-  const { selectedUTXO, fee } = getExpandStakingTxInputUTXOAndFees(
+  const { selectedUTXO, fee } = getStakingExpansionTxInputUTXOAndFees(
     inputUTXOs,
     feeRate,
     stakingOutputs,

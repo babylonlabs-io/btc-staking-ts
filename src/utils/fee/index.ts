@@ -108,7 +108,7 @@ export const getStakingTxInputUTXOsAndFees = (
  * @param outputs - Transaction outputs for the expansion
  * @returns Object containing the selected funding UTXO and calculated fee
  */
-export const getExpandStakingTxInputUTXOAndFees = (
+export const getStakingExpansionTxInputUTXOAndFees = (
   availableUTXOs: UTXO[],
   feeRate: number,
   outputs: TransactionOutput[],
