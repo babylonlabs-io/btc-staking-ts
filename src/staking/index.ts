@@ -20,6 +20,7 @@ import {
 import { stakingPsbt, unbondingPsbt } from "./psbt";
 import { StakingScriptData, StakingScripts } from "./stakingScript";
 import {
+  expandStakingTransaction,
   slashEarlyUnbondedTransaction,
   slashTimelockUnbondedTransaction,
   stakingTransaction,
@@ -169,6 +170,97 @@ export class Staking {
         "Cannot build unsigned staking transaction",
       );
     }
+  }
+
+  /**
+   * Creates a staking expansion transaction that extends an existing BTC stake
+   * to new finality providers or renews the timelock.
+   * 
+   * This method implements RFC 037 BTC Stake Expansion,
+   * allowing existing active BTC staking transactions
+   * to extend their delegation to new finality providers without going through
+   * the full unbonding process.
+   * 
+   * The expansion transaction:
+   * 1. Spends the previous staking transaction output as the first input
+   * 2. Uses funding UTXOs as additional inputs to cover transaction fees
+   * 3. Creates new staking outputs with expanded finality provider coverage or
+   *    renews the timelock
+   * 4. Returns any remaining funds as change
+   * 
+   * @param {number} stakingAmountSat - The total staking amount in satoshis
+   * (The amount had to be equal to the previous staking amount for now, this
+   * lib does not yet support increasing the staking amount)
+   * @param {UTXO[]} inputUTXOs - Available UTXOs to use for funding the
+   * expansion transaction fees. Only one will be selected for the expansion
+   * @param {number} feeRate - Fee rate in satoshis per byte for the 
+   * expansion transaction
+   * @param {StakingParams} paramsForPreviousStakingTx - Staking parameters 
+   * used in the previous staking transaction
+   * @param {Object} previousStakingTxInfo - Necessary information to spend the
+   * previous staking transaction.
+   * @returns {TransactionResult} - An object containing the unsigned expansion
+   * transaction and calculated fee
+   * @throws {StakingError} - If the transaction cannot be built or validation
+   * fails
+   */
+  public createStakingExpansionTransaction(
+    stakingAmountSat: number,
+    inputUTXOs: UTXO[],
+    feeRate: number,
+    paramsForPreviousStakingTx: StakingParams,
+    previousStakingTxInfo: {
+      stakingTx: Transaction,
+      stakingInput: {
+        finalityProviderPksNoCoordHex: string[],
+        stakingTimelock: number,
+      },
+    },
+  ): TransactionResult {
+    // Validate input parameters (amount, timelock, UTXOs, fee rate)
+    validateStakingTxInputData(
+      stakingAmountSat,
+      this.stakingTimelock,
+      this.params,
+      inputUTXOs,
+      feeRate,
+    );
+
+    // Create a Staking instance for the previous staking transaction
+    // This allows us to build the scripts needed to spend the previous
+    // staking output
+    const previousStaking = new Staking(
+      this.network,
+      this.stakerInfo,
+      paramsForPreviousStakingTx,
+      previousStakingTxInfo.stakingInput.finalityProviderPksNoCoordHex,
+      previousStakingTxInfo.stakingInput.stakingTimelock,
+    );
+    
+    // Build the expansion transaction using the expandStakingTransaction
+    // utility function.
+    // This creates a transaction that spends the previous staking output and
+    // creates new staking outputs
+    const {
+      transaction: expandedStakingTx,
+      fee: expandedStakingTxFee,
+    } = expandStakingTransaction(
+      this.network,
+      this.buildScripts(), // New scripts with expanded finality providers
+      stakingAmountSat,
+      this.stakerInfo.address,
+      feeRate,
+      inputUTXOs,
+      {
+        stakingTx: previousStakingTxInfo.stakingTx,
+        scripts: previousStaking.buildScripts(),
+      },
+    )
+
+    return {
+      transaction: expandedStakingTx,
+      fee: expandedStakingTxFee,
+    };
   }
 
   /**

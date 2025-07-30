@@ -155,7 +155,6 @@ export class BabylonBtcStakingManager {
     // Previous staking transaction info
     previousStakingTxInfo: {
       stakingTx: Transaction,
-      stakingOutputIndex: number,
       paramVersion: number,
       stakingInput: StakingInputs,
     },
@@ -163,10 +162,16 @@ export class BabylonBtcStakingManager {
     signedBabylonTx: Uint8Array;
     stakingTx: Transaction;
   }> {
-    // TODO:
-    // Validate the new staking input is valid by comparing with the previous staking transaction
-    // 2. Check new FPs is super set of previous FPs
-
+    // Perform validation for the staking expansion inputs
+    validateStakingExpansionInputs(
+      {
+        babylonBtcTipHeight,
+        inputUTXOs,
+        stakingInput,
+        previousStakingInput: previousStakingTxInfo.stakingInput,
+        babylonAddress,
+      },
+    );
     // Param for the expandsion staking transaction
     const params = getBabylonParamByBtcHeight(
       babylonBtcTipHeight,
@@ -178,7 +183,7 @@ export class BabylonBtcStakingManager {
       this.stakingParams,
     );
 
-    const staking = new Staking(
+    const stakingInstance = new Staking(
       this.network,
       stakerBtcInfo,
       params,
@@ -186,37 +191,22 @@ export class BabylonBtcStakingManager {
       stakingInput.stakingTimelock,
     );
 
-    const previousStaking = new Staking(
-      this.network,
-      stakerBtcInfo,
-      paramsForPreviousStakingTx,
-      previousStakingTxInfo.stakingInput.finalityProviderPksNoCoordHex,
-      previousStakingTxInfo.stakingInput.stakingTimelock,
-    );
-
-    // TODO: Copy below to make as a standalone method for calculating fee
     const {
-      transaction: expandedStakingTx,
-      // fee: expandedStakingTxFee,
-    } = expandStakingTransaction(
-      this.network,
-      staking.buildScripts(),
+      transaction: stakingExpansionTx,
+    } = stakingInstance.createStakingExpansionTransaction(
       stakingInput.stakingAmountSat,
-      stakerBtcInfo.address,
-      feeRate,
       inputUTXOs,
-      {
-        stakingTx: previousStakingTxInfo.stakingTx,
-        scripts: previousStaking.buildScripts(),
-      },
-    )
+      feeRate,
+      paramsForPreviousStakingTx,
+      previousStakingTxInfo,
+    );
 
     // Create delegation message without including inclusion proof
     const msg = await this.createBtcDelegationMsg(
       "delegation:expand",
-      staking,
+      stakingInstance,
       stakingInput,
-      expandedStakingTx,
+      stakingExpansionTx,
       babylonAddress,
       stakerBtcInfo,
       params,
@@ -228,8 +218,87 @@ export class BabylonBtcStakingManager {
 
     return {
       signedBabylonTx: await this.babylonProvider.signTransaction(msg),
-      stakingTx: expandedStakingTx,
+      stakingTx: stakingExpansionTx,
     };
+  }
+
+  /**
+   * Estimates the transaction fee for a BTC staking expansion transaction.
+   * 
+   * @param {StakerInfo} stakerBtcInfo - The staker's Bitcoin information
+   * including address and public key
+   * @param {number} babylonBtcTipHeight - The current Babylon BTC tip height
+   * used to determine staking parameters
+   * @param {StakingInputs} stakingInput - The new staking input parameters for
+   * the expansion
+   * @param {UTXO[]} inputUTXOs - Available UTXOs that can be used for funding
+   * the expansion transaction
+   * @param {number} feeRate - Fee rate in satoshis per byte for the expansion
+   * transaction
+   * @param {Object} previousStakingTxInfo - Information about the previous
+   * staking transaction being expanded
+   * @returns {number} - The estimated transaction fee in satoshis
+   * @throws {Error} - If validation fails or the fee cannot be calculated
+   */
+  estimateBtcStakingExpansionFee(
+    stakerBtcInfo: StakerInfo,
+    babylonBtcTipHeight: number,
+    stakingInput: StakingInputs,
+    inputUTXOs: UTXO[],
+    feeRate: number,
+    previousStakingTxInfo: {
+      stakingTx: Transaction,
+      paramVersion: number,
+      stakingInput: StakingInputs,
+    },
+  ): number {
+    // Validate all input parameters before fee calculation
+    validateStakingExpansionInputs(
+      {
+        babylonBtcTipHeight,
+        inputUTXOs,
+        stakingInput,
+        previousStakingInput: previousStakingTxInfo.stakingInput,
+      },
+    );
+
+    // Get the appropriate staking parameters based on the current Babylon BTC
+    // tip height. This ensures we use the correct parameters for the current
+    // network state
+    const params = getBabylonParamByBtcHeight(
+      babylonBtcTipHeight,
+      this.stakingParams,
+    );
+    
+    // Get the staking parameters that were used in the previous staking
+    // transaction. This is needed to properly reconstruct the previous staking
+    // scripts
+    const paramsForPreviousStakingTx = getBabylonParamByVersion(
+      previousStakingTxInfo.paramVersion,
+      this.stakingParams,
+    );
+
+    // Create a Staking instance for the new expansion with current parameters
+    // This will be used to build the new staking scripts and calculate the
+    // transaction
+    const stakingInstance = new Staking(
+      this.network,
+      stakerBtcInfo,
+      params,
+      stakingInput.finalityProviderPksNoCoordHex,
+      stakingInput.stakingTimelock,
+    );
+    const {
+      fee,
+    } = stakingInstance.createStakingExpansionTransaction(
+      stakingInput.stakingAmountSat,
+      inputUTXOs,
+      feeRate,
+      paramsForPreviousStakingTx,
+      previousStakingTxInfo,
+    );
+
+    return fee;
   }
 
   /**
@@ -1249,3 +1318,53 @@ export const getUnbondingTxStakerSignature = (
     );
   }
 };
+
+/**
+ * Validates the staking expansion input
+ * @param babylonBtcTipHeight - The Babylon BTC tip height
+ * @param inputUTXOs - The input UTXOs
+ * @param stakingInput - The staking input
+ * @param previousStakingInput - The previous staking input
+ * @param babylonAddress - The Babylon address
+ * @returns true if validation passes, throws error if validation fails
+ */
+const validateStakingExpansionInputs = (
+  {
+    babylonBtcTipHeight,
+    inputUTXOs,
+    stakingInput,
+    previousStakingInput,
+    babylonAddress,
+  }: {
+    babylonBtcTipHeight: number,
+    inputUTXOs: UTXO[],
+    stakingInput: StakingInputs,
+    previousStakingInput: StakingInputs,
+    babylonAddress?: string,
+  }
+) => {
+  if (!babylonBtcTipHeight) {
+    throw new Error("Babylon BTC tip height cannot be 0");
+  }
+  if (!inputUTXOs || inputUTXOs.length === 0) {
+    throw new Error("No input UTXOs provided");
+  }
+  if (babylonAddress && !isValidBabylonAddress(babylonAddress)) {
+    throw new Error("Invalid Babylon address");
+  }
+  // Check the previous staking transaction's finality providers
+  // are a subset of the new staking input's finality providers
+  const currentFPs = stakingInput.finalityProviderPksNoCoordHex;
+  const previousFPs = previousStakingInput.finalityProviderPksNoCoordHex;
+
+  // Check if all current finality providers are included in the
+  // previous staking
+  const missingFPs = currentFPs.filter(fp => !previousFPs.includes(fp));
+  
+  if (missingFPs.length > 0) {
+    throw new Error(
+      `Invalid staking expansion, missing finality providers 
+      from previous staking transaction: ${missingFPs.join(", ")}`,
+    );
+  }
+}
