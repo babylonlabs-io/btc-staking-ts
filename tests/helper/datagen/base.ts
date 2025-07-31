@@ -295,6 +295,8 @@ export class StakingDataGenerator {
       stakingAmountSat,
       keyPair: stakerKeyPair,
       stakingTxFee,
+      utxos,
+      scriptPubKey,
     }
   };
 
@@ -396,6 +398,15 @@ export class StakingDataGenerator {
 
   randomBoolean(): boolean {
     return Math.random() >= 0.5;
+  };
+
+  generateRandomScriptPubKey = ({isTaproot}: {isTaproot?: boolean} = {}): string => {
+    const pk = this.generateRandomKeyPair().publicKey;
+    const { taproot, nativeSegwit } = this.getAddressAndScriptPubKey(pk);
+    if (isTaproot) {
+      return taproot.scriptPubKey;
+    }
+    return nativeSegwit.scriptPubKey;
   };
 
   private getTaprootAddress = (publicKeyWithCoord: string) => {

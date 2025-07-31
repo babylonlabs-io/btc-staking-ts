@@ -108,7 +108,7 @@ export const getStakingTxInputUTXOsAndFees = (
  * @param outputs - Transaction outputs for the expansion
  * @returns Object containing the selected funding UTXO and calculated fee
  */
-export const getStakingExpansionTxInputUTXOAndFees = (
+export const getStakingExpansionTxFundingUTXOAndFees = (
   availableUTXOs: UTXO[],
   feeRate: number,
   outputs: TransactionOutput[],
@@ -125,7 +125,8 @@ export const getStakingExpansionTxInputUTXOAndFees = (
   // This ensures we only work with properly formatted Bitcoin scripts
   const validUTXOs = availableUTXOs.filter((utxo) => {
     const script = Buffer.from(utxo.scriptPubKey, "hex");
-    return !!bitcoinScript.decompile(script);
+    const decompiledScript = bitcoinScript.decompile(script);
+    return decompiledScript && decompiledScript.length > 0;
   });
 
   if (validUTXOs.length === 0) {
@@ -150,6 +151,11 @@ export const getStakingExpansionTxInputUTXOAndFees = (
     let estimatedFee = estimatedSize * feeRate + rateBasedTxBufferFee(feeRate);
     
     // Check if this UTXO has enough value to cover the estimated fee
+    // We are selecting a UTXO that can only cover the fee as
+    // in the case of stake expansion we only want the additional UTXO to cover
+    // the staking fee.
+    // TODO: In the future, we will want to support selecting a UTXO for an increased
+    // staking amount.
     if (utxo.value >= estimatedFee) {
       // Check if there will be change left after paying the fee
       // If change amount is above dust threshold, we need to add a change output
@@ -158,20 +164,21 @@ export const getStakingExpansionTxInputUTXOAndFees = (
         // Add fee for the change output
         estimatedFee += getEstimatedChangeOutputSize() * feeRate;
       }
-      
-      return {
-        selectedUTXO: utxo,
-        fee: estimatedFee,
-      };
+      // Finally, ensure the estimated fee is not greater than the UTXO value
+      if (utxo.value >= estimatedFee) {
+        return {
+          selectedUTXO: utxo,
+          fee: estimatedFee,
+        };
+      }
+      // If the UTXO value is less than the estimated fee, we need to continue
+      // searching for a UTXO that can cover the fees.
     }
   }
   
-  const largestUTXOAmount = sortedUTXOs[sortedUTXOs.length - 1].value;
   // If no UTXO can cover the fees, throw an error
   throw new Error(
-    `Insufficient funds: unable to find a UTXO to cover the fees for the
-    staking expansion transaction. The largest UTXO amount
-    is ${largestUTXOAmount} sats.`,
+    "Insufficient funds: unable to find a UTXO to cover the fees for the staking expansion transaction.",
   );
 };
 

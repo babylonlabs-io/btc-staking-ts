@@ -1,7 +1,6 @@
-import { address } from "bitcoinjs-lib";
+import { address, networks } from "bitcoinjs-lib";
 import { ObservableStaking, transactionIdToHash } from "../../../src";
 import * as observableStakingScriptData from "../../../src/staking/observable/observableStakingScript";
-import { testingNetworks } from "../../helper";
 import { ObservableVersionedStakingParams } from "../../../src/types/params";
 import { UTXO } from "../../../src/types/UTXO";
 import { StakingError, StakingErrorCode } from "../../../src/error";
@@ -9,10 +8,13 @@ import { BTC_DUST_SAT } from "../../../src/constants/dustSat";
 import { NON_RBF_SEQUENCE } from "../../../src/constants/psbt";
 import * as stakingUtils from "../../../src/utils/staking";
 import * as staking from "../../../src/staking/transactions";
+import { ObservableStakingDatagen } from "../../helper/datagen/observable";
 
-describe.each(testingNetworks)("Observal - Create staking transaction", ({
-  network, networkName, datagen: { observableStakingDatagen: dataGenerator }
-}) => {
+// TODO: To be removed
+describe.each([networks.bitcoin, networks.testnet])("Observal - Create staking transaction", (network) => {
+  const dataGenerator= new ObservableStakingDatagen(network)
+  const networkName = network === networks.bitcoin ? "mainnet" : "testnet";
+
   let stakerInfo: { address: string, publicKeyNoCoordHex: string, publicKeyWithCoord: string };
   let finalityProviderPksNoCoord: string[];
   let params: ObservableVersionedStakingParams;

@@ -9,7 +9,7 @@ import { UTXO } from "../types/UTXO";
 import { PsbtResult, TransactionResult } from "../types/transaction";
 import { isValidBitcoinAddress, transactionIdToHash } from "../utils/btc";
 import {
-  getStakingExpansionTxInputUTXOAndFees,
+  getStakingExpansionTxFundingUTXOAndFees,
   getStakingTxInputUTXOsAndFees,
   getWithdrawTxFee,
 } from "../utils/fee";
@@ -224,7 +224,7 @@ export function stakingExpansionTransaction(
 
   // Select a single funding UTXO and calculate the required fee
   // The funding UTXO will be used as the second input to cover transaction fees
-  const { selectedUTXO, fee } = getStakingExpansionTxInputUTXOAndFees(
+  const { selectedUTXO, fee } = getStakingExpansionTxFundingUTXOAndFees(
     inputUTXOs,
     feeRate,
     stakingOutputs,

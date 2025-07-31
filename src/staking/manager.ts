@@ -1152,7 +1152,7 @@ export class BabylonBtcStakingManager {
    * @param options - The options for the BTC delegation.
    * @param options.inclusionProof - The inclusion proof of the staking
    * transaction.
-   * @param options.delegtionExpansionInfo - The information for the BTC
+   * @param options.delegationExpansionInfo - The information for the BTC
    * delegation expansion.
    * @returns The protobuf message.
    */
@@ -1166,7 +1166,7 @@ export class BabylonBtcStakingManager {
     params: StakingParams,
     options?: {
       inclusionProof?: btcstaking.InclusionProof,
-      delegtionExpansionInfo?: {
+      delegationExpansionInfo?: {
         previousStakingTx: Transaction,
         fundingTx: Transaction,
       }
@@ -1349,13 +1349,13 @@ export class BabylonBtcStakingManager {
     }
 
     // If the delegation is an expansion, we use the MsgBtcStakeExpand message
-    if (options?.delegtionExpansionInfo) {
+    if (options?.delegationExpansionInfo) {
       const fundingTx = Uint8Array.from(
-        options.delegtionExpansionInfo.fundingTx.toBuffer());
+        options.delegationExpansionInfo.fundingTx.toBuffer());
       const msg = btcstakingtx.MsgBtcStakeExpand.fromPartial({
         ...commonMsg,
         previousStakingTxHash:
-          options.delegtionExpansionInfo.previousStakingTx.getId(),
+          options.delegationExpansionInfo.previousStakingTx.getId(),
         fundingTx,
       });
       return {

@@ -183,11 +183,12 @@ export class Staking {
    * 
    * The expansion transaction:
    * 1. Spends the previous staking transaction output as the first input
-   * 2. Uses funding UTXOs as additional inputs to cover transaction fees or
+   * 2. Uses funding UTXO as additional input to cover transaction fees or
    *    to increase the staking amount
-   * 3. Creates new staking outputs with expanded finality provider coverage or
+   * 3. Creates a new staking output with expanded finality provider coverage or
    *    renews the timelock
-   * 4. Returns any remaining funds as change(if any)
+   * 4. Has an output returning the remaining funds as change (if any) to the
+   * staker BTC address
    * 
    * @param {number} stakingAmountSat - The total staking amount in satoshis
    * (The amount had to be equal to the previous staking amount for now, this

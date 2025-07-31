@@ -12,10 +12,6 @@ describe("StakingTransaction - Cross env error", () => {
   const [mainnet, testnet] = testingNetworks;
   const envPairs = [
     {
-      mainnetDataGenerator: mainnet.datagen.observableStakingDatagen,
-      testnetDataGenerator: testnet.datagen.observableStakingDatagen,
-    },
-    {
       mainnetDataGenerator: mainnet.datagen.stakingDatagen,
       testnetDataGenerator: testnet.datagen.stakingDatagen,
     },
