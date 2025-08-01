@@ -31,7 +31,10 @@ import { isValidBabylonAddress } from "../utils/babylon";
 import { isNativeSegwit, isTaproot } from "../utils/btc";
 import { buildPopMessage } from "../utils/pop";
 import {
+  clearTxSignatures,
+  deriveMerkleProof,
   deriveStakingOutputInfo,
+  extractFirstSchnorrSignatureFromTransaction,
   findMatchingTxOutputIndex,
 } from "../utils/staking";
 import {
@@ -40,6 +43,7 @@ import {
 } from "../utils/staking/param";
 
 import { createCovenantWitness } from "./transactions";
+import { validateStakingExpansionInputs } from "../utils/staking/validation";
 
 export class BabylonBtcStakingManager {
   private upgradeConfig?: UpgradeConfig;
@@ -142,6 +146,166 @@ export class BabylonBtcStakingManager {
   }
 
   /**
+   * Create a signed staking expansion transaction that is ready to be sent to
+   * the Babylon chain.
+   */
+  async stakingExpansionRegistrationBabylonTransaction(
+    stakerBtcInfo: StakerInfo,
+    stakingInput: StakingInputs,
+    babylonBtcTipHeight: number,
+    inputUTXOs: UTXO[],
+    feeRate: number,
+    babylonAddress: string,
+    // Previous staking transaction info
+    previousStakingTxInfo: {
+      stakingTx: Transaction,
+      paramVersion: number,
+      stakingInput: StakingInputs,
+    },
+  ): Promise<{
+    signedBabylonTx: Uint8Array;
+    stakingTx: Transaction;
+  }> {
+    // Perform validation for the staking expansion inputs
+    validateStakingExpansionInputs(
+      {
+        babylonBtcTipHeight,
+        inputUTXOs,
+        stakingInput,
+        previousStakingInput: previousStakingTxInfo.stakingInput,
+        babylonAddress,
+      },
+    );
+    // Param for the expandsion staking transaction
+    const params = getBabylonParamByBtcHeight(
+      babylonBtcTipHeight,
+      this.stakingParams,
+    );
+
+    const paramsForPreviousStakingTx = getBabylonParamByVersion(
+      previousStakingTxInfo.paramVersion,
+      this.stakingParams,
+    );
+
+    const stakingInstance = new Staking(
+      this.network,
+      stakerBtcInfo,
+      params,
+      stakingInput.finalityProviderPksNoCoordHex,
+      stakingInput.stakingTimelock,
+    );
+
+    const {
+      transaction: stakingExpansionTx,
+    } = stakingInstance.createStakingExpansionTransaction(
+      stakingInput.stakingAmountSat,
+      inputUTXOs,
+      feeRate,
+      paramsForPreviousStakingTx,
+      previousStakingTxInfo,
+    );
+
+    // Create delegation message without including inclusion proof
+    const msg = await this.createBtcDelegationMsg(
+      "delegation:expand",
+      stakingInstance,
+      stakingInput,
+      stakingExpansionTx,
+      babylonAddress,
+      stakerBtcInfo,
+      params,
+    );
+
+    this.ee?.emit("delegation:expand", {
+      type: "create-btc-delegation-msg",
+    });
+
+    return {
+      signedBabylonTx: await this.babylonProvider.signTransaction(msg),
+      stakingTx: stakingExpansionTx,
+    };
+  }
+
+  /**
+   * Estimates the transaction fee for a BTC staking expansion transaction.
+   * 
+   * @param {StakerInfo} stakerBtcInfo - The staker's Bitcoin information
+   * including address and public key
+   * @param {number} babylonBtcTipHeight - The current Babylon BTC tip height
+   * used to determine staking parameters
+   * @param {StakingInputs} stakingInput - The new staking input parameters for
+   * the expansion
+   * @param {UTXO[]} inputUTXOs - Available UTXOs that can be used for funding
+   * the expansion transaction
+   * @param {number} feeRate - Fee rate in satoshis per byte for the expansion
+   * transaction
+   * @param {Object} previousStakingTxInfo - Information about the previous
+   * staking transaction being expanded
+   * @returns {number} - The estimated transaction fee in satoshis
+   * @throws {Error} - If validation fails or the fee cannot be calculated
+   */
+  estimateBtcStakingExpansionFee(
+    stakerBtcInfo: StakerInfo,
+    babylonBtcTipHeight: number,
+    stakingInput: StakingInputs,
+    inputUTXOs: UTXO[],
+    feeRate: number,
+    previousStakingTxInfo: {
+      stakingTx: Transaction,
+      paramVersion: number,
+      stakingInput: StakingInputs,
+    },
+  ): number {
+    // Validate all input parameters before fee calculation
+    validateStakingExpansionInputs(
+      {
+        babylonBtcTipHeight,
+        inputUTXOs,
+        stakingInput,
+        previousStakingInput: previousStakingTxInfo.stakingInput,
+      },
+    );
+
+    // Get the appropriate staking parameters based on the current Babylon BTC
+    // tip height. This ensures we use the correct parameters for the current
+    // network state
+    const params = getBabylonParamByBtcHeight(
+      babylonBtcTipHeight,
+      this.stakingParams,
+    );
+    
+    // Get the staking parameters that were used in the previous staking
+    // transaction. This is needed to properly reconstruct the previous staking
+    // scripts
+    const paramsForPreviousStakingTx = getBabylonParamByVersion(
+      previousStakingTxInfo.paramVersion,
+      this.stakingParams,
+    );
+
+    // Create a Staking instance for the new expansion with current parameters
+    // This will be used to build the new staking scripts and calculate the
+    // transaction
+    const stakingInstance = new Staking(
+      this.network,
+      stakerBtcInfo,
+      params,
+      stakingInput.finalityProviderPksNoCoordHex,
+      stakingInput.stakingTimelock,
+    );
+    const {
+      fee,
+    } = stakingInstance.createStakingExpansionTransaction(
+      stakingInput.stakingAmountSat,
+      inputUTXOs,
+      feeRate,
+      paramsForPreviousStakingTx,
+      previousStakingTxInfo,
+    );
+
+    return fee;
+  }
+
+  /**
    * Creates a signed post-staking registration transaction that is ready to be
    * sent to the Babylon chain. This is used when a staking transaction is
    * already created and included in a BTC block and we want to register it on
@@ -205,7 +369,9 @@ export class BabylonBtcStakingManager {
       babylonAddress,
       stakerBtcInfo,
       params,
-      this.getInclusionProof(inclusionProof),
+      {
+        inclusionProof: this.getInclusionProof(inclusionProof),
+      },
     );
 
     this.ee?.emit("delegation:register", {
@@ -339,6 +505,169 @@ export class BabylonBtcStakingManager {
     );
 
     return Psbt.fromHex(signedStakingPsbtHex).extractTransaction();
+  }
+
+  /**
+   * Creates a signed staking expansion transaction that is ready to be sent to
+   * the BTC network.
+   * 
+   * @param {StakerInfo} stakerBtcInfo - The staker's BTC information including
+   * address and public key
+   * @param {StakingInputs} stakingInput - The staking inputs for the expansion
+   * @param {Transaction} unsignedStakingExpansionTx - The unsigned staking
+   * expansion transaction
+   * @param {UTXO[]} inputUTXOs - Available UTXOs for the funding input
+   * @param {number} stakingParamsVersion - The version of staking parameters
+   * that was used when registering the staking expansion delegation.
+   * @param {Object} previousStakingTxInfo - Information about the previous
+   * staking transaction
+   * @param {Array} covenantStakingExpansionSignatures - Covenant committee
+   * signatures for the expansion
+   * @returns {Promise<Transaction>} The fully signed staking expansion
+   * transaction
+   * @throws {Error} If signing fails, validation fails, or required data is
+   * missing
+   */
+  async createSignedBtcStakingExpansionTransaction(
+    stakerBtcInfo: StakerInfo,
+    stakingInput: StakingInputs,
+    unsignedStakingExpansionTx: Transaction,
+    inputUTXOs: UTXO[],
+    stakingParamsVersion: number,
+    previousStakingTxInfo: {
+      stakingTx: Transaction,
+      paramVersion: number,
+      stakingInput: StakingInputs,
+    },
+    covenantStakingExpansionSignatures: {
+      btcPkHex: string;
+      sigHex: string;
+    }[],
+  ): Promise<Transaction> {
+    validateStakingExpansionInputs(
+      {
+        inputUTXOs,
+        stakingInput,
+        previousStakingInput: previousStakingTxInfo.stakingInput,
+      },
+    );
+
+    // Get the staking parameters for the current version
+    // These parameters define the covenant committee and other staking rules
+    const params = getBabylonParamByVersion(
+      stakingParamsVersion,
+      this.stakingParams,
+    );
+
+    // Validate that input UTXOs are provided for the funding input
+    if (inputUTXOs.length === 0) {
+      throw new Error("No input UTXOs provided");
+    }
+
+    // Create a new staking instance with the current parameters
+    // This will be used to build the PSBT for the expansion transaction
+    const staking = new Staking(
+      this.network,
+      stakerBtcInfo,
+      params,
+      stakingInput.finalityProviderPksNoCoordHex,
+      stakingInput.stakingTimelock,
+    );
+
+    // Create the PSBT for the staking expansion transaction
+    // This PSBT will have two inputs: the previous staking output and a
+    // funding UTXO
+    const stakingExpansionPsbt = staking.toStakingExpansionPsbt(
+      unsignedStakingExpansionTx,
+      inputUTXOs,
+      getBabylonParamByVersion(
+        previousStakingTxInfo.paramVersion,
+        this.stakingParams,
+      ),
+      previousStakingTxInfo,
+    );
+
+    // Define the contract information for the PSBT signing
+    const contracts: Contract[] = [
+      {
+        id: ContractId.STAKING,
+        params: {
+          stakerPk: stakerBtcInfo.publicKeyNoCoordHex,
+          finalityProviders: stakingInput.finalityProviderPksNoCoordHex,
+          covenantPks: params.covenantNoCoordPks,
+          covenantThreshold: params.covenantQuorum,
+          minUnbondingTime: params.unbondingTime,
+          stakingDuration: stakingInput.stakingTimelock,
+        },
+      },
+    ];
+
+    // Emit an event to notify listeners about the staking expansion
+    // This can be used for logging, monitoring, or UI updates
+    this.ee?.emit("delegation:stake", {
+      stakerPk: stakerBtcInfo.publicKeyNoCoordHex,
+      finalityProviders: stakingInput.finalityProviderPksNoCoordHex,
+      covenantPks: params.covenantNoCoordPks,
+      covenantThreshold: params.covenantQuorum,
+      unbondingTimeBlocks: params.unbondingTime,
+      stakingDuration: stakingInput.stakingTimelock,
+      type: "staking",
+    });
+
+    // Sign the PSBT using the BTC provider (wallet)
+    // The wallet will sign the transaction based on the contract information
+    // provided
+    const signedStakingPsbtHex = await this.btcProvider.signPsbt(
+      stakingExpansionPsbt.toHex(),
+      {
+        contracts,
+        action: {
+          name: ActionName.SIGN_BTC_STAKING_TRANSACTION,
+        },
+      },
+    );
+
+    // Extract the signed transaction from the PSBT
+    const signedStakingExpansionTx = Psbt.fromHex(
+      signedStakingPsbtHex,
+    ).extractTransaction();
+    
+    // Validate that the signed transaction hash matches the unsigned
+    // transaction hash
+    // This ensures that the signing process didn't change the transaction
+    // structure
+    if (
+      signedStakingExpansionTx.getId() !== unsignedStakingExpansionTx.getId()
+    ) {
+      throw new Error(
+        "Staking expansion transaction hash does not match the computed hash",
+      );
+    }
+
+    // Add covenant committee signatures to the transaction
+    // Convert covenant public keys from hex strings to buffers
+    const covenantBuffers = params.covenantNoCoordPks.map((covenant) =>
+      Buffer.from(covenant, "hex"),
+    );
+    
+    // Create the witness that includes both the staker's signature and covenant
+    // signatures
+    // The witness is the data that proves the transaction is authorized
+    const witness = createCovenantWitness(
+      // The first input of the staking expansion transaction is the previous
+      // staking output. We will attach the covenant signatures to this input
+      // to unbond the previousstaking output.
+      signedStakingExpansionTx.ins[0].witness,
+      covenantBuffers,
+      covenantStakingExpansionSignatures,
+      params.covenantQuorum,
+    );
+    
+    // Overwrite the witness to include the covenant staking expansion signatures
+    // This makes the transaction valid for submission to the Bitcoin network
+    signedStakingExpansionTx.ins[0].witness = witness;
+
+    return signedStakingExpansionTx;
   }
 
   /**
@@ -723,7 +1052,7 @@ export class BabylonBtcStakingManager {
    * @returns The proof of possession.
    */
   async createProofOfPossession(
-    channel: "delegation:create" | "delegation:register",
+    channel: "delegation:create" | "delegation:register" | "delegation:expand",
     bech32Address: string,
     stakerBtcAddress: string,
   ): Promise<ProofOfPossessionBTC> {
@@ -824,19 +1153,32 @@ export class BabylonBtcStakingManager {
    * @param stakerBtcInfo - The staker's BTC information such as address and
    * public key
    * @param params - The staking parameters.
-   * @param inclusionProof - The inclusion proof of the staking transaction.
+   * @param options - The options for the BTC delegation.
+   * @param options.inclusionProof - The inclusion proof of the staking
+   * transaction.
+   * @param options.delegationExpansionInfo - The information for the BTC
+   * delegation expansion.
    * @returns The protobuf message.
    */
   private async createBtcDelegationMsg(
-    channel: "delegation:create" | "delegation:register",
+    channel: "delegation:create" | "delegation:register" | "delegation:expand",
     stakingInstance: Staking,
     stakingInput: StakingInputs,
     stakingTx: Transaction,
     bech32Address: string,
     stakerBtcInfo: StakerInfo,
     params: StakingParams,
-    inclusionProof?: btcstaking.InclusionProof,
-  ) {
+    options?: {
+      inclusionProof?: btcstaking.InclusionProof,
+      delegationExpansionInfo?: {
+        previousStakingTx: Transaction,
+        fundingTx: Transaction,
+      }
+    }
+  ): Promise<{
+    typeUrl: string,
+    value: btcstakingtx.MsgCreateBTCDelegation | btcstakingtx.MsgBtcStakeExpand,
+  }> {
     if (!params.slashing) {
       throw new StakingError(
         StakingErrorCode.INVALID_PARAMS,
@@ -982,35 +1324,55 @@ export class BabylonBtcStakingManager {
       stakerBtcInfo.address,
     );
 
-    // Prepare the final protobuf message
+    const commonMsg = {
+      stakerAddr: bech32Address,
+      pop: proofOfPossession,
+      btcPk: Uint8Array.from(
+        Buffer.from(stakerBtcInfo.publicKeyNoCoordHex, "hex"),
+      ),
+      fpBtcPkList: stakingInput.finalityProviderPksNoCoordHex.map((pk) =>
+        Uint8Array.from(Buffer.from(pk, "hex")),
+      ),
+      stakingTime: stakingInput.stakingTimelock,
+      stakingValue: stakingInput.stakingAmountSat,
+      stakingTx: Uint8Array.from(stakingTx.toBuffer()),
+      slashingTx: Uint8Array.from(
+        Buffer.from(clearTxSignatures(signedSlashingTx).toHex(), "hex"),
+      ),
+      delegatorSlashingSig: Uint8Array.from(slashingSig),
+      unbondingTime: params.unbondingTime,
+      unbondingTx: Uint8Array.from(unbondingTx.toBuffer()),
+      unbondingValue: stakingInput.stakingAmountSat - params.unbondingFeeSat,
+      unbondingSlashingTx: Uint8Array.from(
+        Buffer.from(
+          clearTxSignatures(signedUnbondingSlashingTx).toHex(),
+          "hex",
+        ),
+      ),
+      delegatorUnbondingSlashingSig: Uint8Array.from(unbondingSignatures),
+    }
+
+    // If the delegation is an expansion, we use the MsgBtcStakeExpand message
+    if (options?.delegationExpansionInfo) {
+      const fundingTx = Uint8Array.from(
+        options.delegationExpansionInfo.fundingTx.toBuffer());
+      const msg = btcstakingtx.MsgBtcStakeExpand.fromPartial({
+        ...commonMsg,
+        previousStakingTxHash:
+          options.delegationExpansionInfo.previousStakingTx.getId(),
+        fundingTx,
+      });
+      return {
+        typeUrl: BABYLON_REGISTRY_TYPE_URLS.MsgBtcStakeExpand,
+        value: msg,
+      }
+    }
+
+    // Otherwise, it's a new staking delegation
     const msg: btcstakingtx.MsgCreateBTCDelegation =
       btcstakingtx.MsgCreateBTCDelegation.fromPartial({
-        stakerAddr: bech32Address,
-        pop: proofOfPossession,
-        btcPk: Uint8Array.from(
-          Buffer.from(stakerBtcInfo.publicKeyNoCoordHex, "hex"),
-        ),
-        fpBtcPkList: stakingInput.finalityProviderPksNoCoordHex.map((pk) =>
-          Uint8Array.from(Buffer.from(pk, "hex")),
-        ),
-        stakingTime: stakingInput.stakingTimelock,
-        stakingValue: stakingInput.stakingAmountSat,
-        stakingTx: Uint8Array.from(stakingTx.toBuffer()),
-        slashingTx: Uint8Array.from(
-          Buffer.from(clearTxSignatures(signedSlashingTx).toHex(), "hex"),
-        ),
-        delegatorSlashingSig: Uint8Array.from(slashingSig),
-        unbondingTime: params.unbondingTime,
-        unbondingTx: Uint8Array.from(unbondingTx.toBuffer()),
-        unbondingValue: stakingInput.stakingAmountSat - params.unbondingFeeSat,
-        unbondingSlashingTx: Uint8Array.from(
-          Buffer.from(
-            clearTxSignatures(signedUnbondingSlashingTx).toHex(),
-            "hex",
-          ),
-        ),
-        delegatorUnbondingSlashingSig: Uint8Array.from(unbondingSignatures),
-        stakingTxInclusionProof: inclusionProof,
+        ...commonMsg,
+        stakingTxInclusionProof: options?.inclusionProof,
       });
 
     return {
@@ -1045,63 +1407,6 @@ export class BabylonBtcStakingManager {
     });
   }
 }
-
-/**
- * Extracts the first valid Schnorr signature from a signed transaction.
- *
- * Since we only handle transactions with a single input and request a signature
- * for one public key, there can be at most one signature from the Bitcoin node.
- * A valid Schnorr signature is exactly 64 bytes in length.
- *
- * @param singedTransaction - The signed Bitcoin transaction to extract the signature from
- * @returns The first valid 64-byte Schnorr signature found in the transaction witness data,
- *          or undefined if no valid signature exists
- */
-const extractFirstSchnorrSignatureFromTransaction = (
-  singedTransaction: Transaction,
-): Buffer | undefined => {
-  // Loop through each input to extract the witness signature
-  for (const input of singedTransaction.ins) {
-    if (input.witness && input.witness.length > 0) {
-      const schnorrSignature = input.witness[0];
-
-      // Check that it's a 64-byte Schnorr signature
-      if (schnorrSignature.length === 64) {
-        return schnorrSignature; // Return the first valid signature found
-      }
-    }
-  }
-  return undefined;
-};
-
-/**
- * Strips all signatures from a transaction by clearing both the script and
- * witness data. This is due to the fact that we only need the raw unsigned
- * transaction structure. The signatures are sent in a separate protobuf field
- * when creating the delegation message in the Babylon.
- * @param tx - The transaction to strip signatures from
- * @returns A copy of the transaction with all signatures removed
- */
-const clearTxSignatures = (tx: Transaction): Transaction => {
-  tx.ins.forEach((input) => {
-    input.script = Buffer.alloc(0);
-    input.witness = [];
-  });
-  return tx;
-};
-
-/**
- * Derives the merkle proof from the list of hex strings. Note the
- * sibling hashes are reversed from hex before concatenation.
- * @param merkle - The merkle proof hex strings.
- * @returns The merkle proof in hex string format.
- */
-const deriveMerkleProof = (merkle: string[]) => {
-  const proofHex = merkle.reduce((acc: string, m: string) => {
-    return acc + Buffer.from(m, "hex").reverse().toString("hex");
-  }, "");
-  return proofHex;
-};
 
 /**
  * Get the staker signature from the unbonding transaction

@@ -48,7 +48,7 @@ export class StakingDataGenerator {
     const covenantNoCoordPks = this.generateRandomCovenantCommittee(committeeSize).map(
       (buffer) => buffer.toString("hex"),
     );
-    const covenantQuorum = Math.floor(Math.random() * (committeeSize - 1)) + 1;
+    const covenantQuorum = Math.floor(committeeSize/2) + 1;
     if (minStakingAmount && minStakingAmount < MIN_UNBONDING_OUTPUT_VALUE + 1) {
       throw new Error("Minimum staking amount is less than the unbonding output value");
     }
@@ -295,6 +295,8 @@ export class StakingDataGenerator {
       stakingAmountSat,
       keyPair: stakerKeyPair,
       stakingTxFee,
+      utxos,
+      scriptPubKey,
     }
   };
 
@@ -396,6 +398,15 @@ export class StakingDataGenerator {
 
   randomBoolean(): boolean {
     return Math.random() >= 0.5;
+  };
+
+  generateRandomScriptPubKey = ({isTaproot}: {isTaproot?: boolean} = {}): string => {
+    const pk = this.generateRandomKeyPair().publicKey;
+    const { taproot, nativeSegwit } = this.getAddressAndScriptPubKey(pk);
+    if (isTaproot) {
+      return taproot.scriptPubKey;
+    }
+    return nativeSegwit.scriptPubKey;
   };
 
   private getTaprootAddress = (publicKeyWithCoord: string) => {

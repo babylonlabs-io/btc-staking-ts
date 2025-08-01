@@ -1,6 +1,7 @@
 export const btcProvider = {
   signPsbt: jest.fn(),
   signMessage: jest.fn(),
+  getTransactionHex: jest.fn(),
 };
 
 export const babylonProvider = {

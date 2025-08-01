@@ -1,10 +1,12 @@
+import { networks } from 'bitcoinjs-lib';
 import { ObservableStaking } from '../../../src/staking/observable';
-import { testingNetworks } from '../../helper';
+import { ObservableStakingDatagen } from '../../helper/datagen/observable';
 
+// TODO: To be removed
+describe.each([networks.bitcoin, networks.testnet])("Observable", (network) => {
+  const networkName = network === networks.bitcoin ? "mainnet" : "testnet";
+  const dataGenerator = new ObservableStakingDatagen(network);
 
-describe.each(testingNetworks)("Observable", ({
-  network, networkName, datagen: { observableStakingDatagen: dataGenerator }
-}) => {
   describe(`${networkName} validateParams`, () => {
     const { publicKey, publicKeyNoCoord} = dataGenerator.generateRandomKeyPair();
     const { address } = dataGenerator.getAddressAndScriptPubKey(

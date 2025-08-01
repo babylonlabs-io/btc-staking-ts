@@ -22,6 +22,9 @@ export interface BtcProvider {
     message: string,
     type: "ecdsa" | "bip322-simple",
   ) => Promise<string>;
+
+  // Get the transaction hex from the transaction ID
+  getTransactionHex(txid: string): Promise<string>;
 }
 
 export interface BabylonProvider {
