@@ -120,7 +120,9 @@ export const stakingExpansionPsbt = (
   
   // Check that the first input references the correct previous staking
   // transaction
-  if (txInputs[0].hash !== previousStakingTxInfo.stakingTx.getHash()) {
+  if (
+    txInputs[0].hash.reverse().toString("hex") !== previousStakingTxInfo.stakingTx.getId()
+  ) {
     throw new Error("Previous staking input hash does not match");
   } 
   // Check that the first input references the correct output index
