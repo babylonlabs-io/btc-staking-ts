@@ -197,6 +197,7 @@ export class BabylonBtcStakingManager {
 
     const {
       transaction: stakingExpansionTx,
+      fundingUTXO,
     } = stakingInstance.createStakingExpansionTransaction(
       stakingInput.stakingAmountSat,
       inputUTXOs,
@@ -204,6 +205,16 @@ export class BabylonBtcStakingManager {
       paramsForPreviousStakingTx,
       previousStakingTxInfo,
     );
+    let fundingTx;
+    try {
+      fundingTx = await this.btcProvider.getTransactionHex(fundingUTXO.txid);
+    } catch (error) {
+      throw StakingError.fromUnknown(
+        error,
+        StakingErrorCode.INVALID_INPUT,
+        "Failed to retrieve funding transaction hex",
+      );
+    }
 
     // Create delegation message without including inclusion proof
     const msg = await this.createBtcDelegationMsg(
@@ -214,6 +225,12 @@ export class BabylonBtcStakingManager {
       babylonAddress,
       stakerBtcInfo,
       params,
+      {
+        delegationExpansionInfo: {
+          previousStakingTx: previousStakingTxInfo.stakingTx,
+          fundingTx: Transaction.fromHex(fundingTx),
+        },
+      },
     );
 
     this.ee?.emit("delegation:expand", {

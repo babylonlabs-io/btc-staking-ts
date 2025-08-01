@@ -155,8 +155,8 @@ export function stakingTransaction(
  * @param inputUTXOs - Available UTXOs to use for funding the expansion
  * @param previousStakingTxInfo - Details of the previous staking transaction
  * being expanded
- * @returns TransactionResult containing the built transaction and
- * calculated fee
+ * @returns {TransactionResult & { fundingUTXO: UTXO }} containing the built
+ * transaction and calculated fee, and the funding UTXO
  */
 export function stakingExpansionTransaction(
   network: networks.Network,
@@ -177,7 +177,9 @@ export function stakingExpansionTransaction(
       slashingScript: Buffer;
     },
   },
-): TransactionResult {
+): TransactionResult & {
+  fundingUTXO: UTXO;
+} {
   // Validate input parameters
   if (amount <= 0 || feeRate <= 0) {
     throw new Error("Amount and fee rate must be bigger than 0");
@@ -268,6 +270,7 @@ export function stakingExpansionTransaction(
   return {
     transaction: tx,
     fee,
+    fundingUTXO: selectedUTXO,
   };
 }
 

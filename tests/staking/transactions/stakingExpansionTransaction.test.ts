@@ -31,6 +31,7 @@ describe("stakingExpansionTransaction", () => {
     const {
       transaction: stakingExpansionTx,
       fee: stakingExpansionTxFee,
+      fundingUTXO,
     } = stakingExpansionTransaction(
       network,
       previousStakingScript,
@@ -75,6 +76,17 @@ describe("stakingExpansionTransaction", () => {
     expect(stakingExpansionTx.ins[1].sequence).toBe(NON_RBF_SEQUENCE);
     // Should use standard transaction version
     expect(stakingExpansionTx.version).toBe(2);
+
+    expect(fundingUTXO).toBeDefined();
+    expect(fundingUTXO.value).toBeGreaterThan(0);
+
+    // Funding UTXO should be the same as the selected UTXO
+    expect(fundingUTXO.txid).toEqual(utxos.find(
+      (utxo) => transactionIdToHash(utxo.txid).equals(stakingExpansionTx.ins[1].hash)
+    )!.txid);
+    expect(fundingUTXO.value).toEqual(utxos.find(
+      (utxo) => transactionIdToHash(utxo.txid).equals(stakingExpansionTx.ins[1].hash)
+    )!.value);
   });
 
   it("should throw error when amount is less than or equal to 0", () => {
