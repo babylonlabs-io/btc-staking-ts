@@ -199,8 +199,8 @@ export class Staking {
    * used in the previous staking transaction
    * @param {Object} previousStakingTxInfo - Necessary information to spend the
    * previous staking transaction.
-   * @returns {TransactionResult} - An object containing the unsigned expansion
-   * transaction and calculated fee
+   * @returns {TransactionResult & { fundingUTXO: UTXO }} - An object containing
+   * the unsigned expansion transaction and calculated fee, and the funding UTXO
    * @throws {StakingError} - If the transaction cannot be built or validation
    * fails
    */
@@ -216,7 +216,9 @@ export class Staking {
         stakingTimelock: number,
       },
     },
-  ): TransactionResult {
+  ): TransactionResult & {
+    fundingUTXO: UTXO;
+  } {
     validateStakingTxInputData(
       stakingAmountSat,
       this.stakingTimelock,
@@ -247,6 +249,7 @@ export class Staking {
     const {
       transaction: stakingExpansionTx,
       fee: stakingExpansionTxFee,
+      fundingUTXO,
     } = stakingExpansionTransaction(
       this.network,
       this.buildScripts(),
@@ -263,6 +266,7 @@ export class Staking {
     return {
       transaction: stakingExpansionTx,
       fee: stakingExpansionTxFee,
+      fundingUTXO,
     };
   }
 
