@@ -31,7 +31,10 @@ import { isValidBabylonAddress } from "../utils/babylon";
 import { isNativeSegwit, isTaproot } from "../utils/btc";
 import { buildPopMessage } from "../utils/pop";
 import {
+  clearTxSignatures,
+  deriveMerkleProof,
   deriveStakingOutputInfo,
+  extractFirstSchnorrSignatureFromTransaction,
   findMatchingTxOutputIndex,
 } from "../utils/staking";
 import {
@@ -40,6 +43,7 @@ import {
 } from "../utils/staking/param";
 
 import { createCovenantWitness } from "./transactions";
+import { validateStakingExpansionInputs } from "../utils/staking/validation";
 
 export class BabylonBtcStakingManager {
   private upgradeConfig?: UpgradeConfig;
@@ -1405,63 +1409,6 @@ export class BabylonBtcStakingManager {
 }
 
 /**
- * Extracts the first valid Schnorr signature from a signed transaction.
- *
- * Since we only handle transactions with a single input and request a signature
- * for one public key, there can be at most one signature from the Bitcoin node.
- * A valid Schnorr signature is exactly 64 bytes in length.
- *
- * @param singedTransaction - The signed Bitcoin transaction to extract the signature from
- * @returns The first valid 64-byte Schnorr signature found in the transaction witness data,
- *          or undefined if no valid signature exists
- */
-const extractFirstSchnorrSignatureFromTransaction = (
-  singedTransaction: Transaction,
-): Buffer | undefined => {
-  // Loop through each input to extract the witness signature
-  for (const input of singedTransaction.ins) {
-    if (input.witness && input.witness.length > 0) {
-      const schnorrSignature = input.witness[0];
-
-      // Check that it's a 64-byte Schnorr signature
-      if (schnorrSignature.length === 64) {
-        return schnorrSignature; // Return the first valid signature found
-      }
-    }
-  }
-  return undefined;
-};
-
-/**
- * Strips all signatures from a transaction by clearing both the script and
- * witness data. This is due to the fact that we only need the raw unsigned
- * transaction structure. The signatures are sent in a separate protobuf field
- * when creating the delegation message in the Babylon.
- * @param tx - The transaction to strip signatures from
- * @returns A copy of the transaction with all signatures removed
- */
-const clearTxSignatures = (tx: Transaction): Transaction => {
-  tx.ins.forEach((input) => {
-    input.script = Buffer.alloc(0);
-    input.witness = [];
-  });
-  return tx;
-};
-
-/**
- * Derives the merkle proof from the list of hex strings. Note the
- * sibling hashes are reversed from hex before concatenation.
- * @param merkle - The merkle proof hex strings.
- * @returns The merkle proof in hex string format.
- */
-const deriveMerkleProof = (merkle: string[]) => {
-  const proofHex = merkle.reduce((acc: string, m: string) => {
-    return acc + Buffer.from(m, "hex").reverse().toString("hex");
-  }, "");
-  return proofHex;
-};
-
-/**
  * Get the staker signature from the unbonding transaction
  * This is used mostly for unbonding transactions from phase-1(Observable)
  * @param unbondingTx - The unbonding transaction
@@ -1481,53 +1428,3 @@ export const getUnbondingTxStakerSignature = (
     );
   }
 };
-
-/**
- * Validates the staking expansion input
- * @param babylonBtcTipHeight - The Babylon BTC tip height
- * @param inputUTXOs - The input UTXOs
- * @param stakingInput - The staking input
- * @param previousStakingInput - The previous staking input
- * @param babylonAddress - The Babylon address
- * @returns true if validation passes, throws error if validation fails
- */
-const validateStakingExpansionInputs = (
-  {
-    babylonBtcTipHeight,
-    inputUTXOs,
-    stakingInput,
-    previousStakingInput,
-    babylonAddress,
-  }: {
-    babylonBtcTipHeight?: number,
-    inputUTXOs: UTXO[],
-    stakingInput: StakingInputs,
-    previousStakingInput: StakingInputs,
-    babylonAddress?: string,
-  }
-) => {
-  if (babylonBtcTipHeight === 0) {
-    throw new Error("Babylon BTC tip height cannot be 0");
-  }
-  if (!inputUTXOs || inputUTXOs.length === 0) {
-    throw new Error("No input UTXOs provided");
-  }
-  if (babylonAddress && !isValidBabylonAddress(babylonAddress)) {
-    throw new Error("Invalid Babylon address");
-  }
-  // Check the previous staking transaction's finality providers
-  // are a subset of the new staking input's finality providers
-  const currentFPs = stakingInput.finalityProviderPksNoCoordHex;
-  const previousFPs = previousStakingInput.finalityProviderPksNoCoordHex;
-
-  // Check if all current finality providers are included in the
-  // previous staking
-  const missingFPs = currentFPs.filter(fp => !previousFPs.includes(fp));
-  
-  if (missingFPs.length > 0) {
-    throw new Error(
-      `Invalid staking expansion, missing finality providers 
-      from previous staking transaction: ${missingFPs.join(", ")}`,
-    );
-  }
-}

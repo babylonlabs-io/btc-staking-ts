@@ -138,7 +138,6 @@ export const getStakingExpansionTxFundingUTXOAndFees = (
   // for other activities.
   const sortedUTXOs = validUTXOs.sort((a, b) => a.value - b.value);
 
-
   // Iterate through UTXOs to find one that can cover the required fees
   for (const utxo of sortedUTXOs) {
     // Calculate the estimated transaction size including:

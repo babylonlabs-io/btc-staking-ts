@@ -6,7 +6,7 @@ import { UTXO } from "../../../src/types/UTXO";
 import { StakingError, StakingErrorCode } from "../../../src/error";
 import { BTC_DUST_SAT } from "../../../src/constants/dustSat";
 import { NON_RBF_SEQUENCE } from "../../../src/constants/psbt";
-import * as stakingUtils from "../../../src/utils/staking";
+import * as stakingUtils from "../../../src/utils/staking/validation";
 import * as staking from "../../../src/staking/transactions";
 import { ObservableStakingDatagen } from "../../helper/datagen/observable";
 

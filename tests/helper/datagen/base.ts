@@ -48,7 +48,7 @@ export class StakingDataGenerator {
     const covenantNoCoordPks = this.generateRandomCovenantCommittee(committeeSize).map(
       (buffer) => buffer.toString("hex"),
     );
-    const covenantQuorum = Math.floor(Math.random() * (committeeSize - 1)) + 1;
+    const covenantQuorum = Math.floor(committeeSize/2) + 1;
     if (minStakingAmount && minStakingAmount < MIN_UNBONDING_OUTPUT_VALUE + 1) {
       throw new Error("Minimum staking amount is less than the unbonding output value");
     }

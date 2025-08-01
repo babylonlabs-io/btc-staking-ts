@@ -13,9 +13,6 @@ import {
   deriveStakingOutputInfo,
   findMatchingTxOutputIndex,
   toBuffers,
-  validateParams,
-  validateStakingTimelock,
-  validateStakingTxInputData,
 } from "../utils/staking";
 import { stakingExpansionPsbt, stakingPsbt, unbondingPsbt } from "./psbt";
 import { StakingScriptData, StakingScripts } from "./stakingScript";
@@ -29,6 +26,7 @@ import {
   withdrawSlashingTransaction,
   withdrawTimelockUnbondedTransaction,
 } from "./transactions";
+import { validateParams, validateStakingExpansionCovenantQuorum, validateStakingTimelock, validateStakingTxInputData } from "../utils/staking/validation";
 export * from "./stakingScript";
 
 export interface StakerInfo {
@@ -225,6 +223,10 @@ export class Staking {
       this.params,
       inputUTXOs,
       feeRate,
+    );
+    validateStakingExpansionCovenantQuorum(
+      paramsForPreviousStakingTx,
+      this.params,
     );
 
     // Create a Staking instance for the previous staking transaction
