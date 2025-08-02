@@ -8,6 +8,7 @@ import { deriveUnbondingOutputInfo } from "../utils/staking";
 import { findInputUTXO } from "../utils/utxo/findInputUTXO";
 import { getPsbtInputFields } from "../utils/utxo/getPsbtInputFields";
 import { BitcoinScriptType, getScriptType } from "../utils/utxo/getScriptType";
+import { StakingScripts } from "./stakingScript";
 
 /**
  * Convert a staking transaction to a PSBT.
@@ -75,6 +76,7 @@ export const stakingExpansionPsbt = (
     outputIndex: number,
   },
   inputUTXOs: UTXO[],
+  previousScripts: StakingScripts,
   publicKeyNoCoord?: Buffer,
 ): Psbt => {
   // Initialize PSBT with the specified network
@@ -130,6 +132,28 @@ export const stakingExpansionPsbt = (
     throw new Error("Previous staking input index does not match");
   }
 
+  // Build input tapleaf script that spends the previous staking output
+  const inputScriptTree: Taptree = [
+    { output: previousScripts.slashingScript },
+    [{ output: previousScripts.unbondingScript }, { output: previousScripts.timelockScript }],
+  ];
+  const inputRedeem = {
+    output: previousScripts.unbondingScript,
+    redeemVersion: REDEEM_VERSION,
+  };
+  const p2tr = payments.p2tr({
+    internalPubkey,
+    scriptTree: inputScriptTree,
+    redeem: inputRedeem,
+    network,
+  });
+
+  const inputTapLeafScript = {
+    leafVersion: inputRedeem.redeemVersion,
+    script: inputRedeem.output,
+    controlBlock: p2tr.witness![p2tr.witness!.length - 1],
+  };
+
   // Add the previous staking input to the PSBT
   // This input spends the existing staking output
   psbt.addInput({
@@ -140,7 +164,8 @@ export const stakingExpansionPsbt = (
       script: previousStakingOutput.script,
       value: previousStakingOutput.value,
     },
-    ...(publicKeyNoCoord && { tapInternalKey: publicKeyNoCoord }),
+    tapInternalKey: internalPubkey,
+    tapLeafScript: [inputTapLeafScript],
   });
 
   // Add the second input (funding UTXO) to the PSBT
