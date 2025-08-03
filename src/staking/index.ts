@@ -339,8 +339,8 @@ export class Staking {
     );
 
     // Find the staking output address in the previous staking transaction
-    const scripts = previousStaking.buildScripts();
-    const { outputAddress } = deriveStakingOutputInfo(scripts, this.network);
+    const previousScripts = previousStaking.buildScripts();
+    const { outputAddress } = deriveStakingOutputInfo(previousScripts, this.network);
     
     // Find the output index in the previous staking transaction that matches
     // the staking output address.
@@ -362,6 +362,7 @@ export class Staking {
         outputIndex: previousStakingOutputIndex,
       },
       inputUTXOs,
+      previousScripts,
       isTaproot(this.stakerInfo.address, this.network)
         ? Buffer.from(this.stakerInfo.publicKeyNoCoordHex, "hex")
         : undefined,

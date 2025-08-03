@@ -852,15 +852,19 @@ export const createCovenantWitness = (
       + `got: ${covenantSigs.length}`
     );
   }
-  // Verify all btcPkHex from covenantSigs exist in paramsCovenants
-  for (const sig of covenantSigs) {
+  // Filter out the signatures that are not in the params covenants
+  const filteredCovenantSigs = covenantSigs.filter((sig) => {
     const btcPkHexBuf = Buffer.from(sig.btcPkHex, "hex");
-    if (!paramsCovenants.some(covenant => covenant.equals(btcPkHexBuf))) {
-      throw new Error(
-        `Covenant signature public key ${sig.btcPkHex} not found in params covenants`
-      );
-    }
+    return paramsCovenants.some(covenant => covenant.equals(btcPkHexBuf));
+  });
+
+  if (filteredCovenantSigs.length < covenantQuorum) {
+    throw new Error(
+      `Not enough valid covenant signatures. Required: ${covenantQuorum}, `
+      + `got: ${filteredCovenantSigs.length}`
+    );
   }
+
   // We only take exactly covenantQuorum number of signatures, even if more are provided.
   // Including extra signatures will cause the unbonding transaction to fail validation.
   // This is because the witness script expects exactly covenantQuorum number of signatures

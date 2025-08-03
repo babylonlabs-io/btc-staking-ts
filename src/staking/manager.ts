@@ -591,16 +591,18 @@ export class BabylonBtcStakingManager {
       stakingInput.stakingTimelock,
     );
 
+    const previousParams = getBabylonParamByVersion(
+      previousStakingTxInfo.paramVersion,
+      this.stakingParams,
+    );
+
     // Create the PSBT for the staking expansion transaction
     // This PSBT will have two inputs: the previous staking output and a
     // funding UTXO
     const stakingExpansionPsbt = staking.toStakingExpansionPsbt(
       unsignedStakingExpansionTx,
       inputUTXOs,
-      getBabylonParamByVersion(
-        previousStakingTxInfo.paramVersion,
-        this.stakingParams,
-      ),
+      previousParams,
       previousStakingTxInfo,
     );
 
@@ -663,7 +665,9 @@ export class BabylonBtcStakingManager {
 
     // Add covenant committee signatures to the transaction
     // Convert covenant public keys from hex strings to buffers
-    const covenantBuffers = params.covenantNoCoordPks.map((covenant) =>
+    // The covenants committee is based on the params at the time of the previous
+    // staking transaction. Hence using the previous params here.
+    const covenantBuffers = previousParams.covenantNoCoordPks.map((covenant) =>
       Buffer.from(covenant, "hex"),
     );
     
@@ -677,7 +681,7 @@ export class BabylonBtcStakingManager {
       signedStakingExpansionTx.ins[0].witness,
       covenantBuffers,
       covenantStakingExpansionSignatures,
-      params.covenantQuorum,
+      previousParams.covenantQuorum,
     );
     
     // Overwrite the witness to include the covenant staking expansion signatures
