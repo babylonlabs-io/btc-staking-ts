@@ -148,10 +148,16 @@ export const stakingExpansionPsbt = (
     network,
   });
 
+  if (!p2tr.witness || p2tr.witness.length === 0) {
+    throw new Error(
+      "Failed to create P2TR witness for expansion transaction input"
+    );
+  }
+
   const inputTapLeafScript = {
     leafVersion: inputRedeem.redeemVersion,
     script: inputRedeem.output,
-    controlBlock: p2tr.witness![p2tr.witness!.length - 1],
+    controlBlock: p2tr.witness[p2tr.witness.length - 1],
   };
 
   // Add the previous staking input to the PSBT
