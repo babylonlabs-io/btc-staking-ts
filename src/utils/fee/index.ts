@@ -6,6 +6,7 @@ import {
   OP_RETURN_OUTPUT_VALUE_SIZE,
   OP_RETURN_VALUE_SERIALIZE_SIZE,
   P2TR_INPUT_SIZE,
+  P2TR_STAKING_EXPANSION_INPUT_SIZE,
   TX_BUFFER_SIZE_OVERHEAD,
   WALLET_RELAY_FEE_RATE_THRESHOLD,
   WITHDRAW_TX_BUFFER_SIZE,
@@ -143,8 +144,14 @@ export const getStakingExpansionTxFundingUTXOAndFees = (
     // Calculate the estimated transaction size including:
     // - Base transaction size (additional UTXOs + Outputs)
     // - Previous staking transaction output as the input for the expansion tx
-    // Note: Staking transactions use P2TR (Taproot) format, hence P2TR_INPUT_SIZE
-    const estimatedSize = getEstimatedSize([utxo], outputs) + P2TR_INPUT_SIZE;
+    // Note: Staking transactions use P2TR (Taproot) format,
+    // hence P2TR_STAKING_EXPANSION_INPUT_SIZE accounts for the witness size
+    // including covenant signatures and is calibrated for a typical covenant
+    // quorum of 6 signatures.
+    const estimatedSize = getEstimatedSize(
+      [utxo],
+      outputs,
+    ) + P2TR_STAKING_EXPANSION_INPUT_SIZE;
     
     // Calculate base fee: size * rate + buffer fee for network congestion
     let estimatedFee = estimatedSize * feeRate + rateBasedTxBufferFee(feeRate);

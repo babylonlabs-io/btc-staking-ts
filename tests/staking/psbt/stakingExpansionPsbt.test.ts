@@ -12,7 +12,7 @@ describe.each(testingNetworks)("Transactions - ", (
   describe.each(Object.values(datagen))("stakingExpansionPsbt", (
     dataGenerator
   ) => {
-    const feeRate = 15;
+    const feeRate = 1;
     const stakerKeyPair = dataGenerator.generateRandomKeyPair();
     const {
       stakingTx: previousStakingTx,
