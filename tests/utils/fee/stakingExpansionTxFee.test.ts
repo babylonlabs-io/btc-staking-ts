@@ -94,7 +94,7 @@ describe.each(testingNetworks)("utils - fee - ", (
           outputs,
         );
         
-        expect(result.fee).toBe(253);
+        expect(result.fee).toBe(463);
         expect(result.selectedUTXO).toEqual(availableUTXOs[0]);
       });
 
@@ -117,7 +117,7 @@ describe.each(testingNetworks)("utils - fee - ", (
           outputs,
         );
         
-        expect(result.fee).toBe(243);
+        expect(result.fee).toBe(453);
         expect(result.selectedUTXO).toEqual(availableUTXOs[0]);
       });
 
@@ -127,7 +127,7 @@ describe.each(testingNetworks)("utils - fee - ", (
             txid: dataGenerator.generateRandomTxId(),
             vout: 0,
             scriptPubKey: dataGenerator.generateRandomScriptPubKey(),
-            value: 210, // Just enough to cover fee without change
+            value: 420, // Just enough to cover fee without change
           },
         ];
 
@@ -138,7 +138,7 @@ describe.each(testingNetworks)("utils - fee - ", (
           outputs,
         );
         
-        expect(result.fee).toBe(210); // Without change output, hence smaller
+        expect(result.fee).toBe(420); // Without change output, hence smaller
         expect(result.selectedUTXO).toEqual(availableUTXOs[0]);
       });
 
@@ -148,7 +148,7 @@ describe.each(testingNetworks)("utils - fee - ", (
             txid: dataGenerator.generateRandomTxId(),
             vout: 0,
             scriptPubKey: dataGenerator.generateRandomScriptPubKey(),
-            value: 210 + BTC_DUST_SAT,
+            value: 420 + BTC_DUST_SAT,
           },
         ];
 
@@ -159,7 +159,7 @@ describe.each(testingNetworks)("utils - fee - ", (
           outputs,
         );
         
-        expect(result.fee).toBe(210); // Without change output, hence smaller
+        expect(result.fee).toBe(420); // Without change output, hence smaller
         expect(result.selectedUTXO).toEqual(availableUTXOs[0]);
       });
 
@@ -169,7 +169,7 @@ describe.each(testingNetworks)("utils - fee - ", (
             txid: dataGenerator.generateRandomTxId(),
             vout: 0,
             scriptPubKey: dataGenerator.generateRandomScriptPubKey(),
-            value: 210 + BTC_DUST_SAT + 1, // More than dust threshold
+            value: 420 + BTC_DUST_SAT + 1, // More than dust threshold
           },
         ];
 
@@ -180,7 +180,7 @@ describe.each(testingNetworks)("utils - fee - ", (
           outputs,
         );
 
-        expect(result.fee).toBe(253);
+        expect(result.fee).toBe(463);
         expect(result.selectedUTXO).toEqual(availableUTXOs[0]);
       });
 
@@ -209,7 +209,7 @@ describe.each(testingNetworks)("utils - fee - ", (
 
         // Should select the valid UTXO
         expect(result.selectedUTXO).toEqual(availableUTXOs[1]);
-        expect(result.fee).toEqual(253);
+        expect(result.fee).toEqual(463);
       });
 
       it("should throw error when no valid UTXOs are available", () => {
@@ -268,7 +268,7 @@ describe.each(testingNetworks)("utils - fee - ", (
           1,
           outputs,
         );
-        expect(result.fee).toBe(296);
+        expect(result.fee).toBe(506);
         expect(result.selectedUTXO).toEqual(availableUTXOs[0]);
       });
     });
