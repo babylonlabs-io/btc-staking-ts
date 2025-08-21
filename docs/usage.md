@@ -20,9 +20,12 @@ documentation](https://github.com/babylonlabs-io/babylon/blob/release/v1.x/docs/
   - [3. Stake Registration](#3-stake-registration)
     - [3.1 Post-Staking Registration](#31-post-staking-registration)
     - [3.2 Pre-Staking Registration](#32-pre-staking-registration)
-  - [4. Unbonding Transaction](#4-unbonding-transaction)
-  - [5. Withdrawal Transaction](#5-withdrawal-transaction)
-  - [6. Fee Calculation](#6-fee-calculation)
+  - [4. Delegation Expansion](#4-delegation-expansion)
+    - [4.1 Staking Expansion Registration](#41-staking-expansion-registration)
+    - [4.2 Create Signed Staking Expansion Transaction](#42-create-signed-staking-expansion-transaction)
+  - [5. Unbonding Transaction](#5-unbonding-transaction)
+  - [6. Withdrawal Transaction](#6-withdrawal-transaction)
+  - [7. Fee Calculation](#7-fee-calculation)
     - [6.1 Bitcoin Transaction Fee](#61-bitcoin-transaction-fee)
     - [6.2 Babylon Genesis Transaction Fee](#62-babylon-genesis-transaction-fee)
 
@@ -309,7 +312,80 @@ sufficient confirmations, an off-chain program called the
 [vigilante BTC Staking tracker](https://github.com/babylonlabs-io/vigilante)
 notifies the Babylon chain about the staking transaction's inclusion.
 
-## 4. Unbonding Transaction
+## 4. Delegation Expansion
+
+Delegation expansion allows you to extend an existing BTC stake with additional
+finality providers or renew the timelock without going through the full unbonding
+process. This implements RFC 037 BTC Stake Expansion.
+
+The expansion process involves:
+1. Creating an unsigned staking expansion transaction
+2. Registering the expansion on the Babylon chain
+3. Signing and submitting the expansion transaction to Bitcoin
+
+### 4.1 Staking Expansion Registration
+
+First, create the initial expansion registration message that will be signed
+by the Babylon Provider as a Babylon Genesis transaction.
+
+```ts
+const {
+  signedBabylonTx,
+  stakingTx: stakingExpansionTx
+} = await manager.stakingExpansionRegistrationBabylonTransaction(
+  stakerInfo,
+  stakingInput,
+  babylonBtcTipHeight,
+  inputUTXOs,
+  feeRate,
+  babylonAddress,
+  {
+    stakingTx: previousStakingTx,
+    paramVersion: previousStakingParamsVersion,
+    stakingInput: previousStakingInput,
+  }
+);
+```
+
+**Important Notes:**
+- The expansion amount must equal the previous staking amount (increases are
+not yet supported).
+- All finality providers from the previous staking must be included in the
+expansion.
+- The funding UTXOs are used only to cover transaction fees, not to increase
+the staking amount at this stage.
+
+### 4.2 Create Signed Staking Expansion Transaction
+
+After the expansion has been registered and verified by the Babylon chain,
+you can create the signed staking expansion transaction. This requires
+covenant signatures from the covenant committee.
+
+You can retrieve the covenant expansion signatures through either:
+- By querying the `/babylon/btcstaking/v1/btc_delegation/:staking_tx_hash_hex`
+  endpoint of an RPC/LCD node
+- By querying the `/v2/delegation?staking_tx_hash_hex=xxx` endpoint from the
+  Babylon Staking API
+
+```ts
+const signedStakingExpansionTx = await manager.createSignedBtcStakingExpansionTransaction(
+  stakerInfo,
+  stakingInput,
+  unsignedStakingExpansionTx,
+  inputUTXOs,
+  stakingParamsVersion,
+  {
+    stakingTx: previousStakingTx,
+    paramVersion: previousStakingParamsVersion,
+    stakingInput: previousStakingInput,
+  },
+  covenantStakingExpansionSignatures
+);
+```
+
+The resulting transaction is ready to be submitted to the Bitcoin network.
+
+## 5. Unbonding Transaction
 
 This step allows stakers to unbond their active staking transactions on demand
 before the committed timelock expires. After unbonding, the funds will become
@@ -340,7 +416,7 @@ const { signedUnbondingTx } = await manager.createSignedBtcUnbondingTransaction(
 })
 ```
 
-## 5. Withdrawal Transaction
+## 6. Withdrawal Transaction
 
 There are 3 different types of withdrawal transactions:
 1. Withdraw from early unbonding (`createSignedBtcWithdrawEarlyUnbondedTransaction`)
@@ -400,9 +476,9 @@ const signedWithdrawSlashedTx = await manager.createSignedBtcWithdrawSlashingTra
 })
 ```
 
-## 6. Fee Calculation
+## 7. Fee Calculation
 
-### 6.1 Bitcoin Transaction Fee
+### 7.1 Bitcoin Transaction Fee
 
 The library's fee calculation for Bitcoin transactions is based on an estimated
 size of the transaction in virtual bytes (vB). This estimation helps in
@@ -428,7 +504,7 @@ const feeSats = manager.estimateBtcStakingFee({
 })
 ```
 
-### 6.2 Babylon Genesis Transaction Fee
+### 7.2 Babylon Genesis Transaction Fee
 
 The current version of the library does support functionality for calculating
 the Babylon Genesis transaction fees for the `pre-staking registration`
