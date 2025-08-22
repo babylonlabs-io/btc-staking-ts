@@ -26,8 +26,8 @@ documentation](https://github.com/babylonlabs-io/babylon/blob/release/v1.x/docs/
   - [5. Unbonding Transaction](#5-unbonding-transaction)
   - [6. Withdrawal Transaction](#6-withdrawal-transaction)
   - [7. Fee Calculation](#7-fee-calculation)
-    - [6.1 Bitcoin Transaction Fee](#61-bitcoin-transaction-fee)
-    - [6.2 Babylon Genesis Transaction Fee](#62-babylon-genesis-transaction-fee)
+    - [7.1 Bitcoin Transaction Fee](#71-bitcoin-transaction-fee)
+    - [7.2 Babylon Genesis Transaction Fee](#72-babylon-genesis-transaction-fee)
 
 ## 1. Prerequisites
 
@@ -43,7 +43,7 @@ You can retrieve the parameters as follows:
 * By querying the `/babylon/btcstaking/v1/params` endpoint
   of an RPC/LCD node. You can find the available RPC/LCD nodes
   of each active network in the
-  [Babylon networks repository](https://github.com/babylonlabs-io/networks).
+  [Babylon networks Information](https://docs.babylonlabs.io/developers/babylon_genesis_chain/node_information/).
 * By querying the `/v2/network-info` endpoint of the
   [Babylon Staking API](https://docs.babylonlabs.io/api/staking-api/get-network-info/)
   that exposes the indexed Babylon parameters.
@@ -320,7 +320,7 @@ process. This implements RFC 037 BTC Stake Expansion.
 
 The expansion process involves:
 1. Creating an unsigned staking expansion transaction
-2. Registering the expansion on the Babylon chain
+2. Registering the expansion on the Babylon Genesis chain
 3. Signing and submitting the expansion transaction to Bitcoin
 
 ### 4.1 Staking Expansion Registration
@@ -351,9 +351,11 @@ const {
 - The expansion amount must equal the previous staking amount (increases are
 not yet supported).
 - All finality providers from the previous staking must be included in the
-expansion.
-- The funding UTXOs are used only to cover transaction fees, not to increase
-the staking amount at this stage.
+expansion. You can retrieve the previous staking information through the
+`/v2/delegation?staking_tx_hash_hex=xxx` endpoint from the Babylon Staking API.
+- The input UTXOs are used only to cover transaction fees, not to increase
+the staking amount (this feature is not yet supported). The method
+automatically selects the optimal UTXO to cover the fees.
 
 ### 4.2 Create Signed Staking Expansion Transaction
 

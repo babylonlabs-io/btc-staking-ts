@@ -244,7 +244,7 @@ const signedExpansionTx = Psbt.fromHex(signedExpansionPsbt).extractTransaction()
 
 **Important Notes:**
 - The expansion amount must equal the previous staking amount (increases are not yet supported)
-- All finality providers from the previous staking must be included in the expansion
+- The finality providers used to construct the expansion staking transaction scripts must be a superset of those from the previous staking (all previous finality providers must be included, with additional ones allowed)
 - The expansion transaction requires covenant signatures to spend the previous staking output
 - The funding UTXO is used only to cover transaction fees, not to increase the staking amount
 
