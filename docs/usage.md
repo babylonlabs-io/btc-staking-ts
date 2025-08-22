@@ -316,7 +316,8 @@ notifies the Babylon chain about the staking transaction's inclusion.
 
 Delegation expansion allows you to extend an existing BTC stake with additional
 finality providers or renew the timelock without going through the full unbonding
-process. This implements RFC 037 BTC Stake Expansion.
+process. For more details, please refer to the
+[BTC Stake Expansion](https://github.com/babylonlabs-io/babylon/blob/v3.0.0-rc.1/docs/bitcoin-stake-expansion.md).
 
 The expansion process involves:
 1. Creating an unsigned staking expansion transaction
