@@ -166,6 +166,108 @@ const stakingTx = Psbt.fromHex(signedStakingPsbt).extractTransaction();
 
 Public key is needed only if the wallet is in Taproot mode, for `tapInternalKey`.
 
+### Create staking expansion transaction
+
+Staking expansion allows you to extend an existing BTC stake with additional
+finality providers or renew the timelock without going through the full
+unbonding process.
+
+The expansion transaction:
+1. Spends the previous staking transaction output as the first input.
+2. Uses a funding UTXO as the second input to cover transaction fees.
+3. Creates new staking outputs where the timelock is renewed or additional
+finality providers are added.
+4. Returns any remaining funds as change.
+
+```ts
+import { stakingExpansionTransaction } from "@babylonlabs-io/btc-staking-ts";
+import { Psbt, Transaction } from "bitcoinjs-lib";
+
+// Previous staking transaction that we want to expand
+const previousStakingTx: Transaction = stakingTx; // from previous staking
+
+// Scripts from the previous staking transaction
+const previousStakingScripts = {
+  timelockScript,
+  unbondingScript,
+  slashingScript,
+};
+
+// New scripts for the expansion. The finality providers of this scripts must
+// include ALL finality providers from the previous staking transaction.
+// Additional finality providers can be added, but none can be removed.
+// The timelock script can be renewed or left unchanged.
+const expansionScripts = {
+  timelockScript: newTimelockScript,
+  unbondingScript: newUnbondingScript,
+  slashingScript: newSlashingScript,
+};
+
+// Funding UTXOs to cover transaction fees.
+// The funding UTXOs are used only to cover transaction fees, not to increase
+// the staking amount (this feature is not yet supported).
+// Any remaining funds from the funding UTXOs will be returned as change.
+// The method automatically selects the funding UTXO that can cover the
+// transaction fees, so a single funding UTXO is sufficient.
+const fundingUTXOs = [
+  {
+    txid: "e472d65b0c9c1bac9ffe53708007e57ab830f1bf09af4bfbd17e780b641258fc",
+    vout: 2,
+    value: 9265692,
+    scriptPubKey: "0014505049839bc32f869590adc5650c584e17c917fc",
+  },
+];
+
+const expansionResult = stakingExpansionTransaction(
+  network,
+  expansionScripts,
+  stakingAmount, // Must equal the previous staking amount
+  changeAddress,
+  feeRate,
+  fundingUTXOs,
+  {
+    stakingTx: previousStakingTx,
+    scripts: previousStakingScripts,
+  }
+);
+
+const {
+  transaction: stakingExpansionTx,
+  fee: expansionFee,
+  fundingUTXO, // The selected funding UTXO that covers the transaction fees
+} = expansionResult;
+
+// Sign the expansion transaction
+const signedExpansionPsbt = await btcWallet.signPsbt(stakingExpansionTx.toHex());
+const signedExpansionTx = Psbt.fromHex(signedExpansionPsbt).extractTransaction();
+```
+
+**Important Notes:**
+- The expansion amount must equal the previous staking amount (increases are not yet supported)
+- The finality providers used to construct the expansion staking transaction scripts must be a superset of those from the previous staking (all previous finality providers must be included, with additional ones allowed)
+- The expansion transaction requires covenant signatures to spend the previous staking output
+- The funding UTXO is used only to cover transaction fees, not to increase the staking amount
+
+#### Collecting Expansion Covenant Signatures
+
+Similar to unbonding transactions, staking expansion requires covenant signatures to spend the previous staking output:
+
+```ts
+// Create the full witness with covenant signatures
+const witness = createCovenantWitness(
+  signedExpansionTx.ins[0].witness, // original witness from signed transaction
+  covenantPks: Buffer[],
+  covenantExpansionSignatures: {
+    btc_pk_hex: string;
+    sig_hex: string;
+  }[],
+  covenantQuorum
+);
+
+// Attach the witness to the expansion transaction
+signedExpansionTx.ins[0].witness = witness;
+```
+
 ### Create unbonding transaction
 
 The staking script allows users to on-demand unbond their locked stake before
