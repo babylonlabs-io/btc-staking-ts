@@ -11,8 +11,16 @@ export default {
       {
         tsconfig: 'tsconfig.jest.json',
       }
-    ]
+    ],
+    'node_modules/@babylonlabs-io/babylon-proto-ts/.+\\.js$': ['babel-jest', {
+      presets: [
+        ['@babel/preset-env', { targets: { node: 'current' } }]
+      ]
+    }]
   },
+  transformIgnorePatterns: [
+    'node_modules/(?!@babylonlabs-io/babylon-proto-ts)'
+  ],
   collectCoverage: true,
   collectCoverageFrom: [
     'src/**/*.{ts,tsx}',

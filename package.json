@@ -48,6 +48,7 @@
   "author": "Babylon Labs Ltd.",
   "license": "SEE LICENSE IN LICENSE",
   "devDependencies": {
+    "@babel/preset-env": "^7.28.3",
     "@commitlint/cli": "^19.8.0",
     "@commitlint/config-conventional": "^19.8.0",
     "@semantic-release/changelog": "^6.0.3",
@@ -74,9 +75,9 @@
     "typescript-eslint": "^7.4.0"
   },
   "dependencies": {
-    "@babylonlabs-io/babylon-proto-ts": "1.7.2",
+    "@babylonlabs-io/babylon-proto-ts": "1.14.1",
     "@bitcoin-js/tiny-secp256k1-asmjs": "2.2.3",
-    "@cosmjs/encoding": "^0.33.0",
+    "@cosmjs/encoding": "^0.36.0",
     "bitcoinjs-lib": "6.1.5"
   },
   "publishConfig": {
