@@ -4,6 +4,7 @@ import { networks } from "bitcoinjs-lib";
 import { type UTXO } from "../../../src";
 import { BabylonBtcStakingManager } from "../../../src/staking/manager";
 
+import { ActionName } from "../../../src/types/action";
 import { ContractId } from "../../../src/types/contract";
 import { babylonProvider, btcProvider } from "./__mock__/providers";
 import {
@@ -18,7 +19,6 @@ import {
   stakingInput,
   utxos,
 } from "./__mock__/registration";
-import { ActionName } from "../../../src/types/action";
 
 describe("Staking Manager", () => {
   describe("preStakeRegistrationBabylonTransaction", () => {
@@ -168,7 +168,8 @@ describe("Staking Manager", () => {
               id: ContractId.SLASHING_BURN,
               params: {
                 stakerPk: stakerInfo.publicKeyNoCoordHex,
-                slashingPkScriptHex: params[version].slashing?.slashingPkScriptHex,
+                slashingPkScriptHex:
+                  params[version].slashing?.slashingPkScriptHex,
               },
             },
           ],
@@ -203,7 +204,8 @@ describe("Staking Manager", () => {
                 id: ContractId.SLASHING_BURN,
                 params: {
                   stakerPk: stakerInfo.publicKeyNoCoordHex,
-                  slashingPkScriptHex: params[version].slashing?.slashingPkScriptHex,
+                  slashingPkScriptHex:
+                    params[version].slashing?.slashingPkScriptHex,
                 },
               },
             ],

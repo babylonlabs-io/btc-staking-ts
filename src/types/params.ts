@@ -15,20 +15,24 @@ export interface StakingParams {
     slashingPkScriptHex: string;
     slashingRate: number;
     minSlashingTxFeeSat: number;
-  }
+  };
 }
 
 /**
  * Type for StakingParams where slashing is required
  */
 export type StakingParamsWithSlashing = StakingParams & {
-  slashing: NonNullable<StakingParams['slashing']>;
+  slashing: NonNullable<StakingParams["slashing"]>;
 };
 
 /**
  * Type guard to check if slashing exists in StakingParams
  */
-export function hasSlashing(params: StakingParams): params is StakingParams & { slashing: NonNullable<StakingParams['slashing']> } {
+export function hasSlashing(
+  params: StakingParams,
+): params is StakingParams & {
+  slashing: NonNullable<StakingParams["slashing"]>;
+} {
   return params.slashing !== undefined;
 }
 
@@ -45,6 +49,7 @@ export interface VersionedStakingParams extends StakingParams {
 /**
  * Extension of VersionedStakingParams that includes a tag field for observability.
  */
-export interface ObservableVersionedStakingParams extends VersionedStakingParams {
+export interface ObservableVersionedStakingParams
+  extends VersionedStakingParams {
   tag: string;
 }

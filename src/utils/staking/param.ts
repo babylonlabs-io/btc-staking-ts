@@ -16,9 +16,7 @@ export const getBabylonParamByBtcHeight = (
   );
 
   // Find first params where height is >= btcActivationHeight
-  const params = sortedParams.find(
-    (p) => height >= p.btcActivationHeight,
-  );
+  const params = sortedParams.find((p) => height >= p.btcActivationHeight);
   if (!params) throw new Error(`Babylon params not found for height ${height}`);
   return params;
 };
@@ -34,6 +32,7 @@ export const getBabylonParamByVersion = (
   babylonParams: VersionedStakingParams[],
 ): StakingParams => {
   const params = babylonParams.find((p) => p.version === version);
-  if (!params) throw new Error(`Babylon params not found for version ${version}`);
+  if (!params)
+    throw new Error(`Babylon params not found for version ${version}`);
   return params;
 };

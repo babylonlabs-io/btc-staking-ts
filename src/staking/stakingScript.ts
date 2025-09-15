@@ -78,14 +78,17 @@ export class StakingScriptData {
     // check that finalityProvider keys are the correct length
     if (
       this.finalityProviderKeys.some(
-        (finalityProviderKey) => finalityProviderKey.length != NO_COORD_PK_BYTE_LENGTH,
+        (finalityProviderKey) =>
+          finalityProviderKey.length != NO_COORD_PK_BYTE_LENGTH,
       )
     ) {
       return false;
     }
     // check that covenant keys are the correct length
     if (
-      this.covenantKeys.some((covenantKey) => covenantKey.length != NO_COORD_PK_BYTE_LENGTH)
+      this.covenantKeys.some(
+        (covenantKey) => covenantKey.length != NO_COORD_PK_BYTE_LENGTH,
+      )
     ) {
       return false;
     }

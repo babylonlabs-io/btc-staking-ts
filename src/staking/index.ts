@@ -14,19 +14,24 @@ import {
   findMatchingTxOutputIndex,
   toBuffers,
 } from "../utils/staking";
+import {
+  validateParams,
+  validateStakingExpansionCovenantQuorum,
+  validateStakingTimelock,
+  validateStakingTxInputData,
+} from "../utils/staking/validation";
 import { stakingExpansionPsbt, stakingPsbt, unbondingPsbt } from "./psbt";
 import { StakingScriptData, StakingScripts } from "./stakingScript";
 import {
-  stakingExpansionTransaction,
   slashEarlyUnbondedTransaction,
   slashTimelockUnbondedTransaction,
+  stakingExpansionTransaction,
   stakingTransaction,
   unbondingTransaction,
   withdrawEarlyUnbondedTransaction,
   withdrawSlashingTransaction,
   withdrawTimelockUnbondedTransaction,
 } from "./transactions";
-import { validateParams, validateStakingExpansionCovenantQuorum, validateStakingTimelock, validateStakingTxInputData } from "../utils/staking/validation";
 export * from "./stakingScript";
 
 export interface StakerInfo {
@@ -62,7 +67,7 @@ export class Staking {
       );
     }
     if (
-      finalityProviderPksNoCoordHex.length === 0 || 
+      finalityProviderPksNoCoordHex.length === 0 ||
       !finalityProviderPksNoCoordHex.every(isValidNoCoordPublicKey)
     ) {
       throw new StakingError(
@@ -173,12 +178,12 @@ export class Staking {
   /**
    * Creates a staking expansion transaction that extends an existing BTC stake
    * to new finality providers or renews the timelock.
-   * 
+   *
    * This method implements RFC 037 BTC Stake Expansion,
    * allowing existing active BTC staking transactions
    * to extend their delegation to new finality providers without going through
    * the full unbonding process.
-   * 
+   *
    * The expansion transaction:
    * 1. Spends the previous staking transaction output as the first input
    * 2. Uses funding UTXO as additional input to cover transaction fees or
@@ -187,15 +192,15 @@ export class Staking {
    *    renews the timelock
    * 4. Has an output returning the remaining funds as change (if any) to the
    * staker BTC address
-   * 
+   *
    * @param {number} stakingAmountSat - The total staking amount in satoshis
    * (The amount had to be equal to the previous staking amount for now, this
    * lib does not yet support increasing the staking amount at this stage)
    * @param {UTXO[]} inputUTXOs - Available UTXOs to use for funding the
    * expansion transaction fees. Only one will be selected for the expansion
-   * @param {number} feeRate - Fee rate in satoshis per byte for the 
+   * @param {number} feeRate - Fee rate in satoshis per byte for the
    * expansion transaction
-   * @param {StakingParams} paramsForPreviousStakingTx - Staking parameters 
+   * @param {StakingParams} paramsForPreviousStakingTx - Staking parameters
    * used in the previous staking transaction
    * @param {Object} previousStakingTxInfo - Necessary information to spend the
    * previous staking transaction.
@@ -210,11 +215,11 @@ export class Staking {
     feeRate: number,
     paramsForPreviousStakingTx: StakingParams,
     previousStakingTxInfo: {
-      stakingTx: Transaction,
+      stakingTx: Transaction;
       stakingInput: {
-        finalityProviderPksNoCoordHex: string[],
-        stakingTimelock: number,
-      },
+        finalityProviderPksNoCoordHex: string[];
+        stakingTimelock: number;
+      };
     },
   ): TransactionResult & {
     fundingUTXO: UTXO;
@@ -241,7 +246,7 @@ export class Staking {
       previousStakingTxInfo.stakingInput.finalityProviderPksNoCoordHex,
       previousStakingTxInfo.stakingInput.stakingTimelock,
     );
-    
+
     // Build the expansion transaction using the stakingExpansionTransaction
     // utility function.
     // This creates a transaction that spends the previous staking output and
@@ -261,7 +266,7 @@ export class Staking {
         stakingTx: previousStakingTxInfo.stakingTx,
         scripts: previousStaking.buildScripts(),
       },
-    )
+    );
 
     return {
       transaction: stakingExpansionTx,
@@ -319,11 +324,11 @@ export class Staking {
     inputUTXOs: UTXO[],
     paramsForPreviousStakingTx: StakingParams,
     previousStakingTxInfo: {
-      stakingTx: Transaction,
+      stakingTx: Transaction;
       stakingInput: {
-        finalityProviderPksNoCoordHex: string[],
-        stakingTimelock: number,
-      },
+        finalityProviderPksNoCoordHex: string[];
+        stakingTimelock: number;
+      };
     },
   ): Psbt {
     // Reconstruct the previous staking instance to access its scripts and
@@ -340,8 +345,11 @@ export class Staking {
 
     // Find the staking output address in the previous staking transaction
     const previousScripts = previousStaking.buildScripts();
-    const { outputAddress } = deriveStakingOutputInfo(previousScripts, this.network);
-    
+    const { outputAddress } = deriveStakingOutputInfo(
+      previousScripts,
+      this.network,
+    );
+
     // Find the output index in the previous staking transaction that matches
     // the staking output address.
     const previousStakingOutputIndex = findMatchingTxOutputIndex(
@@ -536,7 +544,7 @@ export class Staking {
       stakingTx,
       outputAddress,
       this.network,
-    )
+    );
 
     // create the slash timelock unbonded transaction
     try {

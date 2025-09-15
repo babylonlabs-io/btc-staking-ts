@@ -40,45 +40,43 @@ describe("is OP_RETURN", () => {
   });
 });
 
-describe.each(testingNetworks)("scriptUtils", ({
-  networkName,
-  datagen,
-}) => {
-  describe.each(Object.values(datagen))(`${networkName} - getInputSizeByScript`, (
-    dataGenerator
-  ) => {
-    it("should return P2WPKH_INPUT_SIZE for a valid P2WPKH script", () => {
-      const pk = dataGenerator.generateRandomKeyPair().publicKey;
-      const { output } = payments.p2wpkh({ pubkey: Buffer.from(pk, "hex") });
-      if (output) {
-        expect(getInputSizeByScript(output)).toBe(P2WPKH_INPUT_SIZE);
-      }
-    });
-
-    it("should return P2TR_INPUT_SIZE for a valid P2TR script", () => {
-      const pk = dataGenerator.generateRandomKeyPair().publicKeyNoCoord;
-      const { output } = payments.p2tr({
-        internalPubkey: Buffer.from(pk, "hex"),
+describe.each(testingNetworks)("scriptUtils", ({ networkName, datagen }) => {
+  describe.each(Object.values(datagen))(
+    `${networkName} - getInputSizeByScript`,
+    (dataGenerator) => {
+      it("should return P2WPKH_INPUT_SIZE for a valid P2WPKH script", () => {
+        const pk = dataGenerator.generateRandomKeyPair().publicKey;
+        const { output } = payments.p2wpkh({ pubkey: Buffer.from(pk, "hex") });
+        if (output) {
+          expect(getInputSizeByScript(output)).toBe(P2WPKH_INPUT_SIZE);
+        }
       });
-      expect(getInputSizeByScript(output!)).toBe(P2TR_INPUT_SIZE);
-    });
 
-    it("should return DEFAULT_INPUT_SIZE for an invalid or unrecognized script", () => {
-      const script = bitcoinScript.compile([
-        opcodes.OP_DUP,
-        opcodes.OP_HASH160,
-        Buffer.alloc(20),
-        opcodes.OP_EQUALVERIFY,
-        opcodes.OP_CHECKSIG,
-      ]);
-      expect(getInputSizeByScript(script)).toBe(DEFAULT_INPUT_SIZE);
-    });
+      it("should return P2TR_INPUT_SIZE for a valid P2TR script", () => {
+        const pk = dataGenerator.generateRandomKeyPair().publicKeyNoCoord;
+        const { output } = payments.p2tr({
+          internalPubkey: Buffer.from(pk, "hex"),
+        });
+        expect(getInputSizeByScript(output!)).toBe(P2TR_INPUT_SIZE);
+      });
 
-    it("should handle malformed scripts gracefully and return DEFAULT_INPUT_SIZE", () => {
-      const malformedScript = Buffer.from("00", "hex");
-      expect(getInputSizeByScript(malformedScript)).toBe(DEFAULT_INPUT_SIZE);
-    });
-  });
+      it("should return DEFAULT_INPUT_SIZE for an invalid or unrecognized script", () => {
+        const script = bitcoinScript.compile([
+          opcodes.OP_DUP,
+          opcodes.OP_HASH160,
+          Buffer.alloc(20),
+          opcodes.OP_EQUALVERIFY,
+          opcodes.OP_CHECKSIG,
+        ]);
+        expect(getInputSizeByScript(script)).toBe(DEFAULT_INPUT_SIZE);
+      });
+
+      it("should handle malformed scripts gracefully and return DEFAULT_INPUT_SIZE", () => {
+        const malformedScript = Buffer.from("00", "hex");
+        expect(getInputSizeByScript(malformedScript)).toBe(DEFAULT_INPUT_SIZE);
+      });
+    },
+  );
 });
 
 describe("getEstimatedChangeOutputSize", () => {

@@ -1,21 +1,23 @@
 import * as ecc from "@bitcoin-js/tiny-secp256k1-asmjs";
 import * as bitcoin from "bitcoinjs-lib";
+import { Psbt, Transaction, payments } from "bitcoinjs-lib";
 import ECPairFactory from "ecpair";
 import {
   slashEarlyUnbondedTransaction,
   slashTimelockUnbondedTransaction,
   unbondingTransaction,
 } from "../../../src";
+import { internalPubkey } from "../../../src/constants/internalPubkey";
+import {
+  NON_RBF_SEQUENCE,
+  TRANSACTION_VERSION,
+} from "../../../src/constants/psbt";
+import { MIN_UNBONDING_OUTPUT_VALUE } from "../../../src/constants/unbonding";
+import { StakingScriptData, StakingScripts } from "../../../src/index";
 import { Staking } from "../../../src/staking";
 import { UTXO } from "../../../src/types/UTXO";
 import { StakingParams } from "../../../src/types/params";
 import { generateRandomAmountSlices } from "../math";
-import { StakingScriptData, StakingScripts } from "../../../src/index";
-import { MIN_UNBONDING_OUTPUT_VALUE } from "../../../src/constants/unbonding";
-import { payments, Psbt, Transaction } from "bitcoinjs-lib";
-import { TRANSACTION_VERSION } from "../../../src/constants/psbt";
-import { NON_RBF_SEQUENCE } from "../../../src/constants/psbt";
-import { internalPubkey } from "../../../src/constants/internalPubkey";
 
 bitcoin.initEccLib(ecc);
 const ECPair = ECPairFactory(ecc);
@@ -39,23 +41,36 @@ export class StakingDataGenerator {
   }
 
   generateStakingParams(
-    fixedTerm: boolean = false, committeeSize?: number,
-    minStakingAmount?: number
+    fixedTerm: boolean = false,
+    committeeSize?: number,
+    minStakingAmount?: number,
   ): StakingParams {
     if (!committeeSize) {
       committeeSize = this.getRandomIntegerBetween(5, 50);
     }
-    const covenantNoCoordPks = this.generateRandomCovenantCommittee(committeeSize).map(
-      (buffer) => buffer.toString("hex"),
-    );
-    const covenantQuorum = Math.floor(committeeSize/2) + 1;
+    const covenantNoCoordPks = this.generateRandomCovenantCommittee(
+      committeeSize,
+    ).map((buffer) => buffer.toString("hex"));
+    const covenantQuorum = Math.floor(committeeSize / 2) + 1;
     if (minStakingAmount && minStakingAmount < MIN_UNBONDING_OUTPUT_VALUE + 1) {
-      throw new Error("Minimum staking amount is less than the unbonding output value");
+      throw new Error(
+        "Minimum staking amount is less than the unbonding output value",
+      );
     }
-    const minStakingAmountSat = minStakingAmount ? minStakingAmount : this.getRandomIntegerBetween(100000, 1000000000);
+    const minStakingAmountSat = minStakingAmount
+      ? minStakingAmount
+      : this.getRandomIntegerBetween(100000, 1000000000);
     const minStakingTimeBlocks = this.getRandomIntegerBetween(1, 2000);
-    const maxStakingTimeBlocks = fixedTerm ? minStakingTimeBlocks : this.getRandomIntegerBetween(minStakingTimeBlocks, minStakingTimeBlocks + 1000);
-    const timelock = this.generateRandomTimelock({minStakingTimeBlocks, maxStakingTimeBlocks});
+    const maxStakingTimeBlocks = fixedTerm
+      ? minStakingTimeBlocks
+      : this.getRandomIntegerBetween(
+          minStakingTimeBlocks,
+          minStakingTimeBlocks + 1000,
+        );
+    const timelock = this.generateRandomTimelock({
+      minStakingTimeBlocks,
+      maxStakingTimeBlocks,
+    });
     const unbondingTime = this.generateRandomUnbondingTime(timelock);
     const slashingRate = this.generateRandomSlashingRate();
     const minSlashingTxFeeSat = this.getRandomIntegerBetween(1000, 100000);
@@ -66,29 +81,27 @@ export class StakingDataGenerator {
       unbondingFeeSat: minStakingAmountSat - MIN_UNBONDING_OUTPUT_VALUE - 1,
       minStakingAmountSat,
       maxStakingAmountSat: this.getRandomIntegerBetween(
-        minStakingAmountSat, minStakingAmountSat + 1000000000,
+        minStakingAmountSat,
+        minStakingAmountSat + 1000000000,
       ),
       minStakingTimeBlocks,
       maxStakingTimeBlocks,
       slashing: {
         slashingRate,
-        slashingPkScriptHex: getRandomPaymentScriptHex(this.generateRandomKeyPair().publicKey),
+        slashingPkScriptHex: getRandomPaymentScriptHex(
+          this.generateRandomKeyPair().publicKey,
+        ),
         minSlashingTxFeeSat,
-      }
+      },
     };
   }
 
-  generateMockStakingScripts(
-    stakerKeyPair?: KeyPair,
-  ): StakingScripts {
+  generateMockStakingScripts(stakerKeyPair?: KeyPair): StakingScripts {
     if (!stakerKeyPair) {
       stakerKeyPair = this.generateRandomKeyPair();
     }
     const committeeSize = this.getRandomIntegerBetween(1, 10);
-    const globalParams = this.generateStakingParams(
-      false,
-      committeeSize,
-    );
+    const globalParams = this.generateStakingParams(false, committeeSize);
     const stakingTxTimelock = this.generateRandomTimelock(globalParams);
 
     return this.generateStakingScriptData(
@@ -98,7 +111,7 @@ export class StakingDataGenerator {
     );
   }
 
-  generateStakingScriptData (
+  generateStakingScriptData(
     stakerPkNoCoord: string,
     params: StakingParams,
     timelock: number,
@@ -140,9 +153,10 @@ export class StakingDataGenerator {
 
   // Generate a random timelock value
   // ranged from 1 to 65535
-  generateRandomTimelock = (
-    params: { minStakingTimeBlocks: number, maxStakingTimeBlocks: number},
-  ) => {
+  generateRandomTimelock = (params: {
+    minStakingTimeBlocks: number;
+    maxStakingTimeBlocks: number;
+  }) => {
     if (params.minStakingTimeBlocks === params.maxStakingTimeBlocks) {
       return params.minStakingTimeBlocks;
     }
@@ -175,7 +189,6 @@ export class StakingDataGenerator {
     return committe;
   };
 
-  
   getAddressAndScriptPubKey = (publicKey: string) => {
     return {
       taproot: this.getTaprootAddress(publicKey),
@@ -248,23 +261,30 @@ export class StakingDataGenerator {
       stakerKeyPair = this.generateRandomKeyPair();
     }
     const stakerInfo = {
-      address: this.getAddressAndScriptPubKey(stakerKeyPair.publicKey).nativeSegwit.address,
+      address: this.getAddressAndScriptPubKey(stakerKeyPair.publicKey)
+        .nativeSegwit.address,
       publicKeyNoCoordHex: stakerKeyPair.publicKeyNoCoord,
       publicKeyWithCoord: stakerKeyPair.publicKey,
-    }
+    };
     params = params ? params : this.generateStakingParams();
     const timelock = this.generateRandomTimelock(params);
-    const finalityProviderPksNoCoordHex = this.generateRandomFidelityProviderPksNoCoordHex();
+    const finalityProviderPksNoCoordHex =
+      this.generateRandomFidelityProviderPksNoCoordHex();
 
     const staking = new Staking(
-      network, stakerInfo,
-      params, finalityProviderPksNoCoordHex, timelock,
+      network,
+      stakerInfo,
+      params,
+      finalityProviderPksNoCoordHex,
+      timelock,
     );
 
-    const stakingAmountSat = stakingAmount ? 
-      stakingAmount : this.getRandomIntegerBetween(
-        params.minStakingAmountSat, params.maxStakingAmountSat,
-      );
+    const stakingAmountSat = stakingAmount
+      ? stakingAmount
+      : this.getRandomIntegerBetween(
+          params.minStakingAmountSat,
+          params.maxStakingAmountSat,
+        );
 
     const { publicKey } = stakerKeyPair;
     const { taproot, nativeSegwit } = this.getAddressAndScriptPubKey(publicKey);
@@ -274,17 +294,17 @@ export class StakingDataGenerator {
         : nativeSegwit.scriptPubKey;
 
     const utxos = this.generateRandomUTXOs(
-      this.getRandomIntegerBetween(stakingAmountSat, stakingAmountSat + 100000000),
+      this.getRandomIntegerBetween(
+        stakingAmountSat,
+        stakingAmountSat + 100000000,
+      ),
       this.getRandomIntegerBetween(1, 10),
       scriptPubKey,
     );
 
-    const { transaction: stakingTx, fee: stakingTxFee } = staking.createStakingTransaction(
-      stakingAmountSat,
-      utxos,
-      feeRate,
-    );
-    
+    const { transaction: stakingTx, fee: stakingTxFee } =
+      staking.createStakingTransaction(stakingAmountSat, utxos, feeRate);
+
     return {
       stakingTx,
       timelock,
@@ -297,17 +317,17 @@ export class StakingDataGenerator {
       stakingTxFee,
       utxos,
       scriptPubKey,
-    }
+    };
   };
 
   /**
-   * Generates a random slashing transaction based on the staking transaction 
+   * Generates a random slashing transaction based on the staking transaction
    * and staking scripts
    * @param network - The network to use
    * @param stakingScripts - The staking scripts to use
    * @param stakingTx - The staking transaction to use
    * @param params - The params used in the staking transaction
-   * @param keyPair - The key pair to use. This is used to sign the slashing 
+   * @param keyPair - The key pair to use. This is used to sign the slashing
    * psbt to derive the transaction.
    * @param type - The type of slashing to use.
    * @returns {Object} - A random slashing transaction
@@ -317,9 +337,9 @@ export class StakingDataGenerator {
     stakingScripts: StakingScripts,
     stakingTx: Transaction,
     params: {
-      minSlashingTxFeeSat: number,
-      slashingPkScriptHex: string,
-      slashingRate: number,
+      minSlashingTxFeeSat: number;
+      slashingPkScriptHex: string;
+      slashingRate: number;
     },
     keyPair: KeyPair,
     type: SlashingType = "timelockExpire",
@@ -367,8 +387,8 @@ export class StakingDataGenerator {
       Math.round(outputValue * params.slashingRate),
     );
 
-     // second output is the change output which send to unbonding timelock script address
-     const changeOutput = payments.p2tr({
+    // second output is the change output which send to unbonding timelock script address
+    const changeOutput = payments.p2tr({
       internalPubkey,
       scriptTree: { output: stakingScripts.unbondingTimelockScript },
       network,
@@ -386,21 +406,24 @@ export class StakingDataGenerator {
       expect(input.sequence).toBe(NON_RBF_SEQUENCE);
     });
 
-    const tx = slashingPsbt.signAllInputs(
-      keyPair.keyPair,
-    ).finalizeAllInputs().extractTransaction();
+    const tx = slashingPsbt
+      .signAllInputs(keyPair.keyPair)
+      .finalizeAllInputs()
+      .extractTransaction();
 
     return {
       psbt: slashingPsbt,
       tx,
     };
-  }
+  };
 
   randomBoolean(): boolean {
     return Math.random() >= 0.5;
-  };
+  }
 
-  generateRandomScriptPubKey = ({isTaproot}: {isTaproot?: boolean} = {}): string => {
+  generateRandomScriptPubKey = ({
+    isTaproot,
+  }: { isTaproot?: boolean } = {}): string => {
     const pk = this.generateRandomKeyPair().publicKey;
     const { taproot, nativeSegwit } = this.getAddressAndScriptPubKey(pk);
     if (isTaproot) {
@@ -459,10 +482,12 @@ export class StakingDataGenerator {
   ) => {
     const finalityProviderPksNoCoordHex: string[] = [];
     for (let i = 0; i < numberOfFidelityProviders; i++) {
-      finalityProviderPksNoCoordHex.push(this.generateRandomKeyPair().publicKeyNoCoord);
+      finalityProviderPksNoCoordHex.push(
+        this.generateRandomKeyPair().publicKeyNoCoord,
+      );
     }
     return finalityProviderPksNoCoordHex;
-  }
+  };
 }
 
 export const getRandomPaymentScriptHex = (pubKeyHex: string): string => {
@@ -471,7 +496,9 @@ export const getRandomPaymentScriptHex = (pubKeyHex: string): string => {
   // Define the possible payment types
   const paymentTypes = [
     bitcoin.payments.p2pkh({ pubkey: pubKeyBuf }),
-    bitcoin.payments.p2sh({ redeem: bitcoin.payments.p2wpkh({ pubkey: pubKeyBuf }) }),
+    bitcoin.payments.p2sh({
+      redeem: bitcoin.payments.p2wpkh({ pubkey: pubKeyBuf }),
+    }),
     bitcoin.payments.p2wpkh({ pubkey: pubKeyBuf }),
   ];
 
@@ -483,6 +510,6 @@ export const getRandomPaymentScriptHex = (pubKeyHex: string): string => {
   if (!payment.output) {
     throw new Error("Failed to generate scriptPubKey.");
   }
-  
+
   return payment.output.toString("hex");
-}
+};

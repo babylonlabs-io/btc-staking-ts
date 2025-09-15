@@ -6,7 +6,10 @@ import { testingNetworks } from "../../helper";
 
 describe("stakingExpansionTransaction", () => {
   const [mainnet] = testingNetworks;
-  const { datagen: { stakingDatagen }, network } = mainnet;
+  const {
+    datagen: { stakingDatagen },
+    network,
+  } = mainnet;
   const stakerKeyPair = stakingDatagen.generateRandomKeyPair();
   const {
     stakingTx: previousStakingTx,
@@ -43,7 +46,7 @@ describe("stakingExpansionTransaction", () => {
         stakingTx: previousStakingTx,
         scripts: previousStakingScript,
       },
-    )
+    );
     expect(stakingExpansionTx).toBeDefined();
     expect(stakingExpansionTxFee).toBeGreaterThan(0);
     // Must have two inputs:
@@ -60,15 +63,15 @@ describe("stakingExpansionTransaction", () => {
     expect(stakingExpansionTx.outs[0].value).toBe(stakingAmountSat);
 
     // Find the matching UTXO from the inputUTXOs list so that we know the amount.
-    const fundingUtxo = utxos.find(
-      (utxo) => transactionIdToHash(utxo.txid).equals(stakingExpansionTx.ins[1].hash)
+    const fundingUtxo = utxos.find((utxo) =>
+      transactionIdToHash(utxo.txid).equals(stakingExpansionTx.ins[1].hash),
     );
     expect(fundingUtxo).toBeDefined();
     if (fundingUtxo!.value - stakingExpansionTxFee > BTC_DUST_SAT) {
       // Must have a change output as the last output
-      expect(stakingExpansionTx.outs[
-        stakingExpansionTx.outs.length - 1
-      ].value).toBe(fundingUtxo!.value - stakingExpansionTxFee);
+      expect(
+        stakingExpansionTx.outs[stakingExpansionTx.outs.length - 1].value,
+      ).toBe(fundingUtxo!.value - stakingExpansionTxFee);
     }
 
     // Both inputs should have the same sequence number (non-RBF)
@@ -81,12 +84,16 @@ describe("stakingExpansionTransaction", () => {
     expect(fundingUTXO.value).toBeGreaterThan(0);
 
     // Funding UTXO should be the same as the selected UTXO
-    expect(fundingUTXO.txid).toEqual(utxos.find(
-      (utxo) => transactionIdToHash(utxo.txid).equals(stakingExpansionTx.ins[1].hash)
-    )!.txid);
-    expect(fundingUTXO.value).toEqual(utxos.find(
-      (utxo) => transactionIdToHash(utxo.txid).equals(stakingExpansionTx.ins[1].hash)
-    )!.value);
+    expect(fundingUTXO.txid).toEqual(
+      utxos.find((utxo) =>
+        transactionIdToHash(utxo.txid).equals(stakingExpansionTx.ins[1].hash),
+      )!.txid,
+    );
+    expect(fundingUTXO.value).toEqual(
+      utxos.find((utxo) =>
+        transactionIdToHash(utxo.txid).equals(stakingExpansionTx.ins[1].hash),
+      )!.value,
+    );
   });
 
   it("should throw error when amount is less than or equal to 0", () => {
@@ -102,7 +109,7 @@ describe("stakingExpansionTransaction", () => {
           stakingTx: previousStakingTx,
           scripts: previousStakingScript,
         },
-      )
+      ),
     ).toThrow("Amount and fee rate must be bigger than 0");
   });
 
@@ -119,7 +126,7 @@ describe("stakingExpansionTransaction", () => {
           stakingTx: previousStakingTx,
           scripts: previousStakingScript,
         },
-      )
+      ),
     ).toThrow("Amount and fee rate must be bigger than 0");
   });
 
@@ -136,7 +143,7 @@ describe("stakingExpansionTransaction", () => {
           stakingTx: previousStakingTx,
           scripts: previousStakingScript,
         },
-      )
+      ),
     ).toThrow("Invalid BTC change address");
   });
 
@@ -154,8 +161,10 @@ describe("stakingExpansionTransaction", () => {
           stakingTx: previousStakingTx,
           scripts: previousStakingScript,
         },
-      )
-    ).toThrow("Expansion staking transaction amount must be equal to the previous staking amount");
+      ),
+    ).toThrow(
+      "Expansion staking transaction amount must be equal to the previous staking amount",
+    );
   });
 
   it("should throw error when no UTXOs are available for funding", () => {
@@ -171,7 +180,7 @@ describe("stakingExpansionTransaction", () => {
           stakingTx: previousStakingTx,
           scripts: previousStakingScript,
         },
-      )
+      ),
     ).toThrow("Insufficient funds");
   });
 
@@ -194,7 +203,7 @@ describe("stakingExpansionTransaction", () => {
           stakingTx: previousStakingTx,
           scripts: previousStakingScript,
         },
-      )
+      ),
     ).toThrow("Insufficient funds: unable to find a UTXO to cover the fees");
   });
 });

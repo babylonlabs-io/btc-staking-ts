@@ -2,6 +2,7 @@ import { networks, Psbt, Transaction } from "bitcoinjs-lib";
 
 import { BabylonBtcStakingManager } from "../../../src/staking/manager";
 
+import { ActionName } from "../../../src/types/action";
 import { ContractId } from "../../../src/types/contract";
 import { babylonProvider, btcProvider } from "./__mock__/providers";
 import {
@@ -13,7 +14,6 @@ import {
   unbondingPsbt,
   version,
 } from "./__mock__/unbonding";
-import { ActionName } from "../../../src/types/action";
 
 describe("Staking Manager", () => {
   let manager: BabylonBtcStakingManager;

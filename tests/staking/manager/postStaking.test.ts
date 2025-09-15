@@ -3,6 +3,7 @@ import { networks, Transaction } from "bitcoinjs-lib";
 import { BabylonBtcStakingManager } from "../../../src/staking/manager";
 
 import { btcstakingtx } from "@babylonlabs-io/babylon-proto-ts";
+import { ActionName } from "../../../src/types/action";
 import { ContractId } from "../../../src/types/contract";
 import { babylonProvider, btcProvider } from "./__mock__/providers";
 import {
@@ -17,7 +18,6 @@ import {
   stakingInput,
   stakingTx,
 } from "./__mock__/registration";
-import { ActionName } from "../../../src/types/action";
 
 describe("Staking Manager", () => {
   describe("postStakeRegistrationBabylonTransaction", () => {
@@ -152,7 +152,8 @@ describe("Staking Manager", () => {
               id: ContractId.SLASHING_BURN,
               params: {
                 stakerPk: stakerInfo.publicKeyNoCoordHex,
-                slashingPkScriptHex: params[version].slashing?.slashingPkScriptHex,
+                slashingPkScriptHex:
+                  params[version].slashing?.slashingPkScriptHex,
               },
             },
           ],
@@ -187,7 +188,8 @@ describe("Staking Manager", () => {
                 id: ContractId.SLASHING_BURN,
                 params: {
                   stakerPk: stakerInfo.publicKeyNoCoordHex,
-                  slashingPkScriptHex: params[version].slashing?.slashingPkScriptHex,
+                  slashingPkScriptHex:
+                    params[version].slashing?.slashingPkScriptHex,
                 },
               },
             ],

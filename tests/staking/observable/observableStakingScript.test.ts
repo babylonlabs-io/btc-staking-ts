@@ -43,11 +43,11 @@ describe("observableStakingScript", () => {
         2,
         stakingTimeLock,
         unbondingTimeLock,
-        magicBytes
+        magicBytes,
       );
-      expect(() =>
-        script.buildDataEmbedScript()
-      ).toThrow("Only a single finality provider key is supported");
+      expect(() => script.buildDataEmbedScript()).toThrow(
+        "Only a single finality provider key is supported",
+      );
     });
 
     it("should fail if the magic bytes are below 4 in length", () => {

@@ -12,9 +12,7 @@ import {
   WITHDRAW_TX_BUFFER_SIZE,
 } from "../../constants/fee";
 import { UTXO } from "../../types/UTXO";
-import {
-  TransactionOutput,
-} from "../../types/psbtOutputs";
+import { TransactionOutput } from "../../types/psbtOutputs";
 import {
   getEstimatedChangeOutputSize,
   getInputSizeByScript,
@@ -97,11 +95,11 @@ export const getStakingTxInputUTXOsAndFees = (
 
 /**
  * Calculates the required funding UTXO and fees for a staking expansion transaction.
- * 
+ *
  * This function selects a single UTXO from available UTXOs to cover:
  * 1. Transaction fees for the expansion
  * 2. Any additional staking amount beyond the previous stake
- * 
+ *
  * @param availableUTXOs - List of available UTXOs to choose from for funding
  * @param previousStakingTx - Details of the previous staking transaction being expanded
  * @param stakingAmount - Total staking amount for the expansion (includes previous + additional)
@@ -148,14 +146,12 @@ export const getStakingExpansionTxFundingUTXOAndFees = (
     // hence P2TR_STAKING_EXPANSION_INPUT_SIZE accounts for the witness size
     // including covenant signatures and is calibrated for a typical covenant
     // quorum of 6 signatures.
-    const estimatedSize = getEstimatedSize(
-      [utxo],
-      outputs,
-    ) + P2TR_STAKING_EXPANSION_INPUT_SIZE;
-    
+    const estimatedSize =
+      getEstimatedSize([utxo], outputs) + P2TR_STAKING_EXPANSION_INPUT_SIZE;
+
     // Calculate base fee: size * rate + buffer fee for network congestion
     let estimatedFee = estimatedSize * feeRate + rateBasedTxBufferFee(feeRate);
-    
+
     // Check if this UTXO has enough value to cover the estimated fee
     // We are selecting a UTXO that can only cover the fee as
     // in the case of stake expansion we only want the additional UTXO to cover
@@ -181,13 +177,12 @@ export const getStakingExpansionTxFundingUTXOAndFees = (
       // searching for a UTXO that can cover the fees.
     }
   }
-  
+
   // If no UTXO can cover the fees, throw an error
   throw new Error(
     "Insufficient funds: unable to find a UTXO to cover the fees for the staking expansion transaction.",
   );
 };
-
 
 /**
  * Calculates the estimated fee for a withdrawal transaction.
@@ -211,7 +206,6 @@ export const getWithdrawTxFee = (feeRate: number): number => {
     rateBasedTxBufferFee(feeRate)
   );
 };
-
 
 /**
  * Calculates the estimated transaction size using a heuristic formula which

@@ -2,6 +2,8 @@ import { networks, Psbt } from "bitcoinjs-lib";
 
 import { BabylonBtcStakingManager } from "../../../src/staking/manager";
 
+import { ActionName } from "../../../src/types/action";
+import { ContractId } from "../../../src/types/contract";
 import { babylonProvider, btcProvider } from "./__mock__/providers";
 import {
   params,
@@ -12,8 +14,6 @@ import {
   unboundingTx,
   version,
 } from "./__mock__/withdrawal";
-import { ContractId } from "../../../src/types/contract";
-import { ActionName } from "../../../src/types/action";
 
 describe("Staking Manager", () => {
   describe("Create Withdrawal Transaction", () => {
@@ -121,7 +121,7 @@ describe("Staking Manager", () => {
             stakerInfo,
             stakingInput,
             version,
-            
+
             stakingTx,
             4,
           );

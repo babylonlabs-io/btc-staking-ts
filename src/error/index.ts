@@ -16,7 +16,9 @@ export class StakingError extends Error {
 
   // Static method to safely handle unknown errors
   static fromUnknown(
-    error: unknown, code: StakingErrorCode, fallbackMsg?: string
+    error: unknown,
+    code: StakingErrorCode,
+    fallbackMsg?: string,
   ): StakingError {
     if (error instanceof StakingError) {
       return error;
