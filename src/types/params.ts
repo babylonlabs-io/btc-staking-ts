@@ -28,9 +28,7 @@ export type StakingParamsWithSlashing = StakingParams & {
 /**
  * Type guard to check if slashing exists in StakingParams
  */
-export function hasSlashing(
-  params: StakingParams,
-): params is StakingParams & {
+export function hasSlashing(params: StakingParams): params is StakingParams & {
   slashing: NonNullable<StakingParams["slashing"]>;
 } {
   return params.slashing !== undefined;
