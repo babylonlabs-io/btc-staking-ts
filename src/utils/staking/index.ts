@@ -217,7 +217,6 @@ export const toBuffers = (inputs: string[]): Buffer[] => {
   }
 };
 
-
 /**
  * Strips all signatures from a transaction by clearing both the script and
  * witness data. This is due to the fact that we only need the raw unsigned

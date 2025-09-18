@@ -6,7 +6,7 @@ export interface NetworkConfig {
   network: bitcoin.Network;
   datagen: {
     stakingDatagen: StakingDataGenerator;
-  }
+  };
 }
 
 const createNetworkConfig = (
@@ -14,9 +14,9 @@ const createNetworkConfig = (
   network: bitcoin.Network,
 ): NetworkConfig => ({
   networkName,
-   // A deep copy of the network object to avoid referring to the same object 
+  // A deep copy of the network object to avoid referring to the same object
   // in memory
-  network: {...network},
+  network: { ...network },
   datagen: {
     stakingDatagen: new StakingDataGenerator(network),
   },

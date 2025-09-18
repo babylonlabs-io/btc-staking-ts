@@ -1,11 +1,8 @@
 import { sha256 } from "bitcoinjs-lib/src/crypto";
 
-import {
-  createStakerPopContext,
-  buildPopMessage,
-} from "../../src/utils/pop";
-import { PopUpgradeConfig } from "../../src/types";
 import { STAKING_MODULE_ADDRESS } from "../../src/constants/staking";
+import { PopUpgradeConfig } from "../../src/types";
+import { buildPopMessage, createStakerPopContext } from "../../src/utils/pop";
 import { babylonAddress } from "../staking/manager/__mock__/fee";
 import { mockChainId } from "../staking/manager/__mock__/providers";
 
@@ -17,7 +14,9 @@ describe("POP Utility Functions", () => {
       const contextHash = createStakerPopContext(mockChainId);
 
       const expectedContextString = `btcstaking/0/staker_pop/${mockChainId}/${STAKING_MODULE_ADDRESS}`;
-      const expectedHash = sha256(Buffer.from(expectedContextString, "utf8")).toString("hex");
+      const expectedHash = sha256(
+        Buffer.from(expectedContextString, "utf8"),
+      ).toString("hex");
 
       expect(contextHash).toBe(expectedHash);
     });
@@ -26,7 +25,9 @@ describe("POP Utility Functions", () => {
       const contextHash = createStakerPopContext(mockChainId, 1);
 
       const expectedContextString = `btcstaking/1/staker_pop/${mockChainId}/${STAKING_MODULE_ADDRESS}`;
-      const expectedHash = sha256(Buffer.from(expectedContextString, "utf8")).toString("hex");
+      const expectedHash = sha256(
+        Buffer.from(expectedContextString, "utf8"),
+      ).toString("hex");
 
       expect(contextHash).toBe(expectedHash);
     });
@@ -35,7 +36,9 @@ describe("POP Utility Functions", () => {
       const contextHash = createStakerPopContext(mockChainId, 2);
 
       const expectedContextString = `btcstaking/2/staker_pop/${mockChainId}/${STAKING_MODULE_ADDRESS}`;
-      const expectedHash = sha256(Buffer.from(expectedContextString, "utf8")).toString("hex");
+      const expectedHash = sha256(
+        Buffer.from(expectedContextString, "utf8"),
+      ).toString("hex");
 
       expect(contextHash).toBe(expectedHash);
     });
@@ -44,7 +47,9 @@ describe("POP Utility Functions", () => {
       const contextHash = createStakerPopContext("");
 
       const expectedContextString = `btcstaking/0/staker_pop//${STAKING_MODULE_ADDRESS}`;
-      const expectedHash = sha256(Buffer.from(expectedContextString, "utf8")).toString("hex");
+      const expectedHash = sha256(
+        Buffer.from(expectedContextString, "utf8"),
+      ).toString("hex");
 
       expect(contextHash).toBe(expectedHash);
     });
@@ -85,11 +90,7 @@ describe("POP Utility Functions", () => {
       });
 
       it("should return bech32 address when upgrade height is undefined", () => {
-        const result = buildPopMessage(
-          mockBech32Address,
-          300,
-          mockChainId,
-        );
+        const result = buildPopMessage(mockBech32Address, 300, mockChainId);
 
         expect(result).toBe(mockBech32Address);
       });
@@ -110,7 +111,9 @@ describe("POP Utility Functions", () => {
         );
 
         const expectedContextString = `btcstaking/0/staker_pop/${mockChainId}/${STAKING_MODULE_ADDRESS}`;
-        const expectedContextHash = sha256(Buffer.from(expectedContextString, "utf8")).toString("hex");
+        const expectedContextHash = sha256(
+          Buffer.from(expectedContextString, "utf8"),
+        ).toString("hex");
         const expectedMessage = expectedContextHash + mockBech32Address;
 
         expect(result).toBe(expectedMessage);
@@ -130,7 +133,9 @@ describe("POP Utility Functions", () => {
         );
 
         const expectedContextString = `btcstaking/0/staker_pop/${mockChainId}/${STAKING_MODULE_ADDRESS}`;
-        const expectedContextHash = sha256(Buffer.from(expectedContextString, "utf8")).toString("hex");
+        const expectedContextHash = sha256(
+          Buffer.from(expectedContextString, "utf8"),
+        ).toString("hex");
         const expectedMessage = expectedContextHash + mockBech32Address;
 
         expect(result).toBe(expectedMessage);
@@ -151,7 +156,9 @@ describe("POP Utility Functions", () => {
         );
 
         const expectedContextString = `btcstaking/1/staker_pop/${mockChainId}/${STAKING_MODULE_ADDRESS}`;
-        const expectedContextHash = sha256(Buffer.from(expectedContextString, "utf8")).toString("hex");
+        const expectedContextHash = sha256(
+          Buffer.from(expectedContextString, "utf8"),
+        ).toString("hex");
         const expectedMessage = expectedContextHash + mockBech32Address;
 
         expect(result).toBe(expectedMessage);
@@ -172,7 +179,9 @@ describe("POP Utility Functions", () => {
         );
 
         const expectedContextString = `btcstaking/0/staker_pop/${mockChainId}/${STAKING_MODULE_ADDRESS}`;
-        const expectedContextHash = sha256(Buffer.from(expectedContextString, "utf8")).toString("hex");
+        const expectedContextHash = sha256(
+          Buffer.from(expectedContextString, "utf8"),
+        ).toString("hex");
         const expectedMessage = expectedContextHash + mockBech32Address;
 
         expect(result).toBe(expectedMessage);
@@ -187,15 +196,12 @@ describe("POP Utility Functions", () => {
           version: mockUpgradeConfig.version,
         };
 
-        const result = buildPopMessage(
-          "",
-          300,
-          mockChainId,
-          upgradeConfig,
-        );
+        const result = buildPopMessage("", 300, mockChainId, upgradeConfig);
 
         const expectedContextString = `btcstaking/0/staker_pop/${mockChainId}/${STAKING_MODULE_ADDRESS}`;
-        const expectedContextHash = sha256(Buffer.from(expectedContextString, "utf8")).toString("hex");
+        const expectedContextHash = sha256(
+          Buffer.from(expectedContextString, "utf8"),
+        ).toString("hex");
         const expectedMessage = expectedContextHash + "";
 
         expect(result).toBe(expectedMessage);
@@ -215,7 +221,9 @@ describe("POP Utility Functions", () => {
         );
 
         const expectedContextString = `btcstaking/0/staker_pop/${mockChainId}/${STAKING_MODULE_ADDRESS}`;
-        const expectedContextHash = sha256(Buffer.from(expectedContextString, "utf8")).toString("hex");
+        const expectedContextHash = sha256(
+          Buffer.from(expectedContextString, "utf8"),
+        ).toString("hex");
         const expectedMessage = expectedContextHash + mockBech32Address;
 
         expect(result).toBe(expectedMessage);
@@ -235,7 +243,9 @@ describe("POP Utility Functions", () => {
         );
 
         const expectedContextString = `btcstaking/0/staker_pop//${STAKING_MODULE_ADDRESS}`;
-        const expectedContextHash = sha256(Buffer.from(expectedContextString, "utf8")).toString("hex");
+        const expectedContextHash = sha256(
+          Buffer.from(expectedContextString, "utf8"),
+        ).toString("hex");
         const expectedMessage = expectedContextHash + mockBech32Address;
 
         expect(result).toBe(expectedMessage);
@@ -286,7 +296,9 @@ describe("POP Utility Functions", () => {
         );
 
         const expectedContextString = `btcstaking/0/staker_pop/${mockChainId}/${STAKING_MODULE_ADDRESS}`;
-        const expectedContextHash = sha256(Buffer.from(expectedContextString, "utf8")).toString("hex");
+        const expectedContextHash = sha256(
+          Buffer.from(expectedContextString, "utf8"),
+        ).toString("hex");
         const expectedMessage = expectedContextHash + mockBech32Address;
 
         expect(result).toBe(expectedMessage);
@@ -306,7 +318,9 @@ describe("POP Utility Functions", () => {
         );
 
         const expectedContextString = `btcstaking/1/staker_pop/${mockChainId}/${STAKING_MODULE_ADDRESS}`;
-        const expectedContextHash = sha256(Buffer.from(expectedContextString, "utf8")).toString("hex");
+        const expectedContextHash = sha256(
+          Buffer.from(expectedContextString, "utf8"),
+        ).toString("hex");
         const expectedMessage = expectedContextHash + mockBech32Address;
 
         expect(result).toBe(expectedMessage);
@@ -346,7 +360,9 @@ describe("POP Utility Functions", () => {
 
         // Should use new format since height (0) >= upgrade height (0)
         const expectedContextString = `btcstaking/0/staker_pop/${mockChainId}/${STAKING_MODULE_ADDRESS}`;
-        const expectedContextHash = sha256(Buffer.from(expectedContextString, "utf8")).toString("hex");
+        const expectedContextHash = sha256(
+          Buffer.from(expectedContextString, "utf8"),
+        ).toString("hex");
         const expectedMessage = expectedContextHash + mockBech32Address;
 
         expect(result).toBe(expectedMessage);
@@ -366,7 +382,9 @@ describe("POP Utility Functions", () => {
         );
 
         const expectedContextString = `btcstaking/0/staker_pop/${mockChainId}/${STAKING_MODULE_ADDRESS}`;
-        const expectedContextHash = sha256(Buffer.from(expectedContextString, "utf8")).toString("hex");
+        const expectedContextHash = sha256(
+          Buffer.from(expectedContextString, "utf8"),
+        ).toString("hex");
         const expectedMessage = expectedContextHash + mockBech32Address;
 
         expect(result).toBe(expectedMessage);

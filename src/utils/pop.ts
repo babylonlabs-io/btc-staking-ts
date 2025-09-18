@@ -15,7 +15,7 @@ export function createStakerPopContext(
 ): string {
   // Context string format following RFC-036:
   // Format: btcstaking/{version}/{operation_type}/{chain_id}/{module_address}
-  // 
+  //
   // Fields:
   // - btcstaking: Protocol identifier for Bitcoin staking operations
   // - version: POP context version (integer, defaults to 0)

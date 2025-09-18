@@ -2,7 +2,7 @@ import { opcodes, script } from "bitcoinjs-lib";
 import {
   MAGIC_BYTES_LEN,
   StakingScriptData,
-  StakingScripts
+  StakingScripts,
 } from "../stakingScript";
 
 // Extending StakingScripts to add an extra field
@@ -31,9 +31,7 @@ export class ObservableStakingScriptData extends StakingScriptData {
       stakingTimelock,
       unbondingTimelock,
     );
-    if (
-      !magicBytes
-    ) {
+    if (!magicBytes) {
       throw new Error("Missing required input values");
     }
     // check that the magic bytes are 4 in length

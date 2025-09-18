@@ -1,12 +1,16 @@
 import { networks } from "bitcoinjs-lib";
 import { sha256 } from "bitcoinjs-lib/src/crypto";
 
-import { BabylonBtcStakingManager } from "../../../src/staking/manager";
 import { STAKING_MODULE_ADDRESS } from "../../../src/constants/staking";
+import { BabylonBtcStakingManager } from "../../../src/staking/manager";
 
-import { babylonProvider, btcProvider, mockChainId } from "./__mock__/providers";
-import { params, stakerInfo } from "./__mock__/staking";
 import { babylonAddress } from "./__mock__/fee";
+import {
+  babylonProvider,
+  btcProvider,
+  mockChainId,
+} from "./__mock__/providers";
+import { params, stakerInfo } from "./__mock__/staking";
 
 describe("Staking Manager - POP Integration", () => {
   const mockBech32Address = babylonAddress;
@@ -81,7 +85,7 @@ describe("Staking Manager - POP Integration", () => {
     it("should use new format when height is above upgrade height", async () => {
       const mockGetCurrentHeight = jest.fn().mockResolvedValue(300);
       babylonProvider.getCurrentHeight.mockImplementation(mockGetCurrentHeight);
-      
+
       const upgradeConfig = {
         upgradeHeight: 200,
         version: 0,
@@ -105,7 +109,9 @@ describe("Staking Manager - POP Integration", () => {
 
       // Calculate expected message with context hash
       const expectedContextString = `btcstaking/0/staker_pop/${mockChainId}/${STAKING_MODULE_ADDRESS}`;
-      const expectedContextHash = sha256(Buffer.from(expectedContextString, "utf8")).toString("hex");
+      const expectedContextHash = sha256(
+        Buffer.from(expectedContextString, "utf8"),
+      ).toString("hex");
       const expectedMessage = expectedContextHash + mockBech32Address;
 
       expect(btcProvider.signMessage).toHaveBeenCalledWith(
@@ -142,7 +148,9 @@ describe("Staking Manager - POP Integration", () => {
 
       // Calculate expected message with context hash
       const expectedContextString = `btcstaking/0/staker_pop/${mockChainId}/${STAKING_MODULE_ADDRESS}`;
-      const expectedContextHash = sha256(Buffer.from(expectedContextString, "utf8")).toString("hex");
+      const expectedContextHash = sha256(
+        Buffer.from(expectedContextString, "utf8"),
+      ).toString("hex");
       const expectedMessage = expectedContextHash + mockBech32Address;
 
       expect(btcProvider.signMessage).toHaveBeenCalledWith(
@@ -194,7 +202,7 @@ describe("Staking Manager - POP Integration", () => {
         upgradeHeight: 200,
         version: 0,
       };
-      
+
       const manager = new BabylonBtcStakingManager(
         networks.bitcoin,
         params,
@@ -214,7 +222,9 @@ describe("Staking Manager - POP Integration", () => {
 
       // Calculate expected message with context hash
       const expectedContextString = `btcstaking/0/staker_pop/${mockChainId}/${STAKING_MODULE_ADDRESS}`;
-      const expectedContextHash = sha256(Buffer.from(expectedContextString, "utf8")).toString("hex");
+      const expectedContextHash = sha256(
+        Buffer.from(expectedContextString, "utf8"),
+      ).toString("hex");
       const expectedMessage = expectedContextHash + mockBech32Address;
 
       expect(btcProvider.signMessage).toHaveBeenCalledWith(

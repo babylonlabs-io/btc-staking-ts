@@ -13,7 +13,7 @@ describe.each(testingNetworks)(
       (_dataGenName, dataGenerator) => {
         const dummyRawTxHex = "0200000001abcdef";
         const dummyRedeemScriptHex = "abcdef";
-        const dummyValue = 10000
+        const dummyValue = 10000;
 
         // helper for this particular tests
         function makeUTXO(

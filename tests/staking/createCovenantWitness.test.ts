@@ -20,7 +20,7 @@ describe("createCovenantWitness", () => {
       originalWitness,
       paramsCovenants,
       covenantSigs,
-      covenantQuorum
+      covenantQuorum,
     );
 
     expect(result).toEqual([
@@ -42,12 +42,14 @@ describe("createCovenantWitness", () => {
     ];
     const covenantQuorum = 2;
 
-    expect(() => createCovenantWitness(
-      originalWitness,
-      paramsCovenants,
-      covenantSigs,
-      covenantQuorum
-    )).toThrow("Not enough covenant signatures. Required: 2, got: 1");
+    expect(() =>
+      createCovenantWitness(
+        originalWitness,
+        paramsCovenants,
+        covenantSigs,
+        covenantQuorum,
+      ),
+    ).toThrow("Not enough covenant signatures. Required: 2, got: 1");
   });
 
   it("should throw error if not enough valid covenant signatures after filtering", () => {
@@ -64,12 +66,14 @@ describe("createCovenantWitness", () => {
     ];
     const covenantQuorum = 2;
 
-    expect(() => createCovenantWitness(
-      originalWitness,
-      paramsCovenants,
-      covenantSigs,
-      covenantQuorum
-    )).toThrow("Not enough valid covenant signatures. Required: 2, got: 1");
+    expect(() =>
+      createCovenantWitness(
+        originalWitness,
+        paramsCovenants,
+        covenantSigs,
+        covenantQuorum,
+      ),
+    ).toThrow("Not enough valid covenant signatures. Required: 2, got: 1");
   });
 
   it("should throw error if all covenant signatures are invalid", () => {
@@ -86,12 +90,14 @@ describe("createCovenantWitness", () => {
     ];
     const covenantQuorum = 2;
 
-    expect(() => createCovenantWitness(
-      originalWitness,
-      paramsCovenants,
-      covenantSigs,
-      covenantQuorum
-    )).toThrow("Not enough valid covenant signatures. Required: 2, got: 0");
+    expect(() =>
+      createCovenantWitness(
+        originalWitness,
+        paramsCovenants,
+        covenantSigs,
+        covenantQuorum,
+      ),
+    ).toThrow("Not enough valid covenant signatures. Required: 2, got: 0");
   });
 
   it("should work with mixed valid and invalid signatures when enough valid ones exist", () => {
@@ -114,7 +120,7 @@ describe("createCovenantWitness", () => {
       originalWitness,
       paramsCovenants,
       covenantSigs,
-      covenantQuorum
+      covenantQuorum,
     );
 
     expect(result).toEqual([
@@ -126,9 +132,7 @@ describe("createCovenantWitness", () => {
 
   it("should work with quorum of 1 when exactly one valid signature is provided", () => {
     const originalWitness = [Buffer.from("originalWitness1", "utf-8")];
-    const paramsCovenants = [
-      Buffer.from("covenant1", "utf-8"),
-    ];
+    const paramsCovenants = [Buffer.from("covenant1", "utf-8")];
     const covenantSigs = [
       // Valid signature for covenant1
       { btcPkHex: "636f76656e616e7431", sigHex: "7369676e617475726531" },
@@ -139,7 +143,7 @@ describe("createCovenantWitness", () => {
       originalWitness,
       paramsCovenants,
       covenantSigs,
-      covenantQuorum
+      covenantQuorum,
     );
 
     expect(result).toEqual([
@@ -150,20 +154,20 @@ describe("createCovenantWitness", () => {
 
   it("should throw error when quorum is 1 but no valid signatures are provided", () => {
     const originalWitness = [Buffer.from("originalWitness1", "utf-8")];
-    const paramsCovenants = [
-      Buffer.from("covenant1", "utf-8"),
-    ];
+    const paramsCovenants = [Buffer.from("covenant1", "utf-8")];
     const covenantSigs = [
       // Invalid signature - doesn't match params covenant
       { btcPkHex: "696e76616c6964636f76", sigHex: "696e76616c6964736967" },
     ];
     const covenantQuorum = 1;
 
-    expect(() => createCovenantWitness(
-      originalWitness,
-      paramsCovenants,
-      covenantSigs,
-      covenantQuorum
-    )).toThrow("Not enough valid covenant signatures. Required: 1, got: 0");
+    expect(() =>
+      createCovenantWitness(
+        originalWitness,
+        paramsCovenants,
+        covenantSigs,
+        covenantQuorum,
+      ),
+    ).toThrow("Not enough valid covenant signatures. Required: 1, got: 0");
   });
 });

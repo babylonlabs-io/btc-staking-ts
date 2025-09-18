@@ -13,21 +13,19 @@ import { isValidNoCoordPublicKey } from "../btc";
  * @param babylonAddress - The Babylon address
  * @returns true if validation passes, throws error if validation fails
  */
-export const validateStakingExpansionInputs = (
-  {
-    babylonBtcTipHeight,
-    inputUTXOs,
-    stakingInput,
-    previousStakingInput,
-    babylonAddress,
-  }: {
-    babylonBtcTipHeight?: number,
-    inputUTXOs: UTXO[],
-    stakingInput: StakingInputs,
-    previousStakingInput: StakingInputs,
-    babylonAddress?: string,
-  }
-) => {
+export const validateStakingExpansionInputs = ({
+  babylonBtcTipHeight,
+  inputUTXOs,
+  stakingInput,
+  previousStakingInput,
+  babylonAddress,
+}: {
+  babylonBtcTipHeight?: number;
+  inputUTXOs: UTXO[];
+  stakingInput: StakingInputs;
+  previousStakingInput: StakingInputs;
+  babylonAddress?: string;
+}) => {
   if (babylonBtcTipHeight === 0) {
     throw new StakingError(
       StakingErrorCode.INVALID_INPUT,
@@ -61,8 +59,10 @@ export const validateStakingExpansionInputs = (
 
   // Check if all previous finality providers are included in the current
   // staking
-  const missingPreviousFPs = previousFPs.filter(prevFp => !currentFPs.includes(prevFp));
-  
+  const missingPreviousFPs = previousFPs.filter(
+    (prevFp) => !currentFPs.includes(prevFp),
+  );
+
   if (missingPreviousFPs.length > 0) {
     throw new StakingError(
       StakingErrorCode.INVALID_INPUT,
@@ -70,7 +70,7 @@ export const validateStakingExpansionInputs = (
       staking must be included. Missing: ${missingPreviousFPs.join(", ")}`,
     );
   }
-}
+};
 
 /**
  * Validate the staking transaction input data.
@@ -244,10 +244,10 @@ export const validateStakingTimelock = (
 
 /**
  * Validate the staking expansion covenant quorum.
- * 
+ *
  * The quorum is the number of covenant members that must be active in the
  * previous staking transaction in order to expand the staking.
- * 
+ *
  * If the quorum is not met, the staking expansion will fail.
  *
  * @param {StakingParams} paramsForPreviousStakingTx - The staking parameters
@@ -265,16 +265,16 @@ export const validateStakingExpansionCovenantQuorum = (
   const requiredQuorum = paramsForPreviousStakingTx.covenantQuorum;
 
   // Count how many previous covenant members are still active
-  const activePreviousMembers = previousCovenantMembers.filter(
-    prevMember => currentCovenantMembers.includes(prevMember)
+  const activePreviousMembers = previousCovenantMembers.filter((prevMember) =>
+    currentCovenantMembers.includes(prevMember),
   ).length;
 
   if (activePreviousMembers < requiredQuorum) {
     throw new StakingError(
       StakingErrorCode.INVALID_INPUT,
       `Staking expansion failed: insufficient covenant quorum. ` +
-      `Required: ${requiredQuorum}, Available: ${activePreviousMembers}. ` +
-      `Too many covenant members have rotated out.`
+        `Required: ${requiredQuorum}, Available: ${activePreviousMembers}. ` +
+        `Too many covenant members have rotated out.`,
     );
   }
-}
+};

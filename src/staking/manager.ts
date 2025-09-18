@@ -42,8 +42,8 @@ import {
   getBabylonParamByVersion,
 } from "../utils/staking/param";
 
-import { createCovenantWitness } from "./transactions";
 import { validateStakingExpansionInputs } from "../utils/staking/validation";
+import { createCovenantWitness } from "./transactions";
 
 export class BabylonBtcStakingManager {
   private upgradeConfig?: UpgradeConfig;
@@ -158,24 +158,22 @@ export class BabylonBtcStakingManager {
     babylonAddress: string,
     // Previous staking transaction info
     previousStakingTxInfo: {
-      stakingTx: Transaction,
-      paramVersion: number,
-      stakingInput: StakingInputs,
+      stakingTx: Transaction;
+      paramVersion: number;
+      stakingInput: StakingInputs;
     },
   ): Promise<{
     signedBabylonTx: Uint8Array;
     stakingTx: Transaction;
   }> {
     // Perform validation for the staking expansion inputs
-    validateStakingExpansionInputs(
-      {
-        babylonBtcTipHeight,
-        inputUTXOs,
-        stakingInput,
-        previousStakingInput: previousStakingTxInfo.stakingInput,
-        babylonAddress,
-      },
-    );
+    validateStakingExpansionInputs({
+      babylonBtcTipHeight,
+      inputUTXOs,
+      stakingInput,
+      previousStakingInput: previousStakingTxInfo.stakingInput,
+      babylonAddress,
+    });
     // Param for the expandsion staking transaction
     const params = getBabylonParamByBtcHeight(
       babylonBtcTipHeight,
@@ -195,16 +193,14 @@ export class BabylonBtcStakingManager {
       stakingInput.stakingTimelock,
     );
 
-    const {
-      transaction: stakingExpansionTx,
-      fundingUTXO,
-    } = stakingInstance.createStakingExpansionTransaction(
-      stakingInput.stakingAmountSat,
-      inputUTXOs,
-      feeRate,
-      paramsForPreviousStakingTx,
-      previousStakingTxInfo,
-    );
+    const { transaction: stakingExpansionTx, fundingUTXO } =
+      stakingInstance.createStakingExpansionTransaction(
+        stakingInput.stakingAmountSat,
+        inputUTXOs,
+        feeRate,
+        paramsForPreviousStakingTx,
+        previousStakingTxInfo,
+      );
     let fundingTx;
     try {
       fundingTx = await this.btcProvider.getTransactionHex(fundingUTXO.txid);
@@ -245,7 +241,7 @@ export class BabylonBtcStakingManager {
 
   /**
    * Estimates the transaction fee for a BTC staking expansion transaction.
-   * 
+   *
    * @param {StakerInfo} stakerBtcInfo - The staker's Bitcoin information
    * including address and public key
    * @param {number} babylonBtcTipHeight - The current Babylon BTC tip height
@@ -268,20 +264,18 @@ export class BabylonBtcStakingManager {
     inputUTXOs: UTXO[],
     feeRate: number,
     previousStakingTxInfo: {
-      stakingTx: Transaction,
-      paramVersion: number,
-      stakingInput: StakingInputs,
+      stakingTx: Transaction;
+      paramVersion: number;
+      stakingInput: StakingInputs;
     },
   ): number {
     // Validate all input parameters before fee calculation
-    validateStakingExpansionInputs(
-      {
-        babylonBtcTipHeight,
-        inputUTXOs,
-        stakingInput,
-        previousStakingInput: previousStakingTxInfo.stakingInput,
-      },
-    );
+    validateStakingExpansionInputs({
+      babylonBtcTipHeight,
+      inputUTXOs,
+      stakingInput,
+      previousStakingInput: previousStakingTxInfo.stakingInput,
+    });
 
     // Get the appropriate staking parameters based on the current Babylon BTC
     // tip height. This ensures we use the correct parameters for the current
@@ -290,7 +284,7 @@ export class BabylonBtcStakingManager {
       babylonBtcTipHeight,
       this.stakingParams,
     );
-    
+
     // Get the staking parameters that were used in the previous staking
     // transaction. This is needed to properly reconstruct the previous staking
     // scripts
@@ -309,9 +303,7 @@ export class BabylonBtcStakingManager {
       stakingInput.finalityProviderPksNoCoordHex,
       stakingInput.stakingTimelock,
     );
-    const {
-      fee,
-    } = stakingInstance.createStakingExpansionTransaction(
+    const { fee } = stakingInstance.createStakingExpansionTransaction(
       stakingInput.stakingAmountSat,
       inputUTXOs,
       feeRate,
@@ -527,7 +519,7 @@ export class BabylonBtcStakingManager {
   /**
    * Creates a signed staking expansion transaction that is ready to be sent to
    * the BTC network.
-   * 
+   *
    * @param {StakerInfo} stakerBtcInfo - The staker's BTC information including
    * address and public key
    * @param {StakingInputs} stakingInput - The staking inputs for the expansion
@@ -552,22 +544,20 @@ export class BabylonBtcStakingManager {
     inputUTXOs: UTXO[],
     stakingParamsVersion: number,
     previousStakingTxInfo: {
-      stakingTx: Transaction,
-      paramVersion: number,
-      stakingInput: StakingInputs,
+      stakingTx: Transaction;
+      paramVersion: number;
+      stakingInput: StakingInputs;
     },
     covenantStakingExpansionSignatures: {
       btcPkHex: string;
       sigHex: string;
     }[],
   ): Promise<Transaction> {
-    validateStakingExpansionInputs(
-      {
-        inputUTXOs,
-        stakingInput,
-        previousStakingInput: previousStakingTxInfo.stakingInput,
-      },
-    );
+    validateStakingExpansionInputs({
+      inputUTXOs,
+      stakingInput,
+      previousStakingInput: previousStakingTxInfo.stakingInput,
+    });
 
     // Get the staking parameters for the current version
     // These parameters define the covenant committee and other staking rules
@@ -647,10 +637,9 @@ export class BabylonBtcStakingManager {
     );
 
     // Extract the signed transaction from the PSBT
-    const signedStakingExpansionTx = Psbt.fromHex(
-      signedStakingPsbtHex,
-    ).extractTransaction();
-    
+    const signedStakingExpansionTx =
+      Psbt.fromHex(signedStakingPsbtHex).extractTransaction();
+
     // Validate that the signed transaction hash matches the unsigned
     // transaction hash
     // This ensures that the signing process didn't change the transaction
@@ -670,7 +659,7 @@ export class BabylonBtcStakingManager {
     const covenantBuffers = previousParams.covenantNoCoordPks.map((covenant) =>
       Buffer.from(covenant, "hex"),
     );
-    
+
     // Create the witness that includes both the staker's signature and covenant
     // signatures
     // The witness is the data that proves the transaction is authorized
@@ -683,7 +672,7 @@ export class BabylonBtcStakingManager {
       covenantStakingExpansionSignatures,
       previousParams.covenantQuorum,
     );
-    
+
     // Overwrite the witness to include the covenant staking expansion signatures
     // This makes the transaction valid for submission to the Bitcoin network
     signedStakingExpansionTx.ins[0].witness = witness;
@@ -1190,15 +1179,15 @@ export class BabylonBtcStakingManager {
     stakerBtcInfo: StakerInfo,
     params: StakingParams,
     options?: {
-      inclusionProof?: btcstaking.InclusionProof,
+      inclusionProof?: btcstaking.InclusionProof;
       delegationExpansionInfo?: {
-        previousStakingTx: Transaction,
-        fundingTx: Transaction,
-      }
-    }
+        previousStakingTx: Transaction;
+        fundingTx: Transaction;
+      };
+    },
   ): Promise<{
-    typeUrl: string,
-    value: btcstakingtx.MsgCreateBTCDelegation | btcstakingtx.MsgBtcStakeExpand,
+    typeUrl: string;
+    value: btcstakingtx.MsgCreateBTCDelegation | btcstakingtx.MsgBtcStakeExpand;
   }> {
     if (!params.slashing) {
       throw new StakingError(
@@ -1371,12 +1360,13 @@ export class BabylonBtcStakingManager {
         ),
       ),
       delegatorUnbondingSlashingSig: Uint8Array.from(unbondingSignatures),
-    }
+    };
 
     // If the delegation is an expansion, we use the MsgBtcStakeExpand message
     if (options?.delegationExpansionInfo) {
       const fundingTx = Uint8Array.from(
-        options.delegationExpansionInfo.fundingTx.toBuffer());
+        options.delegationExpansionInfo.fundingTx.toBuffer(),
+      );
       const msg = btcstakingtx.MsgBtcStakeExpand.fromPartial({
         ...commonMsg,
         previousStakingTxHash:
@@ -1386,7 +1376,7 @@ export class BabylonBtcStakingManager {
       return {
         typeUrl: BABYLON_REGISTRY_TYPE_URLS.MsgBtcStakeExpand,
         value: msg,
-      }
+      };
     }
 
     // Otherwise, it's a new staking delegation

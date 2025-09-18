@@ -72,8 +72,8 @@ export const stakingExpansionPsbt = (
   network: networks.Network,
   stakingTx: Transaction,
   previousStakingTxInfo: {
-    stakingTx: Transaction,
-    outputIndex: number,
+    stakingTx: Transaction;
+    outputIndex: number;
   },
   inputUTXOs: UTXO[],
   previousScripts: StakingScripts,
@@ -81,30 +81,25 @@ export const stakingExpansionPsbt = (
 ): Psbt => {
   // Initialize PSBT with the specified network
   const psbt = new Psbt({ network });
-  
+
   // Set transaction version and locktime if provided
   if (stakingTx.version !== undefined) psbt.setVersion(stakingTx.version);
   if (stakingTx.locktime !== undefined) psbt.setLocktime(stakingTx.locktime);
 
   // Validate the public key format if provided
-  if (
-    publicKeyNoCoord && publicKeyNoCoord.length !== NO_COORD_PK_BYTE_LENGTH
-  ) {
+  if (publicKeyNoCoord && publicKeyNoCoord.length !== NO_COORD_PK_BYTE_LENGTH) {
     throw new Error("Invalid public key");
   }
 
   // Extract the previous staking output from the previous staking transaction
-  const previousStakingOutput = previousStakingTxInfo.stakingTx.outs[
-    previousStakingTxInfo.outputIndex
-  ];
+  const previousStakingOutput =
+    previousStakingTxInfo.stakingTx.outs[previousStakingTxInfo.outputIndex];
   if (!previousStakingOutput) {
     throw new Error("Previous staking output not found");
-  };
-  
+  }
+
   // Validate that the previous staking output is a Taproot (P2TR) script
-  if (
-    getScriptType(previousStakingOutput.script) !== BitcoinScriptType.P2TR
-  ) {
+  if (getScriptType(previousStakingOutput.script) !== BitcoinScriptType.P2TR) {
     throw new Error("Previous staking output script type is not P2TR");
   }
 
@@ -112,21 +107,20 @@ export const stakingExpansionPsbt = (
   // Input 0: Previous staking output (existing stake)
   // Input 1: Funding UTXO (additional funds for fees or staking amount)
   if (stakingTx.ins.length !== 2) {
-    throw new Error(
-      "Staking expansion transaction must have exactly 2 inputs",
-    );
+    throw new Error("Staking expansion transaction must have exactly 2 inputs");
   }
 
   // Validate the first input matches the previous staking transaction
   const txInputs = stakingTx.ins;
-  
+
   // Check that the first input references the correct previous staking
   // transaction
   if (
-    Buffer.from(txInputs[0].hash).reverse().toString("hex") !== previousStakingTxInfo.stakingTx.getId()
+    Buffer.from(txInputs[0].hash).reverse().toString("hex") !==
+    previousStakingTxInfo.stakingTx.getId()
   ) {
     throw new Error("Previous staking input hash does not match");
-  } 
+  }
   // Check that the first input references the correct output index
   else if (txInputs[0].index !== previousStakingTxInfo.outputIndex) {
     throw new Error("Previous staking input index does not match");
@@ -135,7 +129,10 @@ export const stakingExpansionPsbt = (
   // Build input tapleaf script that spends the previous staking output
   const inputScriptTree: Taptree = [
     { output: previousScripts.slashingScript },
-    [{ output: previousScripts.unbondingScript }, { output: previousScripts.timelockScript }],
+    [
+      { output: previousScripts.unbondingScript },
+      { output: previousScripts.timelockScript },
+    ],
   ];
   const inputRedeem = {
     output: previousScripts.unbondingScript,
@@ -150,7 +147,7 @@ export const stakingExpansionPsbt = (
 
   if (!p2tr.witness || p2tr.witness.length === 0) {
     throw new Error(
-      "Failed to create P2TR witness for expansion transaction input"
+      "Failed to create P2TR witness for expansion transaction input",
     );
   }
 
