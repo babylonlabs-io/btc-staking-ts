@@ -89,6 +89,25 @@ export const validateStakingTxInputData = (
   inputUTXOs: UTXO[],
   feeRate: number,
 ) => {
+  // Ensure integer inputs
+  if (!Number.isInteger(stakingAmountSat)) {
+    throw new StakingError(
+      StakingErrorCode.INVALID_INPUT,
+      "Invalid staking amount",
+    );
+  }
+  if (!Number.isInteger(timelock)) {
+    throw new StakingError(
+      StakingErrorCode.INVALID_INPUT,
+      "Invalid timelock",
+    );
+  }
+  if (!Number.isInteger(feeRate)) {
+    throw new StakingError(
+      StakingErrorCode.INVALID_INPUT,
+      "Invalid fee rate",
+    );
+  }
   if (
     stakingAmountSat < params.minStakingAmountSat ||
     stakingAmountSat > params.maxStakingAmountSat
@@ -273,8 +292,8 @@ export const validateStakingExpansionCovenantQuorum = (
     throw new StakingError(
       StakingErrorCode.INVALID_INPUT,
       `Staking expansion failed: insufficient covenant quorum. ` +
-        `Required: ${requiredQuorum}, Available: ${activePreviousMembers}. ` +
-        `Too many covenant members have rotated out.`,
+      `Required: ${requiredQuorum}, Available: ${activePreviousMembers}. ` +
+      `Too many covenant members have rotated out.`,
     );
   }
 };

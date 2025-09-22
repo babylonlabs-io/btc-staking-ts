@@ -104,6 +104,42 @@ describe.each(testingNetworks)("validateStakingTxInputData", ({ datagen }) => {
           ),
         ).toThrow("Invalid fee rate");
       });
+
+      it("should throw an error if stakingAmountSat is not an integer", () => {
+        expect(() =>
+          validateStakingTxInputData(
+            params.minStakingAmountSat + 0.5,
+            params.minStakingTimeBlocks,
+            params,
+            validInputUTXOs,
+            feeRate,
+          ),
+        ).toThrow("Invalid staking amount");
+      });
+
+      it("should throw an error if timelock is not an integer", () => {
+        expect(() =>
+          validateStakingTxInputData(
+            params.minStakingAmountSat,
+            params.minStakingTimeBlocks + 0.1,
+            params,
+            validInputUTXOs,
+            feeRate,
+          ),
+        ).toThrow("Invalid timelock");
+      });
+
+      it("should throw an error if feeRate is not an integer", () => {
+        expect(() =>
+          validateStakingTxInputData(
+            params.minStakingAmountSat,
+            params.minStakingTimeBlocks,
+            params,
+            validInputUTXOs,
+            1.1,
+          ),
+        ).toThrow("Invalid fee rate");
+      });
     },
   );
 });
@@ -282,8 +318,8 @@ describe.each(testingNetworks)(
         validateStakingExpansionCovenantQuorum(previousParams, newParams),
       ).toThrow(
         `Staking expansion failed: insufficient covenant quorum. ` +
-          `Required: ${requiredQuorum}, Available: ${covenantNoCoordPks.length - requiredQuorum}. ` +
-          `Too many covenant members have rotated out.`,
+        `Required: ${requiredQuorum}, Available: ${covenantNoCoordPks.length - requiredQuorum}. ` +
+        `Too many covenant members have rotated out.`,
       );
     });
 

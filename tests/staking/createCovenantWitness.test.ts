@@ -170,4 +170,24 @@ describe("createCovenantWitness", () => {
       ),
     ).toThrow("Not enough valid covenant signatures. Required: 1, got: 0");
   });
+
+  it("should throw when duplicate signatures for the same covenant key are provided", () => {
+    const originalWitness = [Buffer.from("originalWitness1", "utf-8")];
+    const paramsCovenants = [Buffer.from("covenant1", "utf-8")];
+    const duplicatePkHex = "636f76656e616e7431";
+    const covenantSigs = [
+      { btcPkHex: duplicatePkHex, sigHex: "7369676e617475726531" },
+      { btcPkHex: duplicatePkHex, sigHex: "7369676e617475726533" },
+    ];
+    const covenantQuorum = 1;
+
+    expect(() =>
+      createCovenantWitness(
+        originalWitness,
+        paramsCovenants,
+        covenantSigs,
+        covenantQuorum,
+      ),
+    ).toThrow("Duplicate covenant signature for the same public key");
+  });
 });

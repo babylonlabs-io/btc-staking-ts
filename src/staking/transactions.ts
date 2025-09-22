@@ -16,7 +16,11 @@ import { REDEEM_VERSION } from "../constants/transaction";
 import { UTXO } from "../types/UTXO";
 import { CovenantSignature } from "../types/covenantSignatures";
 import { PsbtResult, TransactionResult } from "../types/transaction";
-import { isValidBitcoinAddress, transactionIdToHash } from "../utils/btc";
+import {
+  isValidBitcoinAddress,
+  isValidNoCoordPublicKey,
+  transactionIdToHash,
+} from "../utils/btc";
 import {
   getStakingExpansionTxFundingUTXOAndFees,
   getStakingTxInputUTXOsAndFees,
@@ -220,7 +224,7 @@ export function stakingExpansionTransaction(
   if (amount !== previousStakingAmount) {
     throw new Error(
       "Expansion staking transaction amount must be equal to the previous " +
-        "staking amount. Increase of the staking amount is not supported yet.",
+      "staking amount. Increase of the staking amount is not supported yet.",
     );
   }
 
@@ -735,7 +739,18 @@ function slashingTransaction(
   const slashingAmount = Math.round(stakingAmount * slashingRate);
 
   // Compute the slashing output
+  const isString = typeof slashingPkScriptHex === "string";
+  const isNonEmpty = isString && slashingPkScriptHex.length > 0;
+  const isEvenLength = isNonEmpty && slashingPkScriptHex.length % 2 === 0;
+  const hasHexOnlyChars = isEvenLength && /^[0-9a-fA-F]+$/.test(slashingPkScriptHex);
+  if (!(isString && isNonEmpty && isEvenLength && hasHexOnlyChars)) {
+    throw new Error("Invalid slashingPkScriptHex format");
+  }
   const slashingOutput = Buffer.from(slashingPkScriptHex, "hex");
+  const hasAtLeastOneByte = slashingOutput.length >= 1;
+  if (!hasAtLeastOneByte) {
+    throw new Error("Invalid slashingPkScriptHex format");
+  }
 
   // If OP_RETURN is not included, the slashing amount must be greater than the
   // dust limit.
@@ -856,19 +871,31 @@ export const createCovenantWitness = (
   if (covenantSigs.length < covenantQuorum) {
     throw new Error(
       `Not enough covenant signatures. Required: ${covenantQuorum}, ` +
-        `got: ${covenantSigs.length}`,
+      `got: ${covenantSigs.length}`,
     );
   }
   // Filter out the signatures that are not in the params covenants
   const filteredCovenantSigs = covenantSigs.filter((sig) => {
     const btcPkHexBuf = Buffer.from(sig.btcPkHex, "hex");
-    return paramsCovenants.some((covenant) => covenant.equals(btcPkHexBuf));
+    return paramsCovenants.some((covenant) =>
+      covenant.equals(Uint8Array.from(btcPkHexBuf)),
+    );
   });
 
-  if (filteredCovenantSigs.length < covenantQuorum) {
+  // Enforce uniqueness by public key (duplicate signatures for the same covenant member are invalid)
+  const uniqueByPkMap = new Map<string, CovenantSignature>();
+  for (const sig of filteredCovenantSigs) {
+    if (uniqueByPkMap.has(sig.btcPkHex)) {
+      throw new Error("Duplicate covenant signature for the same public key");
+    }
+    uniqueByPkMap.set(sig.btcPkHex, sig);
+  }
+  const uniqueFilteredCovenantSigs = Array.from(uniqueByPkMap.values());
+
+  if (uniqueFilteredCovenantSigs.length < covenantQuorum) {
     throw new Error(
       `Not enough valid covenant signatures. Required: ${covenantQuorum}, ` +
-        `got: ${filteredCovenantSigs.length}`,
+      `got: ${uniqueFilteredCovenantSigs.length}`,
     );
   }
 
@@ -876,7 +903,7 @@ export const createCovenantWitness = (
   // Including extra signatures will cause the unbonding transaction to fail validation.
   // This is because the witness script expects exactly covenantQuorum number of signatures
   // to match the covenant parameters.
-  const covenantSigsBuffers = covenantSigs
+  const covenantSigsBuffers = uniqueFilteredCovenantSigs
     .slice(0, covenantQuorum)
     .map((sig) => ({
       btcPkHex: Buffer.from(sig.btcPkHex, "hex"),
@@ -885,14 +912,14 @@ export const createCovenantWitness = (
 
   // we need covenant from params to be sorted in reverse order
   const paramsCovenantsSorted = [...paramsCovenants]
-    .sort(Buffer.compare)
+    .sort((a, b) => Buffer.compare(Uint8Array.from(a), Uint8Array.from(b)))
     .reverse();
 
   const composedCovenantSigs = paramsCovenantsSorted.map((covenant) => {
     // in case there's covenant with this btc_pk_hex we return the sig
     // otherwise we return empty Buffer
     const covenantSig = covenantSigsBuffers.find(
-      (sig) => sig.btcPkHex.compare(covenant) === 0,
+      (sig) => covenant.compare(Uint8Array.from(sig.btcPkHex)) === 0,
     );
     return covenantSig?.sigHex || Buffer.alloc(0);
   });
