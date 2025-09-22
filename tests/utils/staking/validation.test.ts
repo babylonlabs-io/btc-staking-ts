@@ -318,8 +318,8 @@ describe.each(testingNetworks)(
         validateStakingExpansionCovenantQuorum(previousParams, newParams),
       ).toThrow(
         `Staking expansion failed: insufficient covenant quorum. ` +
-        `Required: ${requiredQuorum}, Available: ${covenantNoCoordPks.length - requiredQuorum}. ` +
-        `Too many covenant members have rotated out.`,
+          `Required: ${requiredQuorum}, Available: ${covenantNoCoordPks.length - requiredQuorum}. ` +
+          `Too many covenant members have rotated out.`,
       );
     });
 

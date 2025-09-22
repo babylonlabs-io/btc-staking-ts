@@ -97,16 +97,10 @@ export const validateStakingTxInputData = (
     );
   }
   if (!Number.isInteger(timelock)) {
-    throw new StakingError(
-      StakingErrorCode.INVALID_INPUT,
-      "Invalid timelock",
-    );
+    throw new StakingError(StakingErrorCode.INVALID_INPUT, "Invalid timelock");
   }
   if (!Number.isInteger(feeRate)) {
-    throw new StakingError(
-      StakingErrorCode.INVALID_INPUT,
-      "Invalid fee rate",
-    );
+    throw new StakingError(StakingErrorCode.INVALID_INPUT, "Invalid fee rate");
   }
   if (
     stakingAmountSat < params.minStakingAmountSat ||
@@ -292,8 +286,8 @@ export const validateStakingExpansionCovenantQuorum = (
     throw new StakingError(
       StakingErrorCode.INVALID_INPUT,
       `Staking expansion failed: insufficient covenant quorum. ` +
-      `Required: ${requiredQuorum}, Available: ${activePreviousMembers}. ` +
-      `Too many covenant members have rotated out.`,
+        `Required: ${requiredQuorum}, Available: ${activePreviousMembers}. ` +
+        `Too many covenant members have rotated out.`,
     );
   }
 };

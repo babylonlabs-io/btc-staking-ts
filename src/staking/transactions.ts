@@ -16,11 +16,7 @@ import { REDEEM_VERSION } from "../constants/transaction";
 import { UTXO } from "../types/UTXO";
 import { CovenantSignature } from "../types/covenantSignatures";
 import { PsbtResult, TransactionResult } from "../types/transaction";
-import {
-  isValidBitcoinAddress,
-  isValidNoCoordPublicKey,
-  transactionIdToHash,
-} from "../utils/btc";
+import { isValidBitcoinAddress, transactionIdToHash } from "../utils/btc";
 import {
   getStakingExpansionTxFundingUTXOAndFees,
   getStakingTxInputUTXOsAndFees,
@@ -224,7 +220,7 @@ export function stakingExpansionTransaction(
   if (amount !== previousStakingAmount) {
     throw new Error(
       "Expansion staking transaction amount must be equal to the previous " +
-      "staking amount. Increase of the staking amount is not supported yet.",
+        "staking amount. Increase of the staking amount is not supported yet.",
     );
   }
 
@@ -742,7 +738,8 @@ function slashingTransaction(
   const isString = typeof slashingPkScriptHex === "string";
   const isNonEmpty = isString && slashingPkScriptHex.length > 0;
   const isEvenLength = isNonEmpty && slashingPkScriptHex.length % 2 === 0;
-  const hasHexOnlyChars = isEvenLength && /^[0-9a-fA-F]+$/.test(slashingPkScriptHex);
+  const hasHexOnlyChars =
+    isEvenLength && /^[0-9a-fA-F]+$/.test(slashingPkScriptHex);
   if (!(isString && isNonEmpty && isEvenLength && hasHexOnlyChars)) {
     throw new Error("Invalid slashingPkScriptHex format");
   }
@@ -871,7 +868,7 @@ export const createCovenantWitness = (
   if (covenantSigs.length < covenantQuorum) {
     throw new Error(
       `Not enough covenant signatures. Required: ${covenantQuorum}, ` +
-      `got: ${covenantSigs.length}`,
+        `got: ${covenantSigs.length}`,
     );
   }
   // Filter out the signatures that are not in the params covenants
@@ -895,7 +892,7 @@ export const createCovenantWitness = (
   if (uniqueFilteredCovenantSigs.length < covenantQuorum) {
     throw new Error(
       `Not enough valid covenant signatures. Required: ${covenantQuorum}, ` +
-      `got: ${uniqueFilteredCovenantSigs.length}`,
+        `got: ${uniqueFilteredCovenantSigs.length}`,
     );
   }
 
