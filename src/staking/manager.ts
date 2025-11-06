@@ -1110,13 +1110,13 @@ export class BabylonBtcStakingManager {
     if (sigType === BTCSigType.BIP322) {
       const bip322Sig = BIP322Sig.fromPartial({
         address: stakerBtcAddress,
-        sig: Uint8Array.from(Buffer.from(signedBabylonAddress, "base64")),
+        sig: new Uint8Array(Buffer.from(signedBabylonAddress, "base64")),
       });
       // Encode the BIP322 protobuf message to a Uint8Array
       btcSig = BIP322Sig.encode(bip322Sig).finish();
     } else {
       // Encode the ECDSA signature to a Uint8Array
-      btcSig = Uint8Array.from(Buffer.from(signedBabylonAddress, "base64"));
+      btcSig = new Uint8Array(Buffer.from(signedBabylonAddress, "base64"));
     }
 
     return {

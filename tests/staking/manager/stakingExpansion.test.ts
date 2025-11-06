@@ -1,8 +1,8 @@
 import { networks, Psbt, Transaction } from "bitcoinjs-lib";
 
 import { getPublicKeyNoCoord, type UTXO } from "../../../src";
-import { BabylonBtcStakingManager } from "../../../src/staking/manager";
 import { Staking } from "../../../src/staking";
+import { BabylonBtcStakingManager } from "../../../src/staking/manager";
 import { ActionName } from "../../../src/types/action";
 import { ContractId } from "../../../src/types/contract";
 import { babylonProvider, btcProvider } from "./__mock__/providers";
@@ -159,7 +159,9 @@ describe("Staking Manager - Expansion", () => {
             stakingInput,
           },
         ),
-      ).toThrow("Staking expansion amount must equal the previous staking amount");
+      ).toThrow(
+        "Staking expansion amount must equal the previous staking amount",
+      );
     });
   });
 
@@ -261,7 +263,9 @@ describe("Staking Manager - Expansion", () => {
             stakingInput,
           },
         ),
-      ).rejects.toThrow("Staking expansion amount must equal the previous staking amount");
+      ).rejects.toThrow(
+        "Staking expansion amount must equal the previous staking amount",
+      );
     });
   });
 
@@ -317,7 +321,9 @@ describe("Staking Manager - Expansion", () => {
           },
           mockCovenantExpansionSignatures,
         ),
-      ).rejects.toThrow(`Babylon params not found for version ${invalidVersion}`);
+      ).rejects.toThrow(
+        `Babylon params not found for version ${invalidVersion}`,
+      );
     });
 
     it("should validate input UTXOs", async () => {
@@ -415,7 +421,9 @@ describe("Staking Manager - Expansion", () => {
           },
           mockCovenantExpansionSignatures,
         ),
-      ).rejects.toThrow("Staking expansion amount must equal the previous staking amount");
+      ).rejects.toThrow(
+        "Staking expansion amount must equal the previous staking amount",
+      );
     });
   });
 });
