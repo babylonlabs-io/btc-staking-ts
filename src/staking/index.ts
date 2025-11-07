@@ -133,7 +133,8 @@ export class Staking {
    * @param {number} stakingAmountSat - The amount to stake in satoshis.
    * @param {UTXO[]} inputUTXOs - The UTXOs to use as inputs for the staking
    * transaction.
-   * @param {number} feeRate - The fee rate for the transaction in satoshis per byte.
+   * @param {number} feeRate - The fee rate for the transaction in satoshis per
+   * byte.
    * @returns {TransactionResult} - An object containing the unsigned
    * transaction, and fee
    * @throws {StakingError} - If the transaction cannot be built
