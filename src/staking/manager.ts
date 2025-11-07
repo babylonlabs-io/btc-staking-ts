@@ -599,7 +599,7 @@ export class BabylonBtcStakingManager {
     // Define the contract information for the PSBT signing
     const contracts: Contract[] = [
       {
-        id: ContractId.STAKING,
+        id: ContractId.STAKING_EXPANSION,
         params: {
           stakerPk: stakerBtcInfo.publicKeyNoCoordHex,
           finalityProviders: stakingInput.finalityProviderPksNoCoordHex,
@@ -620,7 +620,7 @@ export class BabylonBtcStakingManager {
       covenantThreshold: params.covenantQuorum,
       unbondingTimeBlocks: params.unbondingTime,
       stakingDuration: stakingInput.stakingTimelock,
-      type: "staking",
+      type: "staking-expansion",
     });
 
     // Sign the PSBT using the BTC provider (wallet)

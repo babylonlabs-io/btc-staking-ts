@@ -376,7 +376,7 @@ describe("Staking Manager - Expansion", () => {
       // Verify contracts are passed correctly
       expect(callArgs[1].contracts).toEqual([
         {
-          id: ContractId.STAKING,
+          id: ContractId.STAKING_EXPANSION,
           params: {
             stakerPk: stakerInfo.publicKeyNoCoordHex,
             finalityProviders: stakingInput.finalityProviderPksNoCoordHex,
