@@ -262,6 +262,59 @@ describe.each(testingNetworks)(
           }
           expect(result.selectedUTXOs.length).toEqual(1);
         });
+
+        it("should handle duplicate UTXOs by only using unique (txid, vout) pairs", () => {
+          const stakeAmount = 2000;
+          const { nativeSegwit } = dataGenerator.getAddressAndScriptPubKey(
+            dataGenerator.generateRandomKeyPair().publicKey,
+          );
+          const txid = dataGenerator.generateRandomTxId();
+          const vout = Math.floor(Math.random() * 10);
+          const availableUTXOs: UTXO[] = [
+            {
+              txid,
+              vout,
+              scriptPubKey: nativeSegwit.scriptPubKey,
+              value: 5000,
+            },
+            {
+              txid, // Same txid
+              vout, // Same vout (duplicate)
+              scriptPubKey: nativeSegwit.scriptPubKey,
+              value: 5000,
+            },
+            {
+              txid: dataGenerator.generateRandomTxId(),
+              vout: Math.floor(Math.random() * 10),
+              scriptPubKey: nativeSegwit.scriptPubKey,
+              value: 3000,
+            },
+          ];
+
+          const outputs = buildStakingTransactionOutputs(
+            mockScripts,
+            network,
+            stakeAmount,
+          );
+
+          const result = getStakingTxInputUTXOsAndFees(
+            availableUTXOs,
+            stakeAmount,
+            feeRate,
+            outputs,
+          );
+
+          // Should only use 2 unique UTXOs, not 3
+          expect(result.selectedUTXOs.length).toBeLessThanOrEqual(2);
+
+          // Verify no duplicate (txid, vout) pairs in selected UTXOs
+          const seen = new Set<string>();
+          result.selectedUTXOs.forEach((utxo) => {
+            const key = `${utxo.txid}:${utxo.vout}`;
+            expect(seen.has(key)).toBe(false);
+            seen.add(key);
+          });
+        });
       });
     });
   },
