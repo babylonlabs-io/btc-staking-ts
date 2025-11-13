@@ -57,7 +57,9 @@ const validateRedeemScript = (
   redeemScript: string,
 ): Buffer => {
   const redeemScriptBuffer = Buffer.from(redeemScript, "hex");
+  // Compute RIPEMD160(SHA256(redeemScript)) to get the 20-byte hash used in P2SH addresses
   const redeemScriptHash = bitcoin.crypto.hash160(redeemScriptBuffer);
+  // Create a P2SH payment object from the hash to reconstruct the scriptPubKey for validation
   const p2shPayment = bitcoin.payments.p2sh({ hash: redeemScriptHash });
 
   const expectedOutput = p2shPayment.output as Buffer;
@@ -79,7 +81,9 @@ const validateWitnessScript = (
   witnessScript: string,
 ): Buffer => {
   const witnessScriptBuffer = Buffer.from(witnessScript, "hex");
+  // Compute SHA256(witnessScript) to get the 32-byte hash used in P2WSH addresses
   const witnessScriptHash = bitcoin.crypto.sha256(witnessScriptBuffer);
+  // Create a P2WSH payment object from the hash to reconstruct the scriptPubKey for validation
   const p2wshPayment = bitcoin.payments.p2wsh({ hash: witnessScriptHash });
 
   const expectedOutput = p2wshPayment.output as Buffer;
