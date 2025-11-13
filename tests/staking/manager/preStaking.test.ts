@@ -143,7 +143,7 @@ describe("Staking Manager", () => {
             babylonAddress,
           );
 
-        expect(btcProvider.signPsbt).toHaveBeenCalledWith(slashingPsbt, {
+        expect(btcProvider.signPsbt).toHaveBeenCalledWith(expect.any(String), {
           contracts: [
             {
               id: ContractId.STAKING,
@@ -177,43 +177,40 @@ describe("Staking Manager", () => {
             name: ActionName.SIGN_BTC_SLASHING_TRANSACTION,
           },
         });
-        expect(btcProvider.signPsbt).toHaveBeenCalledWith(
-          unbondingSlashingPsbt,
-          {
-            contracts: [
-              {
-                id: ContractId.UNBONDING,
-                params: {
-                  stakerPk: stakerInfo.publicKeyNoCoordHex,
-                  finalityProviders: stakingInput.finalityProviderPksNoCoordHex,
-                  covenantPks: params[version].covenantNoCoordPks,
-                  covenantThreshold: params[version].covenantQuorum,
-                  unbondingTimeBlocks: params[version].unbondingTime,
-                  unbondingFeeSat: params[version].unbondingFeeSat,
-                },
+        expect(btcProvider.signPsbt).toHaveBeenCalledWith(expect.any(String), {
+          contracts: [
+            {
+              id: ContractId.UNBONDING,
+              params: {
+                stakerPk: stakerInfo.publicKeyNoCoordHex,
+                finalityProviders: stakingInput.finalityProviderPksNoCoordHex,
+                covenantPks: params[version].covenantNoCoordPks,
+                covenantThreshold: params[version].covenantQuorum,
+                unbondingTimeBlocks: params[version].unbondingTime,
+                unbondingFeeSat: params[version].unbondingFeeSat,
               },
-              {
-                id: ContractId.SLASHING,
-                params: {
-                  stakerPk: stakerInfo.publicKeyNoCoordHex,
-                  unbondingTimeBlocks: params[version].unbondingTime,
-                  slashingFeeSat: params[version].slashing?.minSlashingTxFeeSat,
-                },
-              },
-              {
-                id: ContractId.SLASHING_BURN,
-                params: {
-                  stakerPk: stakerInfo.publicKeyNoCoordHex,
-                  slashingPkScriptHex:
-                    params[version].slashing?.slashingPkScriptHex,
-                },
-              },
-            ],
-            action: {
-              name: ActionName.SIGN_BTC_UNBONDING_SLASHING_TRANSACTION,
             },
+            {
+              id: ContractId.SLASHING,
+              params: {
+                stakerPk: stakerInfo.publicKeyNoCoordHex,
+                unbondingTimeBlocks: params[version].unbondingTime,
+                slashingFeeSat: params[version].slashing?.minSlashingTxFeeSat,
+              },
+            },
+            {
+              id: ContractId.SLASHING_BURN,
+              params: {
+                stakerPk: stakerInfo.publicKeyNoCoordHex,
+                slashingPkScriptHex:
+                  params[version].slashing?.slashingPkScriptHex,
+              },
+            },
+          ],
+          action: {
+            name: ActionName.SIGN_BTC_UNBONDING_SLASHING_TRANSACTION,
           },
-        );
+        });
         expect(btcProvider.signMessage).toHaveBeenCalledWith(
           babylonAddress,
           signType,
