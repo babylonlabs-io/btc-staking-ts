@@ -30,6 +30,7 @@ import { reverseBuffer } from "../utils";
 import { isValidBabylonAddress } from "../utils/babylon";
 import { isNativeSegwit, isTaproot } from "../utils/btc";
 import { buildPopMessage } from "../utils/pop";
+import { validateSignedPsbtIntegrity } from "../utils/psbt";
 import {
   clearTxSignatures,
   deriveMerkleProof,
@@ -503,8 +504,10 @@ export class BabylonBtcStakingManager {
       type: "staking",
     });
 
+    const unsignedPsbtHex = stakingPsbt.toHex();
+
     const signedStakingPsbtHex = await this.btcProvider.signPsbt(
-      stakingPsbt.toHex(),
+      unsignedPsbtHex,
       {
         contracts,
         action: {
@@ -513,7 +516,10 @@ export class BabylonBtcStakingManager {
       },
     );
 
-    return Psbt.fromHex(signedStakingPsbtHex).extractTransaction();
+    const signedStakingPsbt = Psbt.fromHex(signedStakingPsbtHex);
+    validateSignedPsbtIntegrity(stakingPsbt, signedStakingPsbt);
+
+    return signedStakingPsbt.extractTransaction();
   }
 
   /**
@@ -626,8 +632,10 @@ export class BabylonBtcStakingManager {
     // Sign the PSBT using the BTC provider (wallet)
     // The wallet will sign the transaction based on the contract information
     // provided
+    const unsignedStakingExpansionPsbtHex = stakingExpansionPsbt.toHex();
+
     const signedStakingPsbtHex = await this.btcProvider.signPsbt(
-      stakingExpansionPsbt.toHex(),
+      unsignedStakingExpansionPsbtHex,
       {
         contracts,
         action: {
@@ -636,9 +644,15 @@ export class BabylonBtcStakingManager {
       },
     );
 
+    const signedStakingExpansionPsbt = Psbt.fromHex(signedStakingPsbtHex);
+    validateSignedPsbtIntegrity(
+      stakingExpansionPsbt,
+      signedStakingExpansionPsbt,
+    );
+
     // Extract the signed transaction from the PSBT
     const signedStakingExpansionTx =
-      Psbt.fromHex(signedStakingPsbtHex).extractTransaction();
+      signedStakingExpansionPsbt.extractTransaction();
 
     // Validate that the signed transaction hash matches the unsigned
     // transaction hash
@@ -755,8 +769,10 @@ export class BabylonBtcStakingManager {
       type: "unbonding",
     });
 
+    const unsignedUnbondingPsbtHex = psbt.toHex();
+
     const signedUnbondingPsbtHex = await this.btcProvider.signPsbt(
-      psbt.toHex(),
+      unsignedUnbondingPsbtHex,
       {
         contracts,
         action: {
@@ -765,9 +781,10 @@ export class BabylonBtcStakingManager {
       },
     );
 
-    const signedUnbondingTx = Psbt.fromHex(
-      signedUnbondingPsbtHex,
-    ).extractTransaction();
+    const signedUnbondingPsbt = Psbt.fromHex(signedUnbondingPsbtHex);
+    validateSignedPsbtIntegrity(psbt, signedUnbondingPsbt);
+
+    const signedUnbondingTx = signedUnbondingPsbt.extractTransaction();
 
     return {
       transaction: signedUnbondingTx,
@@ -896,8 +913,10 @@ export class BabylonBtcStakingManager {
       type: "early-unbonded",
     });
 
+    const unsignedWithdrawalPsbtHex = unbondingPsbt.toHex();
+
     const signedWithdrawalPsbtHex = await this.btcProvider.signPsbt(
-      unbondingPsbt.toHex(),
+      unsignedWithdrawalPsbtHex,
       {
         contracts,
         action: {
@@ -906,8 +925,11 @@ export class BabylonBtcStakingManager {
       },
     );
 
+    const signedWithdrawalPsbt = Psbt.fromHex(signedWithdrawalPsbtHex);
+    validateSignedPsbtIntegrity(unbondingPsbt, signedWithdrawalPsbt);
+
     return {
-      transaction: Psbt.fromHex(signedWithdrawalPsbtHex).extractTransaction(),
+      transaction: signedWithdrawalPsbt.extractTransaction(),
       fee,
     };
   }
@@ -967,8 +989,10 @@ export class BabylonBtcStakingManager {
       type: "staking-expired",
     });
 
+    const unsignedWithdrawalPsbtHex = psbt.toHex();
+
     const signedWithdrawalPsbtHex = await this.btcProvider.signPsbt(
-      psbt.toHex(),
+      unsignedWithdrawalPsbtHex,
       {
         contracts,
         action: {
@@ -977,8 +1001,11 @@ export class BabylonBtcStakingManager {
       },
     );
 
+    const signedWithdrawalPsbt = Psbt.fromHex(signedWithdrawalPsbtHex);
+    validateSignedPsbtIntegrity(psbt, signedWithdrawalPsbt);
+
     return {
-      transaction: Psbt.fromHex(signedWithdrawalPsbtHex).extractTransaction(),
+      transaction: signedWithdrawalPsbt.extractTransaction(),
       fee,
     };
   }
@@ -1038,8 +1065,10 @@ export class BabylonBtcStakingManager {
       type: "slashing",
     });
 
+    const unsignedWithdrawSlashingPsbtHex = psbt.toHex();
+
     const signedWithrawSlashingPsbtHex = await this.btcProvider.signPsbt(
-      psbt.toHex(),
+      unsignedWithdrawSlashingPsbtHex,
       {
         contracts,
         action: {
@@ -1048,10 +1077,13 @@ export class BabylonBtcStakingManager {
       },
     );
 
+    const signedWithdrawSlashingPsbt = Psbt.fromHex(
+      signedWithrawSlashingPsbtHex,
+    );
+    validateSignedPsbtIntegrity(psbt, signedWithdrawSlashingPsbt);
+
     return {
-      transaction: Psbt.fromHex(
-        signedWithrawSlashingPsbtHex,
-      ).extractTransaction(),
+      transaction: signedWithdrawSlashingPsbt.extractTransaction(),
       fee,
     };
   }
