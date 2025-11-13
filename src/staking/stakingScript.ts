@@ -99,8 +99,9 @@ export class StakingScriptData {
       ...this.finalityProviderKeys,
       ...this.covenantKeys,
     ];
-    const allPksSet = new Set(allPks);
-    if (allPks.length !== allPksSet.size) {
+    const allPksHex = allPks.map((pk) => pk.toString("hex"));
+    const allPksSet = new Set(allPksHex);
+    if (allPksHex.length !== allPksSet.size) {
       return false;
     }
 
