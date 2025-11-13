@@ -75,7 +75,7 @@
     "typescript-eslint": "^7.4.0"
   },
   "dependencies": {
-    "@babylonlabs-io/babylon-proto-ts": "1.14.1",
+    "@babylonlabs-io/babylon-proto-ts": "1.20.0",
     "@bitcoin-js/tiny-secp256k1-asmjs": "2.2.3",
     "@cosmjs/encoding": "0.36.0",
     "bitcoinjs-lib": "6.1.5"
