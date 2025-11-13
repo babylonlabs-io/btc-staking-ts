@@ -876,7 +876,7 @@ export const createCovenantWitness = (
   // Including extra signatures will cause the unbonding transaction to fail validation.
   // This is because the witness script expects exactly covenantQuorum number of signatures
   // to match the covenant parameters.
-  const covenantSigsBuffers = covenantSigs
+  const covenantSigsBuffers = filteredCovenantSigs
     .slice(0, covenantQuorum)
     .map((sig) => ({
       btcPkHex: Buffer.from(sig.btcPkHex, "hex"),
