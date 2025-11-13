@@ -207,10 +207,13 @@ describe.each(testingNetworks)(
               Math.round(stakingAmountSat * slashingRate),
             );
 
-            // second output is the change output which send to unbonding timelock script address
+            // second output is the change output which maintains full unbonding tree
             const changeOutput = payments.p2tr({
               internalPubkey,
-              scriptTree: { output: stakingScripts.unbondingTimelockScript },
+              scriptTree: [
+                { output: stakingScripts.slashingScript },
+                { output: stakingScripts.unbondingTimelockScript },
+              ],
               network,
             });
             expect(psbt.txOutputs[1].address).toBe(changeOutput.address);
@@ -340,10 +343,13 @@ describe.each(testingNetworks)(
               Math.round(unbondingTxOutputValue * slashingRate),
             );
 
-            // second output is the change output which send to unbonding timelock script address
+            // second output is the change output which maintains full unbonding tree
             const changeOutput = payments.p2tr({
               internalPubkey,
-              scriptTree: { output: stakingScripts.unbondingTimelockScript },
+              scriptTree: [
+                { output: stakingScripts.slashingScript },
+                { output: stakingScripts.unbondingTimelockScript },
+              ],
               network,
             });
             expect(psbt.txOutputs[1].address).toBe(changeOutput.address);

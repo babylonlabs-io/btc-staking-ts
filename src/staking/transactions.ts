@@ -772,10 +772,14 @@ function slashingTransaction(
     value: slashingAmount,
   });
 
-  // Change output contains unbonding timelock script
+  // Change output maintains full unbonding tree to preserve slashing enforceability
+  const changeScriptTree: Taptree = [
+    { output: scripts.slashingScript },
+    { output: scripts.unbondingTimelockScript },
+  ];
   const changeOutput = payments.p2tr({
     internalPubkey,
-    scriptTree: { output: scripts.unbondingTimelockScript },
+    scriptTree: changeScriptTree,
     network,
   });
   // Add the change output

@@ -387,10 +387,13 @@ export class StakingDataGenerator {
       Math.round(outputValue * params.slashingRate),
     );
 
-    // second output is the change output which send to unbonding timelock script address
+    // second output is the change output which maintains full unbonding tree
     const changeOutput = payments.p2tr({
       internalPubkey,
-      scriptTree: { output: stakingScripts.unbondingTimelockScript },
+      scriptTree: [
+        { output: stakingScripts.slashingScript },
+        { output: stakingScripts.unbondingTimelockScript },
+      ],
       network,
     });
     expect(slashingPsbt.txOutputs[1].address).toBe(changeOutput.address);

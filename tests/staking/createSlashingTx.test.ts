@@ -1,4 +1,4 @@
-import { opcodes, payments, script } from "bitcoinjs-lib";
+import { payments } from "bitcoinjs-lib";
 import { internalPubkey } from "../../src/constants/internalPubkey";
 import * as stakingScript from "../../src/staking/stakingScript";
 import * as transaction from "../../src/staking/transactions";
@@ -64,16 +64,14 @@ describe.each(testingNetworks)(
         expect(
           Buffer.from(slashTx.psbt.txOutputs[0].script).toString("hex"),
         ).toBe(params.slashing!.slashingPkScriptHex);
-        // change output
-        const unbondingTimelockScript = script.compile([
-          Buffer.from(stakerInfo.publicKeyNoCoordHex, "hex"),
-          opcodes.OP_CHECKSIGVERIFY,
-          script.number.encode(params.unbondingTime),
-          opcodes.OP_CHECKSEQUENCEVERIFY,
-        ]);
+        // change output maintains full unbonding tree
+        const scripts = stakingInstance.buildScripts();
         const { address } = payments.p2tr({
           internalPubkey,
-          scriptTree: { output: unbondingTimelockScript },
+          scriptTree: [
+            { output: scripts.slashingScript },
+            { output: scripts.unbondingTimelockScript },
+          ],
           network,
         });
         expect(slashTx.psbt.txOutputs[1].address).toBe(address);
@@ -132,16 +130,14 @@ describe.each(testingNetworks)(
         expect(
           Buffer.from(slashTx.psbt.txOutputs[0].script).toString("hex"),
         ).toBe(params.slashing!.slashingPkScriptHex);
-        // change output
-        const unbondingTimelockScript = script.compile([
-          Buffer.from(stakerInfo.publicKeyNoCoordHex, "hex"),
-          opcodes.OP_CHECKSIGVERIFY,
-          script.number.encode(params.unbondingTime),
-          opcodes.OP_CHECKSEQUENCEVERIFY,
-        ]);
+        // change output maintains full unbonding tree
+        const scripts = stakingInstance.buildScripts();
         const { address } = payments.p2tr({
           internalPubkey,
-          scriptTree: { output: unbondingTimelockScript },
+          scriptTree: [
+            { output: scripts.slashingScript },
+            { output: scripts.unbondingTimelockScript },
+          ],
           network,
         });
         expect(slashTx.psbt.txOutputs[1].address).toBe(address);

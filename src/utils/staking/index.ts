@@ -133,22 +133,26 @@ export const deriveUnbondingOutputInfo = (
 /**
  * Derive the slashing output address and scriptPubKey from the staking scripts.
  *
- * @param {StakingScripts} scripts - The unbonding timelock scripts, we use the
- * unbonding timelock script as the timelock of the slashing transaction.
- * This is due to slashing tx timelock is the same as the unbonding timelock.
+ * @param {StakingScripts} scripts - The slashing and unbonding timelock scripts.
+ * The slashing output uses the full unbonding tree to preserve slashing enforceability.
  * @param {networks.Network} network - The Bitcoin network.
  * @returns {OutputInfo} - The slashing output address and scriptPubKey.
  * @throws {StakingError} - If the slashing output address cannot be derived.
  */
 export const deriveSlashingOutput = (
   scripts: {
+    slashingScript: Buffer;
     unbondingTimelockScript: Buffer;
   },
   network: networks.Network,
 ) => {
+  const slashingScriptTree: Taptree = [
+    { output: scripts.slashingScript },
+    { output: scripts.unbondingTimelockScript },
+  ];
   const slashingOutput = payments.p2tr({
     internalPubkey,
-    scriptTree: { output: scripts.unbondingTimelockScript },
+    scriptTree: slashingScriptTree,
     network,
   });
   const slashingOutputAddress = slashingOutput.address;
