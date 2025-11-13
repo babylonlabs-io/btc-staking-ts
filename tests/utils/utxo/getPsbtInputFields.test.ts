@@ -11,11 +11,8 @@ describe.each(testingNetworks)(
     describe.each(Object.entries(datagen))(
       "using %s",
       (_dataGenName, dataGenerator) => {
-        const dummyRawTxHex = "0200000001abcdef";
-        const dummyRedeemScriptHex = "abcdef";
         const dummyValue = 10000;
 
-        // helper for this particular tests
         function makeUTXO(
           scriptPubKey: string,
           overrides?: Partial<UTXO>,
@@ -27,6 +24,18 @@ describe.each(testingNetworks)(
             scriptPubKey,
             ...overrides,
           };
+        }
+
+        function createValidTransaction(
+          scriptPubKey: Buffer,
+          value: number,
+        ): { tx: bitcoin.Transaction; rawTxHex: string } {
+          const tx = new bitcoin.Transaction();
+          tx.version = 2;
+          tx.addInput(Buffer.alloc(32), 0);
+          tx.addOutput(scriptPubKey, value);
+          const rawTxHex = tx.toHex();
+          return { tx, rawTxHex };
         }
 
         // this will throw from `getScriptType`
@@ -73,16 +82,17 @@ describe.each(testingNetworks)(
               pubkey: Buffer.from(publicKey, "hex"),
               network,
             });
-            // Must include rawTxHex for legacy inputs
+            const { tx, rawTxHex } = createValidTransaction(
+              p2pkh.output!,
+              dummyValue,
+            );
             const utxo = makeUTXO(p2pkh.output!.toString("hex"), {
-              rawTxHex: dummyRawTxHex,
+              txid: tx.getId(),
+              rawTxHex,
             });
 
             const fields = getPsbtInputFields(utxo);
-            expect(fields.nonWitnessUtxo).toEqual(
-              Buffer.from(dummyRawTxHex, "hex"),
-            );
-            // Should not have witnessUtxo, redeemScript, or witnessScript
+            expect(fields.nonWitnessUtxo).toEqual(Buffer.from(rawTxHex, "hex"));
             expect(fields.witnessUtxo).toBeUndefined();
             expect(fields.redeemScript).toBeUndefined();
             expect(fields.witnessScript).toBeUndefined();
@@ -99,6 +109,88 @@ describe.each(testingNetworks)(
               "Missing rawTxHex for legacy P2PKH input",
             );
           });
+
+          it("throws if rawTxHex has mismatched txid", () => {
+            const { publicKey } = dataGenerator.generateRandomKeyPair();
+            const p2pkh = bitcoin.payments.p2pkh({
+              pubkey: Buffer.from(publicKey, "hex"),
+              network,
+            });
+            const { rawTxHex } = createValidTransaction(
+              p2pkh.output!,
+              dummyValue,
+            );
+            const utxo = makeUTXO(p2pkh.output!.toString("hex"), {
+              txid: dataGenerator.generateRandomTxId(),
+              rawTxHex,
+            });
+
+            expect(() => getPsbtInputFields(utxo)).toThrow(
+              "Transaction ID mismatch",
+            );
+          });
+
+          it("throws if rawTxHex has mismatched scriptPubKey", () => {
+            const { publicKey: publicKey1 } = dataGenerator.generateRandomKeyPair();
+            const { publicKey: publicKey2 } = dataGenerator.generateRandomKeyPair();
+            const p2pkh1 = bitcoin.payments.p2pkh({
+              pubkey: Buffer.from(publicKey1, "hex"),
+              network,
+            });
+            const p2pkh2 = bitcoin.payments.p2pkh({
+              pubkey: Buffer.from(publicKey2, "hex"),
+              network,
+            });
+            const { tx, rawTxHex } = createValidTransaction(
+              p2pkh1.output!,
+              dummyValue,
+            );
+            const utxo = makeUTXO(p2pkh2.output!.toString("hex"), {
+              txid: tx.getId(),
+              rawTxHex,
+            });
+
+            expect(() => getPsbtInputFields(utxo)).toThrow("Script mismatch");
+          });
+
+          it("throws if rawTxHex has mismatched value", () => {
+            const { publicKey } = dataGenerator.generateRandomKeyPair();
+            const p2pkh = bitcoin.payments.p2pkh({
+              pubkey: Buffer.from(publicKey, "hex"),
+              network,
+            });
+            const differentValue = dummyValue + 1000;
+            const { tx, rawTxHex } = createValidTransaction(
+              p2pkh.output!,
+              differentValue,
+            );
+            const utxo = makeUTXO(p2pkh.output!.toString("hex"), {
+              txid: tx.getId(),
+              value: dummyValue,
+              rawTxHex,
+            });
+
+            expect(() => getPsbtInputFields(utxo)).toThrow("Value mismatch");
+          });
+
+          it("throws if vout index is out of bounds", () => {
+            const { publicKey } = dataGenerator.generateRandomKeyPair();
+            const p2pkh = bitcoin.payments.p2pkh({
+              pubkey: Buffer.from(publicKey, "hex"),
+              network,
+            });
+            const { tx, rawTxHex } = createValidTransaction(
+              p2pkh.output!,
+              dummyValue,
+            );
+            const utxo = makeUTXO(p2pkh.output!.toString("hex"), {
+              txid: tx.getId(),
+              vout: 5,
+              rawTxHex,
+            });
+
+            expect(() => getPsbtInputFields(utxo)).toThrow("Invalid vout index");
+          });
         });
 
         describe("P2SH", () => {
@@ -109,18 +201,19 @@ describe.each(testingNetworks)(
               network,
             });
             const p2sh = bitcoin.payments.p2sh({ redeem: nested, network });
+            const { tx, rawTxHex } = createValidTransaction(
+              p2sh.output!,
+              dummyValue,
+            );
 
             const utxo = makeUTXO(p2sh.output!.toString("hex"), {
-              rawTxHex: dummyRawTxHex,
-              redeemScript: dummyRedeemScriptHex,
+              txid: tx.getId(),
+              rawTxHex,
+              redeemScript: nested.output!.toString("hex"),
             });
             const fields = getPsbtInputFields(utxo);
-            expect(fields.nonWitnessUtxo).toEqual(
-              Buffer.from(dummyRawTxHex, "hex"),
-            );
-            expect(fields.redeemScript).toEqual(
-              Buffer.from(dummyRedeemScriptHex, "hex"),
-            );
+            expect(fields.nonWitnessUtxo).toEqual(Buffer.from(rawTxHex, "hex"));
+            expect(fields.redeemScript).toEqual(nested.output!);
             expect(fields.witnessUtxo).toBeUndefined();
           });
 
@@ -133,8 +226,7 @@ describe.each(testingNetworks)(
             const p2sh = bitcoin.payments.p2sh({ redeem: nested, network });
 
             const utxo = makeUTXO(p2sh.output!.toString("hex"), {
-              // No rawTxHex
-              redeemScript: dummyRedeemScriptHex,
+              redeemScript: nested.output!.toString("hex"),
             });
             expect(() => getPsbtInputFields(utxo)).toThrow(
               "Missing rawTxHex for P2SH input",
@@ -148,13 +240,44 @@ describe.each(testingNetworks)(
               network,
             });
             const p2sh = bitcoin.payments.p2sh({ redeem: nested, network });
+            const { tx, rawTxHex } = createValidTransaction(
+              p2sh.output!,
+              dummyValue,
+            );
 
             const utxo = makeUTXO(p2sh.output!.toString("hex"), {
-              rawTxHex: dummyRawTxHex,
-              // No redeemScript
+              txid: tx.getId(),
+              rawTxHex,
             });
             expect(() => getPsbtInputFields(utxo)).toThrow(
               "Missing redeemScript for P2SH input",
+            );
+          });
+
+          it("throws if redeemScript hash does not match P2SH scriptPubKey", () => {
+            const { publicKey: publicKey1 } = dataGenerator.generateRandomKeyPair();
+            const { publicKey: publicKey2 } = dataGenerator.generateRandomKeyPair();
+            const nested1 = bitcoin.payments.p2wpkh({
+              pubkey: Buffer.from(publicKey1, "hex"),
+              network,
+            });
+            const nested2 = bitcoin.payments.p2wpkh({
+              pubkey: Buffer.from(publicKey2, "hex"),
+              network,
+            });
+            const p2sh = bitcoin.payments.p2sh({ redeem: nested1, network });
+            const { tx, rawTxHex } = createValidTransaction(
+              p2sh.output!,
+              dummyValue,
+            );
+
+            const utxo = makeUTXO(p2sh.output!.toString("hex"), {
+              txid: tx.getId(),
+              rawTxHex,
+              redeemScript: nested2.output!.toString("hex"),
+            });
+            expect(() => getPsbtInputFields(utxo)).toThrow(
+              "Redeem script hash does not match P2SH scriptPubKey",
             );
           });
         });
@@ -216,10 +339,33 @@ describe.each(testingNetworks)(
               redeem: { output: customScript },
               network,
             });
-            const utxo = makeUTXO(p2wsh.output!.toString("hex")); // no witnessScript
+            const utxo = makeUTXO(p2wsh.output!.toString("hex"));
 
             expect(() => getPsbtInputFields(utxo)).toThrow(
               "Missing witnessScript for P2WSH input",
+            );
+          });
+
+          it("throws if witnessScript hash does not match P2WSH scriptPubKey", () => {
+            const customScript1 = bitcoin.script.compile([
+              bitcoin.opcodes.OP_RETURN,
+              Buffer.from("hello"),
+            ]);
+            const customScript2 = bitcoin.script.compile([
+              bitcoin.opcodes.OP_RETURN,
+              Buffer.from("world"),
+            ]);
+            const p2wsh = bitcoin.payments.p2wsh({
+              redeem: { output: customScript1 },
+              network,
+            });
+
+            const utxo = makeUTXO(p2wsh.output!.toString("hex"), {
+              witnessScript: customScript2.toString("hex"),
+            });
+
+            expect(() => getPsbtInputFields(utxo)).toThrow(
+              "Witness script hash does not match P2WSH scriptPubKey",
             );
           });
         });
