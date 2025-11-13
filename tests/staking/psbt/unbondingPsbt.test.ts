@@ -48,6 +48,7 @@ describe.each(testingNetworks)(
           unbondingTx.transaction,
           tx.transaction,
           network,
+          params.unbondingFeeSat,
         );
 
         expect(psbt).toBeDefined();
@@ -87,6 +88,7 @@ describe.each(testingNetworks)(
             invalidUnbondingTx,
             tx.transaction,
             network,
+            params.unbondingFeeSat,
           ),
         ).toThrow("Unbonding transaction must have exactly one output");
       });
@@ -108,6 +110,7 @@ describe.each(testingNetworks)(
             invalidUnbondingTx,
             tx.transaction,
             network,
+            params.unbondingFeeSat,
           ),
         ).toThrow("Unbonding transaction must have exactly one input");
       });
@@ -121,10 +124,28 @@ describe.each(testingNetworks)(
             unbondingTx.transaction,
             tx.transaction,
             network,
+            params.unbondingFeeSat,
           ),
         ).toThrow(
           "Unbonding output script does not match the expected script while building psbt",
         );
+      });
+
+      it(`${networkName} - should throw error if unbonding output value does not match expected value`, () => {
+        const invalidUnbondingTx = Transaction.fromBuffer(
+          unbondingTx.transaction.toBuffer(),
+        );
+        invalidUnbondingTx.outs[0].value = 1000;
+
+        expect(() =>
+          unbondingPsbt(
+            mockScripts,
+            invalidUnbondingTx,
+            tx.transaction,
+            network,
+            params.unbondingFeeSat,
+          ),
+        ).toThrow(/Unbonding output value .* does not match expected value/);
       });
     });
   },
