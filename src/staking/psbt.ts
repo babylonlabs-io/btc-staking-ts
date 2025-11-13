@@ -201,6 +201,7 @@ export const unbondingPsbt = (
   unbondingTx: Transaction,
   stakingTx: Transaction,
   network: networks.Network,
+  unbondingFee: number,
 ): Psbt => {
   if (unbondingTx.outs.length !== 1) {
     throw new Error("Unbonding transaction must have exactly one output");
@@ -209,7 +210,13 @@ export const unbondingPsbt = (
     throw new Error("Unbonding transaction must have exactly one input");
   }
 
-  validateUnbondingOutput(scripts, unbondingTx, network);
+  validateUnbondingOutput(
+    scripts,
+    unbondingTx,
+    stakingTx,
+    network,
+    unbondingFee,
+  );
 
   const psbt = new Psbt({ network });
 
@@ -274,7 +281,9 @@ export const unbondingPsbt = (
  *
  * @param {Object} scripts - The scripts to use for the unbonding output.
  * @param {Transaction} unbondingTx - The unbonding transaction.
+ * @param {Transaction} stakingTx - The staking transaction.
  * @param {networks.Network} network - The network to use for the unbonding output.
+ * @param {number} unbondingFee - The expected unbonding fee.
  */
 const validateUnbondingOutput = (
   scripts: {
@@ -282,7 +291,9 @@ const validateUnbondingOutput = (
     unbondingTimelockScript: Buffer;
   },
   unbondingTx: Transaction,
+  stakingTx: Transaction,
   network: networks.Network,
+  unbondingFee: number,
 ) => {
   const unbondingOutputInfo = deriveUnbondingOutputInfo(scripts, network);
   if (
@@ -292,6 +303,18 @@ const validateUnbondingOutput = (
     throw new Error(
       "Unbonding output script does not match the expected" +
         " script while building psbt",
+    );
+  }
+
+  const stakingOutputIndex = unbondingTx.ins[0].index;
+  const stakingOutputValue = stakingTx.outs[stakingOutputIndex].value;
+  const expectedUnbondingValue = stakingOutputValue - unbondingFee;
+  const actualUnbondingValue = unbondingTx.outs[0].value;
+
+  if (actualUnbondingValue !== expectedUnbondingValue) {
+    throw new Error(
+      `Unbonding output value ${actualUnbondingValue} does not match expected value ${expectedUnbondingValue} ` +
+        `(staking output: ${stakingOutputValue}, unbonding fee: ${unbondingFee})`,
     );
   }
 };

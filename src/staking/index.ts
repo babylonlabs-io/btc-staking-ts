@@ -436,6 +436,7 @@ export class Staking {
       unbondingTx,
       stakingTx,
       this.network,
+      this.params.unbondingFeeSat,
     );
   }
 
