@@ -89,6 +89,19 @@ export const validateStakingTxInputData = (
   inputUTXOs: UTXO[],
   feeRate: number,
 ) => {
+  // Ensure integer inputs
+  if (!Number.isInteger(stakingAmountSat)) {
+    throw new StakingError(
+      StakingErrorCode.INVALID_INPUT,
+      "Invalid staking amount",
+    );
+  }
+  if (!Number.isInteger(timelock)) {
+    throw new StakingError(StakingErrorCode.INVALID_INPUT, "Invalid timelock");
+  }
+  if (!Number.isInteger(feeRate)) {
+    throw new StakingError(StakingErrorCode.INVALID_INPUT, "Invalid fee rate");
+  }
   if (
     stakingAmountSat < params.minStakingAmountSat ||
     stakingAmountSat > params.maxStakingAmountSat

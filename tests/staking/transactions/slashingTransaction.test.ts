@@ -220,6 +220,34 @@ describe.each(testingNetworks)(
               minSlashingFee;
             expect(psbt.txOutputs[1].value).toBe(expectedChangeOutputValue);
           });
+
+          it("should throw for invalid slashingPkScriptHex format (odd length)", () => {
+            expect(() =>
+              slashTimelockUnbondedTransaction(
+                stakingScripts,
+                stakingTx,
+                "abc", // odd length, non-hex
+                slashingRate,
+                minSlashingFee,
+                network,
+                defaultOutputIndex,
+              ),
+            ).toThrow("Invalid slashingPkScriptHex format");
+          });
+
+          it("should throw for invalid slashingPkScriptHex format (non-hex chars)", () => {
+            expect(() =>
+              slashTimelockUnbondedTransaction(
+                stakingScripts,
+                stakingTx,
+                "zz", // non-hex
+                slashingRate,
+                minSlashingFee,
+                network,
+                defaultOutputIndex,
+              ),
+            ).toThrow("Invalid slashingPkScriptHex format");
+          });
         });
 
         describe(`${networkName} slashEarlyUnbondedTransaction - `, () => {
@@ -358,6 +386,32 @@ describe.each(testingNetworks)(
             psbt.txInputs.forEach((input) => {
               expect(input.sequence).toBe(NON_RBF_SEQUENCE);
             });
+          });
+
+          it("should throw for invalid slashingPkScriptHex format (odd length)", () => {
+            expect(() =>
+              slashEarlyUnbondedTransaction(
+                stakingScripts,
+                unbondingTx,
+                "abc",
+                slashingRate,
+                minSlashingFee,
+                network,
+              ),
+            ).toThrow("Invalid slashingPkScriptHex format");
+          });
+
+          it("should throw for invalid slashingPkScriptHex format (non-hex chars)", () => {
+            expect(() =>
+              slashEarlyUnbondedTransaction(
+                stakingScripts,
+                unbondingTx,
+                "zz",
+                slashingRate,
+                minSlashingFee,
+                network,
+              ),
+            ).toThrow("Invalid slashingPkScriptHex format");
           });
         });
       },
