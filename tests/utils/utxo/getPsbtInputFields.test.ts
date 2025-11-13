@@ -131,8 +131,10 @@ describe.each(testingNetworks)(
           });
 
           it("throws if rawTxHex has mismatched scriptPubKey", () => {
-            const { publicKey: publicKey1 } = dataGenerator.generateRandomKeyPair();
-            const { publicKey: publicKey2 } = dataGenerator.generateRandomKeyPair();
+            const { publicKey: publicKey1 } =
+              dataGenerator.generateRandomKeyPair();
+            const { publicKey: publicKey2 } =
+              dataGenerator.generateRandomKeyPair();
             const p2pkh1 = bitcoin.payments.p2pkh({
               pubkey: Buffer.from(publicKey1, "hex"),
               network,
@@ -189,7 +191,9 @@ describe.each(testingNetworks)(
               rawTxHex,
             });
 
-            expect(() => getPsbtInputFields(utxo)).toThrow("Invalid vout index");
+            expect(() => getPsbtInputFields(utxo)).toThrow(
+              "Invalid vout index",
+            );
           });
         });
 
@@ -255,8 +259,10 @@ describe.each(testingNetworks)(
           });
 
           it("throws if redeemScript hash does not match P2SH scriptPubKey", () => {
-            const { publicKey: publicKey1 } = dataGenerator.generateRandomKeyPair();
-            const { publicKey: publicKey2 } = dataGenerator.generateRandomKeyPair();
+            const { publicKey: publicKey1 } =
+              dataGenerator.generateRandomKeyPair();
+            const { publicKey: publicKey2 } =
+              dataGenerator.generateRandomKeyPair();
             const nested1 = bitcoin.payments.p2wpkh({
               pubkey: Buffer.from(publicKey1, "hex"),
               network,
