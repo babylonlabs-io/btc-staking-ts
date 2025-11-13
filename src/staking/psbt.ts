@@ -210,7 +210,13 @@ export const unbondingPsbt = (
     throw new Error("Unbonding transaction must have exactly one input");
   }
 
-  validateUnbondingOutput(scripts, unbondingTx, stakingTx, network, unbondingFee);
+  validateUnbondingOutput(
+    scripts,
+    unbondingTx,
+    stakingTx,
+    network,
+    unbondingFee,
+  );
 
   const psbt = new Psbt({ network });
 
