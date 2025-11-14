@@ -5,6 +5,7 @@ import { Staking } from "../../../src/staking";
 import { BabylonBtcStakingManager } from "../../../src/staking/manager";
 import { ActionName } from "../../../src/types/action";
 import { ContractId } from "../../../src/types/contract";
+import { testingNetworks } from "../../helper";
 import { babylonProvider, btcProvider } from "./__mock__/providers";
 import { params, stakerInfo, utxos } from "./__mock__/staking";
 
@@ -424,6 +425,171 @@ describe("Staking Manager - Expansion", () => {
       ).rejects.toThrow(
         "Staking expansion amount must equal the previous staking amount",
       );
+    });
+  });
+
+  describe("Finality Provider Superset Validation", () => {
+    // Generate valid finality provider public keys using the datagen
+    const [mainnet] = testingNetworks;
+    const { datagen } = mainnet;
+    const fp1 = datagen.stakingDatagen.generateRandomKeyPair().publicKeyNoCoord;
+    const fp2 = datagen.stakingDatagen.generateRandomKeyPair().publicKeyNoCoord;
+    const fp3 = datagen.stakingDatagen.generateRandomKeyPair().publicKeyNoCoord;
+
+    it("should reject expansion that removes a finality provider", () => {
+      // Create previous staking with FP1 and FP2
+      const previousStakingInput = {
+        stakingAmountSat: 11_000,
+        finalityProviderPksNoCoordHex: [fp1, fp2],
+        stakingTimelock: 100,
+      };
+
+      const previousStakingInstance = new Staking(
+        networks.testnet,
+        stakerInfo,
+        params[2],
+        previousStakingInput.finalityProviderPksNoCoordHex,
+        previousStakingInput.stakingTimelock,
+      );
+
+      const { transaction: prevStakingTx } =
+        previousStakingInstance.createStakingTransaction(
+          previousStakingInput.stakingAmountSat,
+          utxos,
+          1,
+        );
+
+      // Try to expand with only FP1 (removing FP2) - should fail
+      const expansionStakingInput = {
+        stakingAmountSat: 11_000,
+        finalityProviderPksNoCoordHex: [fp1], // Missing FP2
+        stakingTimelock: 100,
+      };
+
+      const expansionStakingInstance = new Staking(
+        networks.testnet,
+        stakerInfo,
+        params[2],
+        expansionStakingInput.finalityProviderPksNoCoordHex,
+        expansionStakingInput.stakingTimelock,
+      );
+
+      expect(() =>
+        expansionStakingInstance.createStakingExpansionTransaction(
+          expansionStakingInput.stakingAmountSat,
+          utxos,
+          1,
+          params[2],
+          {
+            stakingTx: prevStakingTx,
+            stakingInput: previousStakingInput,
+          },
+        ),
+      ).toThrow(/Invalid staking expansion: all finality providers/);
+    });
+
+    it("should allow expansion that keeps all previous finality providers", () => {
+      // Create previous staking with FP1
+      const previousStakingInput = {
+        stakingAmountSat: 11_000,
+        finalityProviderPksNoCoordHex: [fp1],
+        stakingTimelock: 100,
+      };
+
+      const previousStakingInstance = new Staking(
+        networks.testnet,
+        stakerInfo,
+        params[2],
+        previousStakingInput.finalityProviderPksNoCoordHex,
+        previousStakingInput.stakingTimelock,
+      );
+
+      const { transaction: prevStakingTx } =
+        previousStakingInstance.createStakingTransaction(
+          previousStakingInput.stakingAmountSat,
+          utxos,
+          1,
+        );
+
+      // Expand to include both FP1 and FP2 - should succeed
+      const expansionStakingInput = {
+        stakingAmountSat: 11_000,
+        finalityProviderPksNoCoordHex: [fp1, fp2], // Keeps FP1, adds FP2
+        stakingTimelock: 100,
+      };
+
+      const expansionStakingInstance = new Staking(
+        networks.testnet,
+        stakerInfo,
+        params[2],
+        expansionStakingInput.finalityProviderPksNoCoordHex,
+        expansionStakingInput.stakingTimelock,
+      );
+
+      expect(() =>
+        expansionStakingInstance.createStakingExpansionTransaction(
+          expansionStakingInput.stakingAmountSat,
+          utxos,
+          1,
+          params[2],
+          {
+            stakingTx: prevStakingTx,
+            stakingInput: previousStakingInput,
+          },
+        ),
+      ).not.toThrow();
+    });
+
+    it("should reject expansion that replaces finality providers", () => {
+      // Create previous staking with FP1 and FP2
+      const previousStakingInput = {
+        stakingAmountSat: 11_000,
+        finalityProviderPksNoCoordHex: [fp1, fp2],
+        stakingTimelock: 100,
+      };
+
+      const previousStakingInstance = new Staking(
+        networks.testnet,
+        stakerInfo,
+        params[2],
+        previousStakingInput.finalityProviderPksNoCoordHex,
+        previousStakingInput.stakingTimelock,
+      );
+
+      const { transaction: prevStakingTx } =
+        previousStakingInstance.createStakingTransaction(
+          previousStakingInput.stakingAmountSat,
+          utxos,
+          1,
+        );
+
+      // Try to expand with FP1 and FP3 (replacing FP2 with FP3) - should fail
+      const expansionStakingInput = {
+        stakingAmountSat: 11_000,
+        finalityProviderPksNoCoordHex: [fp1, fp3], // Missing FP2
+        stakingTimelock: 100,
+      };
+
+      const expansionStakingInstance = new Staking(
+        networks.testnet,
+        stakerInfo,
+        params[2],
+        expansionStakingInput.finalityProviderPksNoCoordHex,
+        expansionStakingInput.stakingTimelock,
+      );
+
+      expect(() =>
+        expansionStakingInstance.createStakingExpansionTransaction(
+          expansionStakingInput.stakingAmountSat,
+          utxos,
+          1,
+          params[2],
+          {
+            stakingTx: prevStakingTx,
+            stakingInput: previousStakingInput,
+          },
+        ),
+      ).toThrow(/Invalid staking expansion: all finality providers/);
     });
   });
 });

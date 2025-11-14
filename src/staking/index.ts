@@ -15,6 +15,7 @@ import {
   toBuffers,
 } from "../utils/staking";
 import {
+  validateFinalityProviderSuperset,
   validateParams,
   validateStakingExpansionCovenantQuorum,
   validateStakingTimelock,
@@ -237,6 +238,12 @@ export class Staking {
       this.params,
     );
 
+    // Validate that the new staking includes all previous finality providers
+    validateFinalityProviderSuperset(
+      this.finalityProviderPksNoCoordHex,
+      previousStakingTxInfo.stakingInput.finalityProviderPksNoCoordHex,
+    );
+
     // Create a Staking instance for the previous staking transaction
     // This allows us to build the scripts needed to spend the previous
     // staking output
@@ -332,6 +339,12 @@ export class Staking {
       };
     },
   ): Psbt {
+    // Validate that the new staking includes all previous finality providers
+    validateFinalityProviderSuperset(
+      this.finalityProviderPksNoCoordHex,
+      previousStakingTxInfo.stakingInput.finalityProviderPksNoCoordHex,
+    );
+
     // Reconstruct the previous staking instance to access its scripts and
     // parameters. This is necessary because we need to identify which output
     // in the previous staking transaction is the staking output (it could be
@@ -346,7 +359,7 @@ export class Staking {
 
     // Find the staking output address in the previous staking transaction
     const previousScripts = previousStaking.buildScripts();
-    const { outputAddress } = deriveStakingOutputInfo(
+    const { outputAddress: previousOutputAddress } = deriveStakingOutputInfo(
       previousScripts,
       this.network,
     );
@@ -355,7 +368,7 @@ export class Staking {
     // the staking output address.
     const previousStakingOutputIndex = findMatchingTxOutputIndex(
       previousStakingTxInfo.stakingTx,
-      outputAddress,
+      previousOutputAddress,
       this.network,
     );
 
