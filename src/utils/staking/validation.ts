@@ -5,6 +5,30 @@ import { isValidBabylonAddress } from "../babylon";
 import { isValidNoCoordPublicKey } from "../btc";
 
 /**
+ * Validates that all finality providers from the previous staking are included
+ * in the current staking expansion.
+ * @param currentFinalityProviders - The finality providers in the expansion
+ * @param previousFinalityProviders - The finality providers in the previous staking
+ * @throws {StakingError} - If any previous finality providers are missing
+ */
+export const validateFinalityProviderSuperset = (
+  currentFinalityProviders: string[],
+  previousFinalityProviders: string[],
+) => {
+  const missingPreviousFPs = previousFinalityProviders.filter(
+    (prevFp) => !currentFinalityProviders.includes(prevFp),
+  );
+
+  if (missingPreviousFPs.length > 0) {
+    throw new StakingError(
+      StakingErrorCode.INVALID_INPUT,
+      `Invalid staking expansion: all finality providers from the previous
+      staking must be included. Missing: ${missingPreviousFPs.join(", ")}`,
+    );
+  }
+};
+
+/**
  * Validates the staking expansion input
  * @param babylonBtcTipHeight - The Babylon BTC tip height
  * @param inputUTXOs - The input UTXOs
@@ -52,24 +76,12 @@ export const validateStakingExpansionInputs = ({
       "Staking expansion amount must equal the previous staking amount",
     );
   }
-  // Check the previous staking transaction's finality providers
-  // are a subset of the new staking input's finality providers
-  const currentFPs = stakingInput.finalityProviderPksNoCoordHex;
-  const previousFPs = previousStakingInput.finalityProviderPksNoCoordHex;
 
-  // Check if all previous finality providers are included in the current
-  // staking
-  const missingPreviousFPs = previousFPs.filter(
-    (prevFp) => !currentFPs.includes(prevFp),
+  // Validate that all previous finality providers are included in the expansion
+  validateFinalityProviderSuperset(
+    stakingInput.finalityProviderPksNoCoordHex,
+    previousStakingInput.finalityProviderPksNoCoordHex,
   );
-
-  if (missingPreviousFPs.length > 0) {
-    throw new StakingError(
-      StakingErrorCode.INVALID_INPUT,
-      `Invalid staking expansion: all finality providers from the previous
-      staking must be included. Missing: ${missingPreviousFPs.join(", ")}`,
-    );
-  }
 };
 
 /**
