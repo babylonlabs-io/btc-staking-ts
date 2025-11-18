@@ -5,8 +5,17 @@ import { StakingError, StakingErrorCode } from "../../error";
 import { UTXO } from "../../types";
 import { BitcoinScriptType, getScriptType } from "./getScriptType";
 
-const validateRawTxHex = (utxo: UTXO, rawTxHex: string): Buffer => {
-  const rawTxBuffer = Buffer.from(rawTxHex, "hex");
+/**
+ * Validates a raw transaction hex string against the provided UTXO data.
+ * Decodes the transaction and verifies that the transaction ID, vout index,
+ * scriptPubKey, and value all match the UTXO. Returns the validated raw
+ * transaction as a buffer.
+ */
+const validateRawTxHex = (utxo: UTXO): Buffer => {
+  if (!utxo.rawTxHex) {
+    throw new StakingError(StakingErrorCode.INVALID_INPUT, "Missing rawTxHex");
+  }
+  const rawTxBuffer = Buffer.from(utxo.rawTxHex, "hex");
 
   let decodedTx: bitcoin.Transaction;
   try {
@@ -52,11 +61,15 @@ const validateRawTxHex = (utxo: UTXO, rawTxHex: string): Buffer => {
   return rawTxBuffer;
 };
 
-const validateRedeemScript = (
-  scriptPubKey: Buffer,
-  redeemScript: string,
-): Buffer => {
-  const redeemScriptBuffer = Buffer.from(redeemScript, "hex");
+const validateRedeemScript = (utxo: UTXO): Buffer => {
+  if (!utxo.redeemScript) {
+    throw new StakingError(
+      StakingErrorCode.INVALID_INPUT,
+      "Missing redeemScript for P2SH input",
+    );
+  }
+  const scriptPubKey = Buffer.from(utxo.scriptPubKey, "hex");
+  const redeemScriptBuffer = Buffer.from(utxo.redeemScript, "hex");
   // Compute RIPEMD160(SHA256(redeemScript)) to get the 20-byte hash used in P2SH addresses
   const redeemScriptHash = bitcoin.crypto.hash160(redeemScriptBuffer);
   // Create a P2SH payment object from the hash to reconstruct the scriptPubKey for validation
@@ -76,11 +89,15 @@ const validateRedeemScript = (
   return redeemScriptBuffer;
 };
 
-const validateWitnessScript = (
-  scriptPubKey: Buffer,
-  witnessScript: string,
-): Buffer => {
-  const witnessScriptBuffer = Buffer.from(witnessScript, "hex");
+const validateWitnessScript = (utxo: UTXO): Buffer => {
+  if (!utxo.witnessScript) {
+    throw new StakingError(
+      StakingErrorCode.INVALID_INPUT,
+      "Missing witnessScript for P2WSH input",
+    );
+  }
+  const scriptPubKey = Buffer.from(utxo.scriptPubKey, "hex");
+  const witnessScriptBuffer = Buffer.from(utxo.witnessScript, "hex");
   // Compute SHA256(witnessScript) to get the 32-byte hash used in P2WSH addresses
   const witnessScriptHash = bitcoin.crypto.sha256(witnessScriptBuffer);
   // Create a P2WSH payment object from the hash to reconstruct the scriptPubKey for validation
@@ -120,33 +137,12 @@ export const getPsbtInputFields = (
 
   switch (type) {
     case BitcoinScriptType.P2PKH: {
-      if (!utxo.rawTxHex) {
-        throw new StakingError(
-          StakingErrorCode.INVALID_INPUT,
-          "Missing rawTxHex for legacy P2PKH input",
-        );
-      }
-      const nonWitnessUtxo = validateRawTxHex(utxo, utxo.rawTxHex);
+      const nonWitnessUtxo = validateRawTxHex(utxo);
       return { nonWitnessUtxo };
     }
     case BitcoinScriptType.P2SH: {
-      if (!utxo.rawTxHex) {
-        throw new StakingError(
-          StakingErrorCode.INVALID_INPUT,
-          "Missing rawTxHex for P2SH input",
-        );
-      }
-      if (!utxo.redeemScript) {
-        throw new StakingError(
-          StakingErrorCode.INVALID_INPUT,
-          "Missing redeemScript for P2SH input",
-        );
-      }
-      const nonWitnessUtxo = validateRawTxHex(utxo, utxo.rawTxHex);
-      const redeemScript = validateRedeemScript(
-        scriptPubKey,
-        utxo.redeemScript,
-      );
+      const nonWitnessUtxo = validateRawTxHex(utxo);
+      const redeemScript = validateRedeemScript(utxo);
       return {
         nonWitnessUtxo,
         redeemScript,
@@ -161,16 +157,7 @@ export const getPsbtInputFields = (
       };
     }
     case BitcoinScriptType.P2WSH: {
-      if (!utxo.witnessScript) {
-        throw new StakingError(
-          StakingErrorCode.INVALID_INPUT,
-          "Missing witnessScript for P2WSH input",
-        );
-      }
-      const witnessScript = validateWitnessScript(
-        scriptPubKey,
-        utxo.witnessScript,
-      );
+      const witnessScript = validateWitnessScript(utxo);
       return {
         witnessUtxo: {
           script: scriptPubKey,

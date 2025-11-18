@@ -91,9 +91,7 @@ describe.each(testingNetworks)(
               network,
             });
             const utxo = makeUTXO(p2pkh.output!.toString("hex"));
-            expect(() => getPsbtInputFields(utxo)).toThrow(
-              "Missing rawTxHex for legacy P2PKH input",
-            );
+            expect(() => getPsbtInputFields(utxo)).toThrow("Missing rawTxHex");
           });
 
           it("throws if rawTxHex has mismatched txid", () => {
@@ -220,9 +218,7 @@ describe.each(testingNetworks)(
             const utxo = makeUTXO(p2sh.output!.toString("hex"), {
               redeemScript: nested.output!.toString("hex"),
             });
-            expect(() => getPsbtInputFields(utxo)).toThrow(
-              "Missing rawTxHex for P2SH input",
-            );
+            expect(() => getPsbtInputFields(utxo)).toThrow("Missing rawTxHex");
           });
 
           it("throws if redeemScript is missing for P2SH", () => {
