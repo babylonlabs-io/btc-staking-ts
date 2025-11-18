@@ -488,6 +488,26 @@ export class StakingDataGenerator {
     }
     return finalityProviderPksNoCoordHex;
   };
+
+  generateValidUTXOWithRawTx = (
+    scriptPubKey: string,
+    value: number,
+    vout: number = 0,
+  ): UTXO & { rawTxHex: string } => {
+    const tx = new bitcoin.Transaction();
+    tx.version = 2;
+    tx.addInput(Buffer.alloc(32), 0);
+    tx.addOutput(Buffer.from(scriptPubKey, "hex"), value);
+    const rawTxHex = tx.toHex();
+
+    return {
+      txid: tx.getId(),
+      vout,
+      value,
+      scriptPubKey,
+      rawTxHex,
+    };
+  };
 }
 
 export const getRandomPaymentScriptHex = (pubKeyHex: string): string => {
