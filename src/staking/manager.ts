@@ -1,13 +1,9 @@
 import {
   btccheckpoint,
   btcstaking,
+  btcstakingpop,
   btcstakingtx,
 } from "@babylonlabs-io/babylon-proto-ts";
-import {
-  BIP322Sig,
-  BTCSigType,
-  ProofOfPossessionBTC,
-} from "@babylonlabs-io/babylon-proto-ts/dist/generated/babylon/btcstaking/v1/pop";
 import { Psbt, Transaction, networks } from "bitcoinjs-lib";
 import type { Emitter } from "nanoevents";
 
@@ -1097,8 +1093,8 @@ export class BabylonBtcStakingManager {
     channel: "delegation:create" | "delegation:register" | "delegation:expand",
     bech32Address: string,
     stakerBtcAddress: string,
-  ): Promise<ProofOfPossessionBTC> {
-    let sigType: BTCSigType = BTCSigType.ECDSA;
+  ): Promise<btcstakingpop.ProofOfPossessionBTC> {
+    let sigType: btcstakingpop.BTCSigType = btcstakingpop.BTCSigType.ECDSA;
 
     // For Taproot or Native SegWit addresses, use the BIP322 signature scheme
     // in the proof of possession as it uses the same signature type as the regular
@@ -1107,7 +1103,7 @@ export class BabylonBtcStakingManager {
       isTaproot(stakerBtcAddress, this.network) ||
       isNativeSegwit(stakerBtcAddress, this.network)
     ) {
-      sigType = BTCSigType.BIP322;
+      sigType = btcstakingpop.BTCSigType.BIP322;
     }
 
     const [chainId, babyTipHeight] = await Promise.all([
@@ -1135,17 +1131,17 @@ export class BabylonBtcStakingManager {
 
     const signedBabylonAddress = await this.btcProvider.signMessage(
       messageToSign,
-      sigType === BTCSigType.BIP322 ? "bip322-simple" : "ecdsa",
+      sigType === btcstakingpop.BTCSigType.BIP322 ? "bip322-simple" : "ecdsa",
     );
 
     let btcSig: Uint8Array;
-    if (sigType === BTCSigType.BIP322) {
-      const bip322Sig = BIP322Sig.fromPartial({
+    if (sigType === btcstakingpop.BTCSigType.BIP322) {
+      const bip322Sig = btcstakingpop.BIP322Sig.fromPartial({
         address: stakerBtcAddress,
         sig: new Uint8Array(Buffer.from(signedBabylonAddress, "base64")),
       });
       // Encode the BIP322 protobuf message to a Uint8Array
-      btcSig = BIP322Sig.encode(bip322Sig).finish();
+      btcSig = btcstakingpop.BIP322Sig.encode(bip322Sig).finish();
     } else {
       // Encode the ECDSA signature to a Uint8Array
       btcSig = new Uint8Array(Buffer.from(signedBabylonAddress, "base64"));
