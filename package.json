@@ -50,7 +50,7 @@
   "devDependencies": {
     "@babel/preset-env": "^7.28.3",
     "@babylonlabs-io/babylon-proto-ts": "1.22.1",
-    "bitcoinjs-lib": "6.1.5",
+    "bitcoinjs-lib": "6.1.7",
     "@commitlint/cli": "^19.8.0",
     "@commitlint/config-conventional": "^19.8.0",
     "@semantic-release/changelog": "^6.0.3",
@@ -82,7 +82,7 @@
   },
   "peerDependencies": {
     "@babylonlabs-io/babylon-proto-ts": "1.22.1",
-    "bitcoinjs-lib": "6.1.5"
+    "bitcoinjs-lib": "6.1.7"
   },
   "publishConfig": {
     "access": "public"
