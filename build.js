@@ -6,12 +6,15 @@ import path from "path";
 async function main() {
   const pkgPath = path.resolve("./package.json");
   const pkg = JSON.parse(await readFile(pkgPath, "utf8"));
-  const { dependencies } = pkg;
+  const { dependencies, peerDependencies } = pkg;
 
   const shared = {
     entryPoints: ["src/index.ts"],
     bundle: true,
-    external: Object.keys(dependencies || {}),
+    external: [
+      ...Object.keys(dependencies || {}),
+      ...Object.keys(peerDependencies || {}),
+    ],
   };
 
   await build({
