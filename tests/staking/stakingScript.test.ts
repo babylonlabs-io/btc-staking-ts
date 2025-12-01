@@ -211,6 +211,88 @@ describe("stakingScript", () => {
           ),
       ).toThrow("Invalid script data provided");
     });
+
+    // These tests use DIFFERENT Buffer instances with the SAME content to verify
+    // that the validation correctly detects duplicates by content, not by reference
+    it("should fail if staker key is duplicated as finality provider (different Buffer instances)", () => {
+      const stakerKeyBuf = Buffer.from(pk1); // Create new Buffer instance
+      const fpKeyBuf = Buffer.from(pk1); // Same content, different instance
+      expect(
+        () =>
+          new StakingScriptData(
+            stakerKeyBuf,
+            [fpKeyBuf], // DUPLICATE content, different Buffer reference
+            [pk3, pk4, pk5],
+            2,
+            stakingTimeLock,
+            unbondingTimeLock,
+          ),
+      ).toThrow("Invalid script data provided");
+    });
+
+    it("should fail if staker key is duplicated as covenant key (different Buffer instances)", () => {
+      const stakerKeyBuf = Buffer.from(pk1);
+      const covenantKeyBuf = Buffer.from(pk1); // Same content, different instance
+      expect(
+        () =>
+          new StakingScriptData(
+            stakerKeyBuf,
+            [pk2],
+            [pk3, covenantKeyBuf, pk4, pk5], // DUPLICATE content
+            2,
+            stakingTimeLock,
+            unbondingTimeLock,
+          ),
+      ).toThrow("Invalid script data provided");
+    });
+
+    it("should fail if finality provider keys have duplicates (different Buffer instances)", () => {
+      const fpKey1 = Buffer.from(pk2);
+      const fpKey2 = Buffer.from(pk2); // Same content, different instance
+      expect(
+        () =>
+          new StakingScriptData(
+            pk1,
+            [fpKey1, fpKey2], // DUPLICATE content
+            [pk3, pk4, pk5],
+            2,
+            stakingTimeLock,
+            unbondingTimeLock,
+          ),
+      ).toThrow("Invalid script data provided");
+    });
+
+    it("should fail if finality provider key is duplicated as covenant key (different Buffer instances)", () => {
+      const fpKeyBuf = Buffer.from(pk2);
+      const covenantKeyBuf = Buffer.from(pk2); // Same content, different instance
+      expect(
+        () =>
+          new StakingScriptData(
+            pk1,
+            [fpKeyBuf],
+            [covenantKeyBuf, pk3, pk4, pk5], // DUPLICATE content
+            2,
+            stakingTimeLock,
+            unbondingTimeLock,
+          ),
+      ).toThrow("Invalid script data provided");
+    });
+
+    it("should fail if covenant keys have duplicates (different Buffer instances)", () => {
+      const covenantKey1 = Buffer.from(pk3);
+      const covenantKey2 = Buffer.from(pk3); // Same content, different instance
+      expect(
+        () =>
+          new StakingScriptData(
+            pk1,
+            [pk2],
+            [covenantKey1, covenantKey2, pk4, pk5], // DUPLICATE content
+            2,
+            stakingTimeLock,
+            unbondingTimeLock,
+          ),
+      ).toThrow("Invalid script data provided");
+    });
   });
 
   describe("Happy path", () => {

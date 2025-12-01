@@ -7,7 +7,7 @@
   "typings": "dist/index.d.ts",
   "type": "module",
   "scripts": {
-    "generate-types": "dts-bundle-generator -o ./dist/index.d.ts ./src/index.ts",
+    "generate-types": "dts-bundle-generator --no-check -o ./dist/index.d.ts ./src/index.ts",
     "build": "node build.js && npm run generate-types",
     "format": "prettier --check \"src/**/*.ts\" \"tests/**/*.ts\"",
     "format:fix": "prettier --write \"src/**/*.ts\" \"tests/**/*.ts\"",
@@ -48,6 +48,9 @@
   "author": "Babylon Labs Ltd.",
   "license": "SEE LICENSE IN LICENSE",
   "devDependencies": {
+    "@babel/preset-env": "^7.28.3",
+    "@babylonlabs-io/babylon-proto-ts": "1.22.1",
+    "bitcoinjs-lib": "6.1.7",
     "@commitlint/cli": "^19.8.0",
     "@commitlint/config-conventional": "^19.8.0",
     "@semantic-release/changelog": "^6.0.3",
@@ -74,10 +77,12 @@
     "typescript-eslint": "^7.4.0"
   },
   "dependencies": {
-    "@babylonlabs-io/babylon-proto-ts": "1.7.2",
     "@bitcoin-js/tiny-secp256k1-asmjs": "2.2.3",
-    "@cosmjs/encoding": "^0.33.0",
-    "bitcoinjs-lib": "6.1.5"
+    "@cosmjs/encoding": "0.36.0"
+  },
+  "peerDependencies": {
+    "@babylonlabs-io/babylon-proto-ts": "1.22.1",
+    "bitcoinjs-lib": "6.1.7"
   },
   "publishConfig": {
     "access": "public"

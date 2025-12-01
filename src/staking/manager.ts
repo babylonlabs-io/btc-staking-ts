@@ -1,13 +1,9 @@
 import {
   btccheckpoint,
   btcstaking,
+  btcstakingpop,
   btcstakingtx,
 } from "@babylonlabs-io/babylon-proto-ts";
-import {
-  BIP322Sig,
-  BTCSigType,
-  ProofOfPossessionBTC,
-} from "@babylonlabs-io/babylon-proto-ts/dist/generated/babylon/btcstaking/v1/pop";
 import { Psbt, Transaction, networks } from "bitcoinjs-lib";
 import type { Emitter } from "nanoevents";
 
@@ -30,6 +26,7 @@ import { reverseBuffer } from "../utils";
 import { isValidBabylonAddress } from "../utils/babylon";
 import { isNativeSegwit, isTaproot } from "../utils/btc";
 import { buildPopMessage } from "../utils/pop";
+import { validateSignedPsbtIntegrity } from "../utils/psbt";
 import {
   clearTxSignatures,
   deriveMerkleProof,
@@ -503,8 +500,10 @@ export class BabylonBtcStakingManager {
       type: "staking",
     });
 
+    const unsignedPsbtHex = stakingPsbt.toHex();
+
     const signedStakingPsbtHex = await this.btcProvider.signPsbt(
-      stakingPsbt.toHex(),
+      unsignedPsbtHex,
       {
         contracts,
         action: {
@@ -513,7 +512,10 @@ export class BabylonBtcStakingManager {
       },
     );
 
-    return Psbt.fromHex(signedStakingPsbtHex).extractTransaction();
+    const signedStakingPsbt = Psbt.fromHex(signedStakingPsbtHex);
+    validateSignedPsbtIntegrity(stakingPsbt, signedStakingPsbt);
+
+    return signedStakingPsbt.extractTransaction();
   }
 
   /**
@@ -599,7 +601,7 @@ export class BabylonBtcStakingManager {
     // Define the contract information for the PSBT signing
     const contracts: Contract[] = [
       {
-        id: ContractId.STAKING,
+        id: ContractId.STAKING_EXPANSION,
         params: {
           stakerPk: stakerBtcInfo.publicKeyNoCoordHex,
           finalityProviders: stakingInput.finalityProviderPksNoCoordHex,
@@ -620,25 +622,33 @@ export class BabylonBtcStakingManager {
       covenantThreshold: params.covenantQuorum,
       unbondingTimeBlocks: params.unbondingTime,
       stakingDuration: stakingInput.stakingTimelock,
-      type: "staking",
+      type: "staking-expansion",
     });
 
     // Sign the PSBT using the BTC provider (wallet)
     // The wallet will sign the transaction based on the contract information
     // provided
+    const unsignedStakingExpansionPsbtHex = stakingExpansionPsbt.toHex();
+
     const signedStakingPsbtHex = await this.btcProvider.signPsbt(
-      stakingExpansionPsbt.toHex(),
+      unsignedStakingExpansionPsbtHex,
       {
         contracts,
         action: {
-          name: ActionName.SIGN_BTC_STAKING_TRANSACTION,
+          name: ActionName.SIGN_BTC_STAKING_EXPANSION_TRANSACTION,
         },
       },
     );
 
+    const signedStakingExpansionPsbt = Psbt.fromHex(signedStakingPsbtHex);
+    validateSignedPsbtIntegrity(
+      stakingExpansionPsbt,
+      signedStakingExpansionPsbt,
+    );
+
     // Extract the signed transaction from the PSBT
     const signedStakingExpansionTx =
-      Psbt.fromHex(signedStakingPsbtHex).extractTransaction();
+      signedStakingExpansionPsbt.extractTransaction();
 
     // Validate that the signed transaction hash matches the unsigned
     // transaction hash
@@ -755,8 +765,10 @@ export class BabylonBtcStakingManager {
       type: "unbonding",
     });
 
+    const unsignedUnbondingPsbtHex = psbt.toHex();
+
     const signedUnbondingPsbtHex = await this.btcProvider.signPsbt(
-      psbt.toHex(),
+      unsignedUnbondingPsbtHex,
       {
         contracts,
         action: {
@@ -765,9 +777,10 @@ export class BabylonBtcStakingManager {
       },
     );
 
-    const signedUnbondingTx = Psbt.fromHex(
-      signedUnbondingPsbtHex,
-    ).extractTransaction();
+    const signedUnbondingPsbt = Psbt.fromHex(signedUnbondingPsbtHex);
+    validateSignedPsbtIntegrity(psbt, signedUnbondingPsbt);
+
+    const signedUnbondingTx = signedUnbondingPsbt.extractTransaction();
 
     return {
       transaction: signedUnbondingTx,
@@ -896,8 +909,10 @@ export class BabylonBtcStakingManager {
       type: "early-unbonded",
     });
 
+    const unsignedWithdrawalPsbtHex = unbondingPsbt.toHex();
+
     const signedWithdrawalPsbtHex = await this.btcProvider.signPsbt(
-      unbondingPsbt.toHex(),
+      unsignedWithdrawalPsbtHex,
       {
         contracts,
         action: {
@@ -906,8 +921,11 @@ export class BabylonBtcStakingManager {
       },
     );
 
+    const signedWithdrawalPsbt = Psbt.fromHex(signedWithdrawalPsbtHex);
+    validateSignedPsbtIntegrity(unbondingPsbt, signedWithdrawalPsbt);
+
     return {
-      transaction: Psbt.fromHex(signedWithdrawalPsbtHex).extractTransaction(),
+      transaction: signedWithdrawalPsbt.extractTransaction(),
       fee,
     };
   }
@@ -967,8 +985,10 @@ export class BabylonBtcStakingManager {
       type: "staking-expired",
     });
 
+    const unsignedWithdrawalPsbtHex = psbt.toHex();
+
     const signedWithdrawalPsbtHex = await this.btcProvider.signPsbt(
-      psbt.toHex(),
+      unsignedWithdrawalPsbtHex,
       {
         contracts,
         action: {
@@ -977,8 +997,11 @@ export class BabylonBtcStakingManager {
       },
     );
 
+    const signedWithdrawalPsbt = Psbt.fromHex(signedWithdrawalPsbtHex);
+    validateSignedPsbtIntegrity(psbt, signedWithdrawalPsbt);
+
     return {
-      transaction: Psbt.fromHex(signedWithdrawalPsbtHex).extractTransaction(),
+      transaction: signedWithdrawalPsbt.extractTransaction(),
       fee,
     };
   }
@@ -1038,8 +1061,10 @@ export class BabylonBtcStakingManager {
       type: "slashing",
     });
 
+    const unsignedWithdrawSlashingPsbtHex = psbt.toHex();
+
     const signedWithrawSlashingPsbtHex = await this.btcProvider.signPsbt(
-      psbt.toHex(),
+      unsignedWithdrawSlashingPsbtHex,
       {
         contracts,
         action: {
@@ -1048,10 +1073,13 @@ export class BabylonBtcStakingManager {
       },
     );
 
+    const signedWithdrawSlashingPsbt = Psbt.fromHex(
+      signedWithrawSlashingPsbtHex,
+    );
+    validateSignedPsbtIntegrity(psbt, signedWithdrawSlashingPsbt);
+
     return {
-      transaction: Psbt.fromHex(
-        signedWithrawSlashingPsbtHex,
-      ).extractTransaction(),
+      transaction: signedWithdrawSlashingPsbt.extractTransaction(),
       fee,
     };
   }
@@ -1065,8 +1093,8 @@ export class BabylonBtcStakingManager {
     channel: "delegation:create" | "delegation:register" | "delegation:expand",
     bech32Address: string,
     stakerBtcAddress: string,
-  ): Promise<ProofOfPossessionBTC> {
-    let sigType: BTCSigType = BTCSigType.ECDSA;
+  ): Promise<btcstakingpop.ProofOfPossessionBTC> {
+    let sigType: btcstakingpop.BTCSigType = btcstakingpop.BTCSigType.ECDSA;
 
     // For Taproot or Native SegWit addresses, use the BIP322 signature scheme
     // in the proof of possession as it uses the same signature type as the regular
@@ -1075,7 +1103,7 @@ export class BabylonBtcStakingManager {
       isTaproot(stakerBtcAddress, this.network) ||
       isNativeSegwit(stakerBtcAddress, this.network)
     ) {
-      sigType = BTCSigType.BIP322;
+      sigType = btcstakingpop.BTCSigType.BIP322;
     }
 
     const [chainId, babyTipHeight] = await Promise.all([
@@ -1103,20 +1131,20 @@ export class BabylonBtcStakingManager {
 
     const signedBabylonAddress = await this.btcProvider.signMessage(
       messageToSign,
-      sigType === BTCSigType.BIP322 ? "bip322-simple" : "ecdsa",
+      sigType === btcstakingpop.BTCSigType.BIP322 ? "bip322-simple" : "ecdsa",
     );
 
     let btcSig: Uint8Array;
-    if (sigType === BTCSigType.BIP322) {
-      const bip322Sig = BIP322Sig.fromPartial({
+    if (sigType === btcstakingpop.BTCSigType.BIP322) {
+      const bip322Sig = btcstakingpop.BIP322Sig.fromPartial({
         address: stakerBtcAddress,
-        sig: Buffer.from(signedBabylonAddress, "base64"),
+        sig: new Uint8Array(Buffer.from(signedBabylonAddress, "base64")),
       });
       // Encode the BIP322 protobuf message to a Uint8Array
-      btcSig = BIP322Sig.encode(bip322Sig).finish();
+      btcSig = btcstakingpop.BIP322Sig.encode(bip322Sig).finish();
     } else {
       // Encode the ECDSA signature to a Uint8Array
-      btcSig = Buffer.from(signedBabylonAddress, "base64");
+      btcSig = new Uint8Array(Buffer.from(signedBabylonAddress, "base64"));
     }
 
     return {

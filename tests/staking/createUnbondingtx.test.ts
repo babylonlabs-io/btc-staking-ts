@@ -109,5 +109,15 @@ describe.each(testingNetworks)(
       // Validate transaction and psbt match
       expect(psbt.txOutputs[0].script).toEqual(transaction.outs[0].script);
     });
+
+    it(`${networkName} should reject unbonding transaction with incorrect output value`, async () => {
+      const { transaction } = staking.createUnbondingTransaction(stakingTx);
+
+      transaction.outs[0].value = 1000;
+
+      expect(() => staking.toUnbondingPsbt(transaction, stakingTx)).toThrow(
+        /Unbonding output value .* does not match expected value/,
+      );
+    });
   },
 );

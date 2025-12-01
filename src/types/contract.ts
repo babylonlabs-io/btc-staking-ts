@@ -9,6 +9,7 @@ export interface Contract {
 
 export enum ContractId {
   STAKING = "babylon:staking",
+  STAKING_EXPANSION = "babylon:staking-expansion",
   UNBONDING = "babylon:unbonding",
   SLASHING = "babylon:slashing",
   WITHDRAW = "babylon:withdraw",

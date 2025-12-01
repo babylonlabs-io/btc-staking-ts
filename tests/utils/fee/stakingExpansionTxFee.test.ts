@@ -314,6 +314,53 @@ describe.each(testingNetworks)(
           expect(result.fee).toBe(506);
           expect(result.selectedUTXO).toEqual(availableUTXOs[0]);
         });
+
+        it("should handle duplicate UTXOs by only considering unique (txid, vout) pairs", () => {
+          const txid = dataGenerator.generateRandomTxId();
+          const vout = 0;
+          const availableUTXOs: UTXO[] = [
+            {
+              txid,
+              vout,
+              scriptPubKey: dataGenerator.generateRandomScriptPubKey(),
+              value: 10000,
+            },
+            {
+              txid, // Same txid
+              vout, // Same vout (duplicate)
+              scriptPubKey: dataGenerator.generateRandomScriptPubKey(),
+              value: 10000,
+            },
+            {
+              txid: dataGenerator.generateRandomTxId(),
+              vout: 1,
+              scriptPubKey: dataGenerator.generateRandomScriptPubKey(),
+              value: 20000,
+            },
+          ];
+
+          const outputs = buildStakingTransactionOutputs(
+            mockScripts,
+            network,
+            2000,
+          );
+
+          const result = getStakingExpansionTxFundingUTXOAndFees(
+            availableUTXOs,
+            1,
+            outputs,
+          );
+
+          // Should select one of the unique UTXOs
+          expect(result.selectedUTXO).toBeDefined();
+          expect(result.fee).toBeGreaterThan(0);
+
+          // Verify the selected UTXO is one of the unique ones
+          const uniqueKey1 = `${txid}:${vout}`;
+          const uniqueKey2 = `${availableUTXOs[2].txid}:${availableUTXOs[2].vout}`;
+          const selectedKey = `${result.selectedUTXO.txid}:${result.selectedUTXO.vout}`;
+          expect([uniqueKey1, uniqueKey2]).toContain(selectedKey);
+        });
       });
     });
   },

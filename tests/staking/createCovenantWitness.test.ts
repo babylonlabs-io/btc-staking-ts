@@ -190,4 +190,65 @@ describe("createCovenantWitness", () => {
       ),
     ).toThrow("Duplicate covenant signature for the same public key");
   });
+
+  it("should handle invalid signature at the beginning of the array", () => {
+    const originalWitness = [Buffer.from("aa", "hex")];
+    const paramsCovenants = [
+      Buffer.from(
+        "1111111111111111111111111111111111111111111111111111111111111111",
+        "hex",
+      ),
+      Buffer.from(
+        "2222222222222222222222222222222222222222222222222222222222222222",
+        "hex",
+      ),
+    ];
+    const covenantSigs = [
+      // ❌ Invalid signature FIRST - this is the critical bug scenario
+      {
+        btcPkHex:
+          "ffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffff",
+        sigHex:
+          "ffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffff",
+      },
+      // ✅ Valid signatures AFTER
+      {
+        btcPkHex:
+          "1111111111111111111111111111111111111111111111111111111111111111",
+        sigHex:
+          "1111111111111111111111111111111111111111111111111111111111111111",
+      },
+      {
+        btcPkHex:
+          "2222222222222222222222222222222222222222222222222222222222222222",
+        sigHex:
+          "2222222222222222222222222222222222222222222222222222222222222222",
+      },
+    ];
+    const covenantQuorum = 2;
+
+    const result = createCovenantWitness(
+      originalWitness,
+      paramsCovenants,
+      covenantSigs,
+      covenantQuorum,
+    );
+
+    // Verify the witness contains the 2 valid signatures, not the invalid one
+    // paramsCovenants are sorted in reverse order: [222..., 111...]
+    expect(result).toEqual([
+      Buffer.from(
+        "2222222222222222222222222222222222222222222222222222222222222222",
+        "hex",
+      ),
+      Buffer.from(
+        "1111111111111111111111111111111111111111111111111111111111111111",
+        "hex",
+      ),
+      ...originalWitness,
+    ]);
+
+    // Verify no empty buffers in the witness (which would indicate the bug)
+    expect(result.some((buf) => buf.length === 0)).toBe(false);
+  });
 });

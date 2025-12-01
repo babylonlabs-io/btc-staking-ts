@@ -20,6 +20,25 @@ import {
 } from "./utils";
 
 /**
+ * Deduplicates UTXOs based on their (txid, vout) pair.
+ * If duplicate UTXOs are found, only the first occurrence is kept.
+ *
+ * @param utxos - Array of UTXOs that may contain duplicates.
+ * @returns Array of unique UTXOs.
+ */
+const deduplicateUTXOs = (utxos: UTXO[]): UTXO[] => {
+  const seen = new Set<string>();
+  return utxos.filter((utxo) => {
+    const key = `${utxo.txid}:${utxo.vout}`;
+    if (seen.has(key)) {
+      return false;
+    }
+    seen.add(key);
+    return true;
+  });
+};
+
+/**
  * Selects UTXOs and calculates the fee for a staking transaction.
  * This method selects the highest value UTXOs from all available UTXOs to
  * cover the staking amount and the transaction fees.
@@ -48,7 +67,10 @@ export const getStakingTxInputUTXOsAndFees = (
     throw new Error("Insufficient funds");
   }
 
-  const validUTXOs = availableUTXOs.filter((utxo) => {
+  // Deduplicate UTXOs to prevent duplicate inputs
+  const uniqueUTXOs = deduplicateUTXOs(availableUTXOs);
+
+  const validUTXOs = uniqueUTXOs.filter((utxo) => {
     const script = Buffer.from(utxo.scriptPubKey, "hex");
     return !!bitcoinScript.decompile(script);
   });
@@ -120,9 +142,12 @@ export const getStakingExpansionTxFundingUTXOAndFees = (
     throw new Error("Insufficient funds");
   }
 
+  // Deduplicate UTXOs to prevent duplicate inputs
+  const uniqueUTXOs = deduplicateUTXOs(availableUTXOs);
+
   // Filter out invalid UTXOs by checking if their script can be decompiled
   // This ensures we only work with properly formatted Bitcoin scripts
-  const validUTXOs = availableUTXOs.filter((utxo) => {
+  const validUTXOs = uniqueUTXOs.filter((utxo) => {
     const script = Buffer.from(utxo.scriptPubKey, "hex");
     const decompiledScript = bitcoinScript.decompile(script);
     return decompiledScript && decompiledScript.length > 0;
