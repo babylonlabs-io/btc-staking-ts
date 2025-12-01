@@ -232,7 +232,9 @@ describe.each(testingNetworks)(
                 network,
                 defaultOutputIndex,
               ),
-            ).toThrow("Invalid slashingPkScriptHex format");
+            ).toThrow(
+              "slashingPkScriptHex must be a non-empty hex string with even length",
+            );
           });
 
           it("should throw for invalid slashingPkScriptHex format (non-hex chars)", () => {
@@ -246,7 +248,9 @@ describe.each(testingNetworks)(
                 network,
                 defaultOutputIndex,
               ),
-            ).toThrow("Invalid slashingPkScriptHex format");
+            ).toThrow(
+              "slashingPkScriptHex must be a non-empty hex string with even length",
+            );
           });
         });
 
@@ -398,7 +402,9 @@ describe.each(testingNetworks)(
                 minSlashingFee,
                 network,
               ),
-            ).toThrow("Invalid slashingPkScriptHex format");
+            ).toThrow(
+              "slashingPkScriptHex must be a non-empty hex string with even length",
+            );
           });
 
           it("should throw for invalid slashingPkScriptHex format (non-hex chars)", () => {
@@ -411,7 +417,9 @@ describe.each(testingNetworks)(
                 minSlashingFee,
                 network,
               ),
-            ).toThrow("Invalid slashingPkScriptHex format");
+            ).toThrow(
+              "slashingPkScriptHex must be a non-empty hex string with even length",
+            );
           });
         });
       },

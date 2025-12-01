@@ -108,8 +108,20 @@ export const validateStakingTxInputData = (
       "Invalid staking amount",
     );
   }
+  if (stakingAmountSat <= 0) {
+    throw new StakingError(
+      StakingErrorCode.INVALID_INPUT,
+      "Staking amount must be positive",
+    );
+  }
   if (!Number.isInteger(timelock)) {
     throw new StakingError(StakingErrorCode.INVALID_INPUT, "Invalid timelock");
+  }
+  if (timelock <= 0) {
+    throw new StakingError(
+      StakingErrorCode.INVALID_INPUT,
+      "Timelock must be positive",
+    );
   }
   if (!Number.isInteger(feeRate)) {
     throw new StakingError(StakingErrorCode.INVALID_INPUT, "Invalid fee rate");

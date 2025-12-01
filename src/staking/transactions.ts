@@ -735,18 +735,22 @@ function slashingTransaction(
   const slashingAmount = Math.round(stakingAmount * slashingRate);
 
   // Compute the slashing output
-  const isString = typeof slashingPkScriptHex === "string";
-  const isNonEmpty = isString && slashingPkScriptHex.length > 0;
-  const isEvenLength = isNonEmpty && slashingPkScriptHex.length % 2 === 0;
-  const hasHexOnlyChars =
-    isEvenLength && /^[0-9a-fA-F]+$/.test(slashingPkScriptHex);
-  if (!(isString && isNonEmpty && isEvenLength && hasHexOnlyChars)) {
-    throw new Error("Invalid slashingPkScriptHex format");
+  if (
+    typeof slashingPkScriptHex !== "string" ||
+    slashingPkScriptHex.length === 0 ||
+    slashingPkScriptHex.length % 2 !== 0 ||
+    !/^[0-9a-fA-F]+$/.test(slashingPkScriptHex)
+  ) {
+    throw new Error(
+      "slashingPkScriptHex must be a non-empty hex string with even length",
+    );
   }
   const slashingOutput = Buffer.from(slashingPkScriptHex, "hex");
-  const hasAtLeastOneByte = slashingOutput.length >= 1;
-  if (!hasAtLeastOneByte) {
-    throw new Error("Invalid slashingPkScriptHex format");
+
+  if (slashingOutput.length < 1) {
+    throw new Error(
+      "slashingPkScriptHex decoded to an empty buffer (expected at least 1 byte)",
+    );
   }
 
   // If OP_RETURN is not included, the slashing amount must be greater than the
@@ -875,7 +879,7 @@ export const createCovenantWitness = (
   const filteredCovenantSigs = covenantSigs.filter((sig) => {
     const btcPkHexBuf = Buffer.from(sig.btcPkHex, "hex");
     return paramsCovenants.some((covenant) =>
-      covenant.equals(Uint8Array.from(btcPkHexBuf)),
+      covenant.equals(btcPkHexBuf as Uint8Array),
     );
   });
 
@@ -909,14 +913,14 @@ export const createCovenantWitness = (
 
   // we need covenant from params to be sorted in reverse order
   const paramsCovenantsSorted = [...paramsCovenants]
-    .sort((a, b) => Buffer.compare(Uint8Array.from(a), Uint8Array.from(b)))
+    .sort((a, b) => Buffer.compare(a as Uint8Array, b as Uint8Array))
     .reverse();
 
   const composedCovenantSigs = paramsCovenantsSorted.map((covenant) => {
     // in case there's covenant with this btc_pk_hex we return the sig
     // otherwise we return empty Buffer
     const covenantSig = covenantSigsBuffers.find(
-      (sig) => covenant.compare(Uint8Array.from(sig.btcPkHex)) === 0,
+      (sig) => covenant.compare(sig.btcPkHex as Uint8Array) === 0,
     );
     return covenantSig?.sigHex || Buffer.alloc(0);
   });
