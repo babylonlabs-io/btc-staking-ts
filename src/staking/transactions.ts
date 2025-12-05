@@ -747,12 +747,6 @@ function slashingTransaction(
   }
   const slashingOutput = Buffer.from(slashingPkScriptHex, "hex");
 
-  if (slashingOutput.length < 1) {
-    throw new Error(
-      "slashingPkScriptHex decoded to an empty buffer (expected at least 1 byte)",
-    );
-  }
-
   // If OP_RETURN is not included, the slashing amount must be greater than the
   // dust limit.
   if (opcodes.OP_RETURN != slashingOutput[0]) {

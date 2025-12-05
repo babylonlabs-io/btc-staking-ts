@@ -114,7 +114,7 @@ describe.each(testingNetworks)("validateStakingTxInputData", ({ datagen }) => {
             validInputUTXOs,
             feeRate,
           ),
-        ).toThrow("Invalid staking amount");
+        ).toThrow("Staking amount must be an integer");
       });
 
       it("should throw an error if timelock is not an integer", () => {
@@ -126,7 +126,7 @@ describe.each(testingNetworks)("validateStakingTxInputData", ({ datagen }) => {
             validInputUTXOs,
             feeRate,
           ),
-        ).toThrow("Invalid timelock");
+        ).toThrow("Timelock must be an integer");
       });
 
       it("should throw an error if feeRate is not an integer", () => {
@@ -138,7 +138,7 @@ describe.each(testingNetworks)("validateStakingTxInputData", ({ datagen }) => {
             validInputUTXOs,
             1.1,
           ),
-        ).toThrow("Invalid fee rate");
+        ).toThrow("Fee rate must be an integer");
       });
     },
   );

@@ -105,7 +105,7 @@ export const validateStakingTxInputData = (
   if (!Number.isInteger(stakingAmountSat)) {
     throw new StakingError(
       StakingErrorCode.INVALID_INPUT,
-      "Invalid staking amount",
+      "Staking amount must be an integer",
     );
   }
   if (stakingAmountSat <= 0) {
@@ -115,7 +115,10 @@ export const validateStakingTxInputData = (
     );
   }
   if (!Number.isInteger(timelock)) {
-    throw new StakingError(StakingErrorCode.INVALID_INPUT, "Invalid timelock");
+    throw new StakingError(
+      StakingErrorCode.INVALID_INPUT,
+      "Timelock must be an integer",
+    );
   }
   if (timelock <= 0) {
     throw new StakingError(
@@ -124,7 +127,10 @@ export const validateStakingTxInputData = (
     );
   }
   if (!Number.isInteger(feeRate)) {
-    throw new StakingError(StakingErrorCode.INVALID_INPUT, "Invalid fee rate");
+    throw new StakingError(
+      StakingErrorCode.INVALID_INPUT,
+      "Fee rate must be an integer",
+    );
   }
   if (
     stakingAmountSat < params.minStakingAmountSat ||
