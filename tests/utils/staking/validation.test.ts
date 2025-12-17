@@ -104,6 +104,42 @@ describe.each(testingNetworks)("validateStakingTxInputData", ({ datagen }) => {
           ),
         ).toThrow("Invalid fee rate");
       });
+
+      it("should throw an error if stakingAmountSat is not an integer", () => {
+        expect(() =>
+          validateStakingTxInputData(
+            params.minStakingAmountSat + 0.5,
+            params.minStakingTimeBlocks,
+            params,
+            validInputUTXOs,
+            feeRate,
+          ),
+        ).toThrow("Staking amount must be an integer");
+      });
+
+      it("should throw an error if timelock is not an integer", () => {
+        expect(() =>
+          validateStakingTxInputData(
+            params.minStakingAmountSat,
+            params.minStakingTimeBlocks + 0.1,
+            params,
+            validInputUTXOs,
+            feeRate,
+          ),
+        ).toThrow("Timelock must be an integer");
+      });
+
+      it("should throw an error if feeRate is not an integer", () => {
+        expect(() =>
+          validateStakingTxInputData(
+            params.minStakingAmountSat,
+            params.minStakingTimeBlocks,
+            params,
+            validInputUTXOs,
+            1.1,
+          ),
+        ).toThrow("Fee rate must be an integer");
+      });
     },
   );
 });
