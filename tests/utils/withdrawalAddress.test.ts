@@ -179,8 +179,10 @@ describe("validateWithdrawalOutputs", () => {
 
       it("should return invalid with all non-matching addresses listed", () => {
         const { publicKey: userPk } = dataGenerator.generateRandomKeyPair();
-        const { publicKey: attacker1Pk } = dataGenerator.generateRandomKeyPair();
-        const { publicKey: attacker2Pk } = dataGenerator.generateRandomKeyPair();
+        const { publicKey: attacker1Pk } =
+          dataGenerator.generateRandomKeyPair();
+        const { publicKey: attacker2Pk } =
+          dataGenerator.generateRandomKeyPair();
 
         const attacker1Payment = payments.p2tr({
           internalPubkey: toXOnly(Buffer.from(attacker1Pk, "hex")),
@@ -190,7 +192,10 @@ describe("validateWithdrawalOutputs", () => {
           pubkey: Buffer.from(attacker2Pk, "hex"),
           network,
         });
-        const outputScripts = [attacker1Payment.output!, attacker2Payment.output!];
+        const outputScripts = [
+          attacker1Payment.output!,
+          attacker2Payment.output!,
+        ];
 
         const result = validateWithdrawalOutputs(
           outputScripts,
@@ -380,8 +385,10 @@ describe("assertWithdrawalAddressesValid", () => {
 
       it("should include all invalid addresses in error message", () => {
         const { publicKey: userPk } = dataGenerator.generateRandomKeyPair();
-        const { publicKey: attacker1Pk } = dataGenerator.generateRandomKeyPair();
-        const { publicKey: attacker2Pk } = dataGenerator.generateRandomKeyPair();
+        const { publicKey: attacker1Pk } =
+          dataGenerator.generateRandomKeyPair();
+        const { publicKey: attacker2Pk } =
+          dataGenerator.generateRandomKeyPair();
 
         const attacker1Payment = payments.p2tr({
           internalPubkey: toXOnly(Buffer.from(attacker1Pk, "hex")),
@@ -391,7 +398,10 @@ describe("assertWithdrawalAddressesValid", () => {
           pubkey: Buffer.from(attacker2Pk, "hex"),
           network,
         });
-        const outputScripts = [attacker1Payment.output!, attacker2Payment.output!];
+        const outputScripts = [
+          attacker1Payment.output!,
+          attacker2Payment.output!,
+        ];
 
         try {
           assertWithdrawalAddressesValid(outputScripts, userPk, network);
@@ -505,4 +515,3 @@ describe("cross-network validation", () => {
     expect(result.isValid).toBe(true);
   });
 });
-
