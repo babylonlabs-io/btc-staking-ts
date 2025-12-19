@@ -15,3 +15,4 @@ export {
 export * from "./utils/utxo/findInputUTXO";
 export * from "./utils/utxo/getPsbtInputFields";
 export * from "./utils/utxo/getScriptType";
+export * from "./utils/withdrawalAddress";
