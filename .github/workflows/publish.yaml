@@ -1,19 +1,36 @@
-name: Semantic release
+name: Publish NPM package
 
 on:
   workflow_dispatch:
   push:
     branches:
       - main
+      - 'release/v[0-9]+.[0-9]+.[0-9]+'
 permissions:
   contents: write
   id-token: write
 jobs:
-  lint_test:
+  # Semantic release for main branch
+  semantic_release:
+    if: github.ref == 'refs/heads/main'
     uses: babylonlabs-io/.github/.github/workflows/reusable_node_lint_test.yml@v0.13.1
     secrets: inherit
     with:
       run-build: true
       run-unit-tests: true
       use-semantic-release: true
+      node-version: 24.2.0
+
+  # Manual publish for release branches
+  manual_release:
+    if: startsWith(github.ref, 'refs/heads/release/v')
+    uses: babylonlabs-io/.github/.github/workflows/reusable_node_lint_test.yml@v0.13.1
+    secrets: inherit
+    with:
+      run-build: true
+      run-unit-tests: true
+      publish: true
+      publish-command: |
+        ./bin/ci_validate_version.sh
+        npm publish
       node-version: 24.2.0
