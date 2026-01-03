@@ -3,15 +3,49 @@ import { toXOnly } from "bitcoinjs-lib/src/psbt/bip371";
 
 import { StakingError, StakingErrorCode } from "../error";
 
+/**
+ * Result of validating withdrawal output addresses.
+ *
+ * @property {boolean} isValid - True if all output scripts belong to the wallet's public key.
+ * @property {string[]} invalidAddresses - List of addresses that failed validation.
+ */
 export interface AddressValidationResult {
   isValid: boolean;
   invalidAddresses: string[];
 }
 
+/**
+ * Asserts that the provided public key is a valid hex string of the expected length.
+ *
+ * @param {string} publicKeyHex - The public key in hex format (64 or 66 characters).
+ * @throws {StakingError} - Throws with INVALID_OUTPUT code if the hex string is invalid or has incorrect length.
+ */
+function assertValidPublicKeyHex(publicKeyHex: string): void {
+  const isHex = /^[0-9a-fA-F]+$/.test(publicKeyHex);
+  const length = publicKeyHex.length;
+  const isValidLength = length === 64 || length === 66;
+  if (!isHex || !isValidLength) {
+    throw new StakingError(
+      StakingErrorCode.INVALID_OUTPUT,
+      "Invalid public key hex provided for withdrawal address derivation",
+    );
+  }
+}
+
+/**
+ * Derives allowed withdrawal addresses from a public key.
+ * Always includes a P2TR (Taproot) address. Additionally includes a P2WPKH (Native SegWit)
+ * address when the public key is a 33-byte compressed key.
+ *
+ * @param {string} publicKeyHex - The public key in hex format (32 or 33 bytes).
+ * @param {networks.Network} network - The Bitcoin network.
+ * @returns {string[]} - Array of derived withdrawal addresses.
+ */
 export function deriveAllowedWithdrawalAddresses(
   publicKeyHex: string,
   network: networks.Network,
 ): string[] {
+  assertValidPublicKeyHex(publicKeyHex);
   const addresses: string[] = [];
   const publicKeyBuffer = Buffer.from(publicKeyHex, "hex");
 
@@ -36,6 +70,16 @@ export function deriveAllowedWithdrawalAddresses(
   return addresses;
 }
 
+/**
+ * Validates that withdrawal output scripts belong to the wallet's public key.
+ * An output is valid if its address matches a P2TR or P2WPKH address derived from the public key.
+ * Non-address scripts (e.g., OP_RETURN) are automatically skipped during validation.
+ *
+ * @param {Buffer[]} outputScripts - The output scripts to validate.
+ * @param {string} publicKeyHex - The public key in hex format.
+ * @param {networks.Network} network - The Bitcoin network.
+ * @returns {AddressValidationResult} - The validation result with validity status and any invalid addresses.
+ */
 export function validateWithdrawalOutputs(
   outputScripts: Buffer[],
   publicKeyHex: string,
@@ -67,6 +111,14 @@ export function validateWithdrawalOutputs(
   };
 }
 
+/**
+ * Asserts that all withdrawal output addresses belong to the connected wallet.
+ *
+ * @param {Buffer[]} outputScripts - The output scripts to validate.
+ * @param {string} publicKeyHex - The public key in hex format.
+ * @param {networks.Network} network - The Bitcoin network.
+ * @throws {StakingError} - Throws with INVALID_OUTPUT code if any output address does not belong to the wallet's public key.
+ */
 export function assertWithdrawalAddressesValid(
   outputScripts: Buffer[],
   publicKeyHex: string,
