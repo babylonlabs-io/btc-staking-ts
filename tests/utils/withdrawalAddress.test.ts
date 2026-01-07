@@ -65,9 +65,9 @@ describe("assertValidPublicKeyHex (via deriveAllowedWithdrawalAddresses)", () =>
 
     it("should throw StakingError for string too short (32 chars)", () => {
       const shortHex = "a".repeat(32);
-      expect(() =>
-        deriveAllowedWithdrawalAddresses(shortHex, network),
-      ).toThrow(StakingError);
+      expect(() => deriveAllowedWithdrawalAddresses(shortHex, network)).toThrow(
+        StakingError,
+      );
 
       try {
         deriveAllowedWithdrawalAddresses(shortHex, network);
