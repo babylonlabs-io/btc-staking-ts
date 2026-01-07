@@ -63,7 +63,10 @@ export function deriveAllowedWithdrawalAddresses(
   assertValidPublicKeyHex(publicKeyHex);
   const addresses: string[] = [];
   const publicKeyBuffer = Buffer.from(publicKeyHex, "hex");
-  const publicKeyNoCoord = Buffer.from(getPublicKeyNoCoord(publicKeyHex), "hex");
+  const publicKeyNoCoord = Buffer.from(
+    getPublicKeyNoCoord(publicKeyHex),
+    "hex",
+  );
 
   const p2trResult = payments.p2tr({
     internalPubkey: publicKeyNoCoord,

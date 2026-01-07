@@ -1096,7 +1096,9 @@ export class BabylonBtcStakingManager {
 
     const signedWithdrawSlashingTx =
       signedWithdrawSlashingPsbt.extractTransaction();
-    const outputScripts = signedWithdrawSlashingTx.outs.map((out) => out.script);
+    const outputScripts = signedWithdrawSlashingTx.outs.map(
+      (out) => out.script,
+    );
     assertWithdrawalAddressesValid(
       outputScripts,
       stakerBtcInfo.publicKeyNoCoordHex,
