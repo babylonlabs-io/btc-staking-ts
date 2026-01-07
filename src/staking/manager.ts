@@ -38,8 +38,8 @@ import {
   getBabylonParamByBtcHeight,
   getBabylonParamByVersion,
 } from "../utils/staking/param";
-
 import { validateStakingExpansionInputs } from "../utils/staking/validation";
+import { assertWithdrawalAddressesValid } from "../utils/withdrawalAddress";
 import { createCovenantWitness } from "./transactions";
 
 export class BabylonBtcStakingManager {
@@ -924,8 +924,16 @@ export class BabylonBtcStakingManager {
     const signedWithdrawalPsbt = Psbt.fromHex(signedWithdrawalPsbtHex);
     validateSignedPsbtIntegrity(unbondingPsbt, signedWithdrawalPsbt);
 
+    const signedWithdrawalTx = signedWithdrawalPsbt.extractTransaction();
+    const outputScripts = signedWithdrawalTx.outs.map((out) => out.script);
+    assertWithdrawalAddressesValid(
+      outputScripts,
+      stakerBtcInfo.publicKeyNoCoordHex,
+      this.network,
+    );
+
     return {
-      transaction: signedWithdrawalPsbt.extractTransaction(),
+      transaction: signedWithdrawalTx,
       fee,
     };
   }
@@ -1000,8 +1008,16 @@ export class BabylonBtcStakingManager {
     const signedWithdrawalPsbt = Psbt.fromHex(signedWithdrawalPsbtHex);
     validateSignedPsbtIntegrity(psbt, signedWithdrawalPsbt);
 
+    const signedWithdrawalTx = signedWithdrawalPsbt.extractTransaction();
+    const outputScripts = signedWithdrawalTx.outs.map((out) => out.script);
+    assertWithdrawalAddressesValid(
+      outputScripts,
+      stakerBtcInfo.publicKeyNoCoordHex,
+      this.network,
+    );
+
     return {
-      transaction: signedWithdrawalPsbt.extractTransaction(),
+      transaction: signedWithdrawalTx,
       fee,
     };
   }
@@ -1078,8 +1094,17 @@ export class BabylonBtcStakingManager {
     );
     validateSignedPsbtIntegrity(psbt, signedWithdrawSlashingPsbt);
 
+    const signedWithdrawSlashingTx =
+      signedWithdrawSlashingPsbt.extractTransaction();
+    const outputScripts = signedWithdrawSlashingTx.outs.map((out) => out.script);
+    assertWithdrawalAddressesValid(
+      outputScripts,
+      stakerBtcInfo.publicKeyNoCoordHex,
+      this.network,
+    );
+
     return {
-      transaction: signedWithdrawSlashingPsbt.extractTransaction(),
+      transaction: signedWithdrawSlashingTx,
       fee,
     };
   }

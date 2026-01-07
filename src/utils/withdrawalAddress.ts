@@ -1,7 +1,8 @@
+import * as ecc from "@bitcoin-js/tiny-secp256k1-asmjs";
 import { address as btcAddress, networks, payments } from "bitcoinjs-lib";
-import { toXOnly } from "bitcoinjs-lib/src/psbt/bip371";
 
 import { StakingError, StakingErrorCode } from "../error";
+import { getPublicKeyNoCoord } from "./btc";
 
 /**
  * Result of validating withdrawal output addresses.
@@ -30,6 +31,20 @@ function assertValidPublicKeyHex(publicKeyHex: string): void {
       "Invalid public key hex provided for withdrawal address derivation",
     );
   }
+
+  const publicKeyBuffer = Buffer.from(publicKeyHex, "hex");
+  const isValidPoint =
+    publicKeyBuffer.length === 33
+      ? ecc.isPoint(publicKeyBuffer)
+      : ecc.isPoint(Buffer.concat([Buffer.from([0x02]), publicKeyBuffer])) ||
+        ecc.isPoint(Buffer.concat([Buffer.from([0x03]), publicKeyBuffer]));
+
+  if (!isValidPoint) {
+    throw new StakingError(
+      StakingErrorCode.INVALID_OUTPUT,
+      "Invalid public key hex provided for withdrawal address derivation",
+    );
+  }
 }
 
 /**
@@ -48,9 +63,10 @@ export function deriveAllowedWithdrawalAddresses(
   assertValidPublicKeyHex(publicKeyHex);
   const addresses: string[] = [];
   const publicKeyBuffer = Buffer.from(publicKeyHex, "hex");
+  const publicKeyNoCoord = Buffer.from(getPublicKeyNoCoord(publicKeyHex), "hex");
 
   const p2trResult = payments.p2tr({
-    internalPubkey: toXOnly(publicKeyBuffer),
+    internalPubkey: publicKeyNoCoord,
     network,
   });
   if (p2trResult.address) {
