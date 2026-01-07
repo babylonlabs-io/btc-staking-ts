@@ -9,6 +9,157 @@ import {
 } from "../../src/utils/withdrawalAddress";
 import { testingNetworks } from "../helper";
 
+describe("assertValidPublicKeyHex (via deriveAllowedWithdrawalAddresses)", () => {
+  const network = networks.bitcoin;
+
+  describe("invalid hex characters", () => {
+    it("should throw StakingError for non-hex characters in 64-char string", () => {
+      const invalidHex = "zzzz" + "0".repeat(60);
+      expect(() =>
+        deriveAllowedWithdrawalAddresses(invalidHex, network),
+      ).toThrow(StakingError);
+
+      try {
+        deriveAllowedWithdrawalAddresses(invalidHex, network);
+      } catch (error) {
+        expect(error).toBeInstanceOf(StakingError);
+        expect((error as StakingError).code).toBe(
+          StakingErrorCode.INVALID_INPUT,
+        );
+        expect((error as StakingError).message).toContain(
+          "Invalid public key hex",
+        );
+      }
+    });
+
+    it("should throw StakingError for non-hex characters in 66-char string", () => {
+      const invalidHex = "02" + "ghij" + "0".repeat(60);
+      expect(() =>
+        deriveAllowedWithdrawalAddresses(invalidHex, network),
+      ).toThrow(StakingError);
+
+      try {
+        deriveAllowedWithdrawalAddresses(invalidHex, network);
+      } catch (error) {
+        expect(error).toBeInstanceOf(StakingError);
+        expect((error as StakingError).code).toBe(
+          StakingErrorCode.INVALID_INPUT,
+        );
+      }
+    });
+
+    it("should throw StakingError for special characters", () => {
+      const invalidHex = "!@#$" + "0".repeat(60);
+      expect(() =>
+        deriveAllowedWithdrawalAddresses(invalidHex, network),
+      ).toThrow(StakingError);
+    });
+  });
+
+  describe("incorrect length", () => {
+    it("should throw StakingError for empty string", () => {
+      expect(() => deriveAllowedWithdrawalAddresses("", network)).toThrow(
+        StakingError,
+      );
+    });
+
+    it("should throw StakingError for string too short (32 chars)", () => {
+      const shortHex = "a".repeat(32);
+      expect(() =>
+        deriveAllowedWithdrawalAddresses(shortHex, network),
+      ).toThrow(StakingError);
+
+      try {
+        deriveAllowedWithdrawalAddresses(shortHex, network);
+      } catch (error) {
+        expect(error).toBeInstanceOf(StakingError);
+        expect((error as StakingError).code).toBe(
+          StakingErrorCode.INVALID_INPUT,
+        );
+      }
+    });
+
+    it("should throw StakingError for string too long (68 chars)", () => {
+      const longHex = "a".repeat(68);
+      expect(() => deriveAllowedWithdrawalAddresses(longHex, network)).toThrow(
+        StakingError,
+      );
+    });
+
+    it("should throw StakingError for 65-char string (between valid lengths)", () => {
+      const invalidLengthHex = "a".repeat(65);
+      expect(() =>
+        deriveAllowedWithdrawalAddresses(invalidLengthHex, network),
+      ).toThrow(StakingError);
+    });
+
+    it("should throw StakingError for 63-char string (one less than valid)", () => {
+      const invalidLengthHex = "a".repeat(63);
+      expect(() =>
+        deriveAllowedWithdrawalAddresses(invalidLengthHex, network),
+      ).toThrow(StakingError);
+    });
+
+    it("should throw StakingError for 67-char string (one more than valid)", () => {
+      const invalidLengthHex = "a".repeat(67);
+      expect(() =>
+        deriveAllowedWithdrawalAddresses(invalidLengthHex, network),
+      ).toThrow(StakingError);
+    });
+  });
+
+  describe("invalid elliptic curve points", () => {
+    it("should throw StakingError for valid hex with correct length (64) but invalid point", () => {
+      const invalidPoint = "0".repeat(64);
+      expect(() =>
+        deriveAllowedWithdrawalAddresses(invalidPoint, network),
+      ).toThrow(StakingError);
+
+      try {
+        deriveAllowedWithdrawalAddresses(invalidPoint, network);
+      } catch (error) {
+        expect(error).toBeInstanceOf(StakingError);
+        expect((error as StakingError).code).toBe(
+          StakingErrorCode.INVALID_INPUT,
+        );
+        expect((error as StakingError).message).toContain(
+          "Invalid public key hex",
+        );
+      }
+    });
+
+    it("should throw StakingError for valid hex with correct length (66) but invalid point", () => {
+      const invalidCompressedPoint = "02" + "0".repeat(64);
+      expect(() =>
+        deriveAllowedWithdrawalAddresses(invalidCompressedPoint, network),
+      ).toThrow(StakingError);
+
+      try {
+        deriveAllowedWithdrawalAddresses(invalidCompressedPoint, network);
+      } catch (error) {
+        expect(error).toBeInstanceOf(StakingError);
+        expect((error as StakingError).code).toBe(
+          StakingErrorCode.INVALID_INPUT,
+        );
+      }
+    });
+
+    it("should throw StakingError for 66-char string with invalid prefix (not 02 or 03)", () => {
+      const invalidPrefix = "04" + "f".repeat(64);
+      expect(() =>
+        deriveAllowedWithdrawalAddresses(invalidPrefix, network),
+      ).toThrow(StakingError);
+    });
+
+    it("should throw StakingError for all 'f' values (64 chars) - invalid x-only point", () => {
+      const allFs = "f".repeat(64);
+      expect(() => deriveAllowedWithdrawalAddresses(allFs, network)).toThrow(
+        StakingError,
+      );
+    });
+  });
+});
+
 describe("deriveAllowedWithdrawalAddresses", () => {
   describe.each(testingNetworks)(
     "should derive addresses on $networkName",

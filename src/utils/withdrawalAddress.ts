@@ -19,7 +19,7 @@ export interface AddressValidationResult {
  * Asserts that the provided public key is a valid hex string of the expected length.
  *
  * @param {string} publicKeyHex - The public key in hex format (64 or 66 characters).
- * @throws {StakingError} - Throws with INVALID_OUTPUT code if the hex string is invalid or has incorrect length.
+ * @throws {StakingError} - Throws with INVALID_INPUT code if the hex string is invalid or has incorrect length.
  */
 function assertValidPublicKeyHex(publicKeyHex: string): void {
   const isHex = /^[0-9a-fA-F]+$/.test(publicKeyHex);
@@ -27,7 +27,7 @@ function assertValidPublicKeyHex(publicKeyHex: string): void {
   const isValidLength = length === 64 || length === 66;
   if (!isHex || !isValidLength) {
     throw new StakingError(
-      StakingErrorCode.INVALID_OUTPUT,
+      StakingErrorCode.INVALID_INPUT,
       "Invalid public key hex provided for withdrawal address derivation",
     );
   }
@@ -41,7 +41,7 @@ function assertValidPublicKeyHex(publicKeyHex: string): void {
 
   if (!isValidPoint) {
     throw new StakingError(
-      StakingErrorCode.INVALID_OUTPUT,
+      StakingErrorCode.INVALID_INPUT,
       "Invalid public key hex provided for withdrawal address derivation",
     );
   }
