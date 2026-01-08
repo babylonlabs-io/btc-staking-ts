@@ -32,5 +32,5 @@ jobs:
       publish: true
       publish-command: |
         ./bin/ci_validate_version.sh
-        npm publish --provenance --access public
+        npm publish --provenance
       node-version: 24.2.0
