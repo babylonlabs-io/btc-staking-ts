@@ -185,23 +185,32 @@ describe("deriveAllowedWithdrawalAddresses", () => {
         expect(addresses).toContain(expectedP2wpkh);
       });
 
-      it("should derive only P2TR address from x-only public key (32 bytes)", () => {
-        const { publicKeyNoCoord } = dataGenerator.generateRandomKeyPair();
+      it("should derive P2TR and P2WPKH addresses from x-only public key (32 bytes)", () => {
+        const { publicKey, publicKeyNoCoord } =
+          dataGenerator.generateRandomKeyPair();
 
         const addresses = deriveAllowedWithdrawalAddresses(
           publicKeyNoCoord,
           network,
         );
 
-        expect(addresses).toHaveLength(1);
+        expect(addresses.length).toBeGreaterThanOrEqual(2);
 
-        const publicKeyBuffer = Buffer.from(publicKeyNoCoord, "hex");
+        const publicKeyNoCoordBuffer = Buffer.from(publicKeyNoCoord, "hex");
         const expectedP2tr = payments.p2tr({
-          internalPubkey: publicKeyBuffer,
+          internalPubkey: publicKeyNoCoordBuffer,
           network,
         }).address;
 
-        expect(addresses[0]).toBe(expectedP2tr);
+        expect(addresses).toContain(expectedP2tr);
+
+        const compressedKey = Buffer.from(publicKey, "hex");
+        const expectedP2wpkh = payments.p2wpkh({
+          pubkey: compressedKey,
+          network,
+        }).address;
+
+        expect(addresses).toContain(expectedP2wpkh);
       });
 
       it("should derive different addresses for different networks", () => {

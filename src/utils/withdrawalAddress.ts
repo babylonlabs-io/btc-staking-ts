@@ -84,6 +84,35 @@ export function deriveAllowedWithdrawalAddresses(
     if (p2wpkhResult.address) {
       addresses.push(p2wpkhResult.address);
     }
+  } else if (publicKeyBuffer.length === 32) {
+    const compressedKeyEven = Buffer.concat([
+      Buffer.from([0x02]),
+      publicKeyBuffer,
+    ]);
+    const compressedKeyOdd = Buffer.concat([
+      Buffer.from([0x03]),
+      publicKeyBuffer,
+    ]);
+
+    if (ecc.isPoint(compressedKeyEven)) {
+      const p2wpkhEven = payments.p2wpkh({
+        pubkey: compressedKeyEven,
+        network,
+      });
+      if (p2wpkhEven.address) {
+        addresses.push(p2wpkhEven.address);
+      }
+    }
+
+    if (ecc.isPoint(compressedKeyOdd)) {
+      const p2wpkhOdd = payments.p2wpkh({
+        pubkey: compressedKeyOdd,
+        network,
+      });
+      if (p2wpkhOdd.address && !addresses.includes(p2wpkhOdd.address)) {
+        addresses.push(p2wpkhOdd.address);
+      }
+    }
   }
 
   return addresses;
