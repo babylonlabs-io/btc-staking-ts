@@ -11,7 +11,7 @@ export const reverseBuffer = (buffer: Uint8Array): Uint8Array => {
     i < clonedBuffer.length / 2;
     i++, j--
   ) {
-    let tmp = clonedBuffer[i];
+    const tmp = clonedBuffer[i];
     clonedBuffer[i] = clonedBuffer[j];
     clonedBuffer[j] = tmp;
   }

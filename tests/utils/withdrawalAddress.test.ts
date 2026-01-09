@@ -1,0 +1,677 @@
+import { networks, payments, script } from "bitcoinjs-lib";
+import { toXOnly } from "bitcoinjs-lib/src/psbt/bip371";
+
+import { StakingError, StakingErrorCode } from "../../src/error";
+import {
+  assertWithdrawalAddressesValid,
+  deriveAllowedWithdrawalAddresses,
+  validateWithdrawalOutputs,
+} from "../../src/utils/withdrawalAddress";
+import { testingNetworks } from "../helper";
+
+describe("assertValidPublicKeyHex (via deriveAllowedWithdrawalAddresses)", () => {
+  const network = networks.bitcoin;
+
+  describe("invalid hex characters", () => {
+    it("should throw StakingError for non-hex characters in 64-char string", () => {
+      const invalidHex = "zzzz" + "0".repeat(60);
+      expect(() =>
+        deriveAllowedWithdrawalAddresses(invalidHex, network),
+      ).toThrow(StakingError);
+
+      try {
+        deriveAllowedWithdrawalAddresses(invalidHex, network);
+      } catch (error) {
+        expect(error).toBeInstanceOf(StakingError);
+        expect((error as StakingError).code).toBe(
+          StakingErrorCode.INVALID_INPUT,
+        );
+        expect((error as StakingError).message).toContain(
+          "Invalid public key hex",
+        );
+      }
+    });
+
+    it("should throw StakingError for non-hex characters in 66-char string", () => {
+      const invalidHex = "02" + "ghij" + "0".repeat(60);
+      expect(() =>
+        deriveAllowedWithdrawalAddresses(invalidHex, network),
+      ).toThrow(StakingError);
+
+      try {
+        deriveAllowedWithdrawalAddresses(invalidHex, network);
+      } catch (error) {
+        expect(error).toBeInstanceOf(StakingError);
+        expect((error as StakingError).code).toBe(
+          StakingErrorCode.INVALID_INPUT,
+        );
+      }
+    });
+
+    it("should throw StakingError for special characters", () => {
+      const invalidHex = "!@#$" + "0".repeat(60);
+      expect(() =>
+        deriveAllowedWithdrawalAddresses(invalidHex, network),
+      ).toThrow(StakingError);
+    });
+  });
+
+  describe("incorrect length", () => {
+    it("should throw StakingError for empty string", () => {
+      expect(() => deriveAllowedWithdrawalAddresses("", network)).toThrow(
+        StakingError,
+      );
+    });
+
+    it("should throw StakingError for string too short (32 chars)", () => {
+      const shortHex = "a".repeat(32);
+      expect(() => deriveAllowedWithdrawalAddresses(shortHex, network)).toThrow(
+        StakingError,
+      );
+
+      try {
+        deriveAllowedWithdrawalAddresses(shortHex, network);
+      } catch (error) {
+        expect(error).toBeInstanceOf(StakingError);
+        expect((error as StakingError).code).toBe(
+          StakingErrorCode.INVALID_INPUT,
+        );
+      }
+    });
+
+    it("should throw StakingError for string too long (68 chars)", () => {
+      const longHex = "a".repeat(68);
+      expect(() => deriveAllowedWithdrawalAddresses(longHex, network)).toThrow(
+        StakingError,
+      );
+    });
+
+    it("should throw StakingError for 65-char string (between valid lengths)", () => {
+      const invalidLengthHex = "a".repeat(65);
+      expect(() =>
+        deriveAllowedWithdrawalAddresses(invalidLengthHex, network),
+      ).toThrow(StakingError);
+    });
+
+    it("should throw StakingError for 63-char string (one less than valid)", () => {
+      const invalidLengthHex = "a".repeat(63);
+      expect(() =>
+        deriveAllowedWithdrawalAddresses(invalidLengthHex, network),
+      ).toThrow(StakingError);
+    });
+
+    it("should throw StakingError for 67-char string (one more than valid)", () => {
+      const invalidLengthHex = "a".repeat(67);
+      expect(() =>
+        deriveAllowedWithdrawalAddresses(invalidLengthHex, network),
+      ).toThrow(StakingError);
+    });
+  });
+
+  describe("invalid elliptic curve points", () => {
+    it("should throw StakingError for valid hex with correct length (64) but invalid point", () => {
+      const invalidPoint = "0".repeat(64);
+      expect(() =>
+        deriveAllowedWithdrawalAddresses(invalidPoint, network),
+      ).toThrow(StakingError);
+
+      try {
+        deriveAllowedWithdrawalAddresses(invalidPoint, network);
+      } catch (error) {
+        expect(error).toBeInstanceOf(StakingError);
+        expect((error as StakingError).code).toBe(
+          StakingErrorCode.INVALID_INPUT,
+        );
+        expect((error as StakingError).message).toContain(
+          "Invalid public key hex",
+        );
+      }
+    });
+
+    it("should throw StakingError for valid hex with correct length (66) but invalid point", () => {
+      const invalidCompressedPoint = "02" + "0".repeat(64);
+      expect(() =>
+        deriveAllowedWithdrawalAddresses(invalidCompressedPoint, network),
+      ).toThrow(StakingError);
+
+      try {
+        deriveAllowedWithdrawalAddresses(invalidCompressedPoint, network);
+      } catch (error) {
+        expect(error).toBeInstanceOf(StakingError);
+        expect((error as StakingError).code).toBe(
+          StakingErrorCode.INVALID_INPUT,
+        );
+      }
+    });
+
+    it("should throw StakingError for 66-char string with invalid prefix (not 02 or 03)", () => {
+      const invalidPrefix = "04" + "f".repeat(64);
+      expect(() =>
+        deriveAllowedWithdrawalAddresses(invalidPrefix, network),
+      ).toThrow(StakingError);
+    });
+
+    it("should throw StakingError for all 'f' values (64 chars) - invalid x-only point", () => {
+      const allFs = "f".repeat(64);
+      expect(() => deriveAllowedWithdrawalAddresses(allFs, network)).toThrow(
+        StakingError,
+      );
+    });
+  });
+});
+
+describe("deriveAllowedWithdrawalAddresses", () => {
+  describe.each(testingNetworks)(
+    "should derive addresses on $networkName",
+    ({ network, datagen: { stakingDatagen: dataGenerator } }) => {
+      it("should derive both P2TR and P2WPKH addresses from compressed public key", () => {
+        const { publicKey } = dataGenerator.generateRandomKeyPair();
+
+        const addresses = deriveAllowedWithdrawalAddresses(publicKey, network);
+
+        expect(addresses).toHaveLength(2);
+
+        const publicKeyBuffer = Buffer.from(publicKey, "hex");
+        const expectedP2tr = payments.p2tr({
+          internalPubkey: toXOnly(publicKeyBuffer),
+          network,
+        }).address;
+        const expectedP2wpkh = payments.p2wpkh({
+          pubkey: publicKeyBuffer,
+          network,
+        }).address;
+
+        expect(addresses).toContain(expectedP2tr);
+        expect(addresses).toContain(expectedP2wpkh);
+      });
+
+      it("should derive P2TR and P2WPKH addresses from x-only public key (32 bytes)", () => {
+        const { publicKey, publicKeyNoCoord } =
+          dataGenerator.generateRandomKeyPair();
+
+        const addresses = deriveAllowedWithdrawalAddresses(
+          publicKeyNoCoord,
+          network,
+        );
+
+        expect(addresses.length).toBeGreaterThanOrEqual(2);
+
+        const publicKeyNoCoordBuffer = Buffer.from(publicKeyNoCoord, "hex");
+        const expectedP2tr = payments.p2tr({
+          internalPubkey: publicKeyNoCoordBuffer,
+          network,
+        }).address;
+
+        expect(addresses).toContain(expectedP2tr);
+
+        const compressedKey = Buffer.from(publicKey, "hex");
+        const expectedP2wpkh = payments.p2wpkh({
+          pubkey: compressedKey,
+          network,
+        }).address;
+
+        expect(addresses).toContain(expectedP2wpkh);
+      });
+
+      it("should derive different addresses for different networks", () => {
+        const { publicKey } = dataGenerator.generateRandomKeyPair();
+
+        const mainnetAddresses = deriveAllowedWithdrawalAddresses(
+          publicKey,
+          networks.bitcoin,
+        );
+        const testnetAddresses = deriveAllowedWithdrawalAddresses(
+          publicKey,
+          networks.testnet,
+        );
+
+        expect(mainnetAddresses).not.toEqual(testnetAddresses);
+        mainnetAddresses.forEach((addr) => {
+          expect(addr.startsWith("bc1")).toBe(true);
+        });
+        testnetAddresses.forEach((addr) => {
+          expect(addr.startsWith("tb1")).toBe(true);
+        });
+      });
+
+      it("should derive different addresses for different public keys", () => {
+        const { publicKey: pk1 } = dataGenerator.generateRandomKeyPair();
+        const { publicKey: pk2 } = dataGenerator.generateRandomKeyPair();
+
+        const addresses1 = deriveAllowedWithdrawalAddresses(pk1, network);
+        const addresses2 = deriveAllowedWithdrawalAddresses(pk2, network);
+
+        expect(addresses1).not.toEqual(addresses2);
+      });
+    },
+  );
+});
+
+describe("validateWithdrawalOutputs", () => {
+  describe.each(testingNetworks)(
+    "should validate outputs on $networkName",
+    ({ network, datagen: { stakingDatagen: dataGenerator } }) => {
+      it("should return valid for P2TR output matching public key", () => {
+        const { publicKey } = dataGenerator.generateRandomKeyPair();
+        const publicKeyBuffer = Buffer.from(publicKey, "hex");
+
+        const p2trPayment = payments.p2tr({
+          internalPubkey: toXOnly(publicKeyBuffer),
+          network,
+        });
+        const outputScripts = [p2trPayment.output!];
+
+        const result = validateWithdrawalOutputs(
+          outputScripts,
+          publicKey,
+          network,
+        );
+
+        expect(result.isValid).toBe(true);
+        expect(result.invalidAddresses).toHaveLength(0);
+      });
+
+      it("should return valid for P2WPKH output matching public key", () => {
+        const { publicKey } = dataGenerator.generateRandomKeyPair();
+        const publicKeyBuffer = Buffer.from(publicKey, "hex");
+
+        const p2wpkhPayment = payments.p2wpkh({
+          pubkey: publicKeyBuffer,
+          network,
+        });
+        const outputScripts = [p2wpkhPayment.output!];
+
+        const result = validateWithdrawalOutputs(
+          outputScripts,
+          publicKey,
+          network,
+        );
+
+        expect(result.isValid).toBe(true);
+        expect(result.invalidAddresses).toHaveLength(0);
+      });
+
+      it("should return valid for multiple outputs all matching public key", () => {
+        const { publicKey } = dataGenerator.generateRandomKeyPair();
+        const publicKeyBuffer = Buffer.from(publicKey, "hex");
+
+        const p2trPayment = payments.p2tr({
+          internalPubkey: toXOnly(publicKeyBuffer),
+          network,
+        });
+        const p2wpkhPayment = payments.p2wpkh({
+          pubkey: publicKeyBuffer,
+          network,
+        });
+        const outputScripts = [p2trPayment.output!, p2wpkhPayment.output!];
+
+        const result = validateWithdrawalOutputs(
+          outputScripts,
+          publicKey,
+          network,
+        );
+
+        expect(result.isValid).toBe(true);
+        expect(result.invalidAddresses).toHaveLength(0);
+      });
+
+      it("should return invalid for output not matching public key", () => {
+        const { publicKey: userPk } = dataGenerator.generateRandomKeyPair();
+        const { publicKey: attackerPk } = dataGenerator.generateRandomKeyPair();
+
+        const attackerPkBuffer = Buffer.from(attackerPk, "hex");
+        const attackerPayment = payments.p2tr({
+          internalPubkey: toXOnly(attackerPkBuffer),
+          network,
+        });
+        const outputScripts = [attackerPayment.output!];
+
+        const result = validateWithdrawalOutputs(
+          outputScripts,
+          userPk,
+          network,
+        );
+
+        expect(result.isValid).toBe(false);
+        expect(result.invalidAddresses).toHaveLength(1);
+        expect(result.invalidAddresses[0]).toBe(attackerPayment.address);
+      });
+
+      it("should return invalid with all non-matching addresses listed", () => {
+        const { publicKey: userPk } = dataGenerator.generateRandomKeyPair();
+        const { publicKey: attacker1Pk } =
+          dataGenerator.generateRandomKeyPair();
+        const { publicKey: attacker2Pk } =
+          dataGenerator.generateRandomKeyPair();
+
+        const attacker1Payment = payments.p2tr({
+          internalPubkey: toXOnly(Buffer.from(attacker1Pk, "hex")),
+          network,
+        });
+        const attacker2Payment = payments.p2wpkh({
+          pubkey: Buffer.from(attacker2Pk, "hex"),
+          network,
+        });
+        const outputScripts = [
+          attacker1Payment.output!,
+          attacker2Payment.output!,
+        ];
+
+        const result = validateWithdrawalOutputs(
+          outputScripts,
+          userPk,
+          network,
+        );
+
+        expect(result.isValid).toBe(false);
+        expect(result.invalidAddresses).toHaveLength(2);
+        expect(result.invalidAddresses).toContain(attacker1Payment.address);
+        expect(result.invalidAddresses).toContain(attacker2Payment.address);
+      });
+
+      it("should return invalid when mixed valid and invalid outputs", () => {
+        const { publicKey: userPk } = dataGenerator.generateRandomKeyPair();
+        const { publicKey: attackerPk } = dataGenerator.generateRandomKeyPair();
+
+        const userPkBuffer = Buffer.from(userPk, "hex");
+        const validPayment = payments.p2tr({
+          internalPubkey: toXOnly(userPkBuffer),
+          network,
+        });
+
+        const attackerPkBuffer = Buffer.from(attackerPk, "hex");
+        const invalidPayment = payments.p2tr({
+          internalPubkey: toXOnly(attackerPkBuffer),
+          network,
+        });
+        const outputScripts = [validPayment.output!, invalidPayment.output!];
+
+        const result = validateWithdrawalOutputs(
+          outputScripts,
+          userPk,
+          network,
+        );
+
+        expect(result.isValid).toBe(false);
+        expect(result.invalidAddresses).toHaveLength(1);
+        expect(result.invalidAddresses[0]).toBe(invalidPayment.address);
+      });
+
+      it("should skip OP_RETURN outputs", () => {
+        const { publicKey } = dataGenerator.generateRandomKeyPair();
+        const publicKeyBuffer = Buffer.from(publicKey, "hex");
+
+        const validPayment = payments.p2tr({
+          internalPubkey: toXOnly(publicKeyBuffer),
+          network,
+        });
+
+        const opReturnScript = script.compile([
+          script.OPS.OP_RETURN,
+          Buffer.from("test data"),
+        ]);
+
+        const outputScripts = [validPayment.output!, opReturnScript];
+
+        const result = validateWithdrawalOutputs(
+          outputScripts,
+          publicKey,
+          network,
+        );
+
+        expect(result.isValid).toBe(true);
+        expect(result.invalidAddresses).toHaveLength(0);
+      });
+
+      it("should return valid for empty output scripts array", () => {
+        const { publicKey } = dataGenerator.generateRandomKeyPair();
+
+        const result = validateWithdrawalOutputs([], publicKey, network);
+
+        expect(result.isValid).toBe(true);
+        expect(result.invalidAddresses).toHaveLength(0);
+      });
+
+      it("should detect P2PKH addresses as invalid (not allowed for withdrawals)", () => {
+        const { publicKey: userPk } = dataGenerator.generateRandomKeyPair();
+        const { publicKey: otherPk } = dataGenerator.generateRandomKeyPair();
+
+        const p2pkhPayment = payments.p2pkh({
+          pubkey: Buffer.from(otherPk, "hex"),
+          network,
+        });
+        const outputScripts = [p2pkhPayment.output!];
+
+        const result = validateWithdrawalOutputs(
+          outputScripts,
+          userPk,
+          network,
+        );
+
+        expect(result.isValid).toBe(false);
+        expect(result.invalidAddresses).toHaveLength(1);
+      });
+
+      it("should detect P2SH addresses as invalid (not allowed for withdrawals)", () => {
+        const { publicKey: userPk } = dataGenerator.generateRandomKeyPair();
+        const { publicKey: otherPk } = dataGenerator.generateRandomKeyPair();
+
+        const p2shPayment = payments.p2sh({
+          redeem: payments.p2wpkh({
+            pubkey: Buffer.from(otherPk, "hex"),
+            network,
+          }),
+          network,
+        });
+        const outputScripts = [p2shPayment.output!];
+
+        const result = validateWithdrawalOutputs(
+          outputScripts,
+          userPk,
+          network,
+        );
+
+        expect(result.isValid).toBe(false);
+        expect(result.invalidAddresses).toHaveLength(1);
+      });
+    },
+  );
+});
+
+describe("assertWithdrawalAddressesValid", () => {
+  describe.each(testingNetworks)(
+    "should assert validity on $networkName",
+    ({ network, datagen: { stakingDatagen: dataGenerator } }) => {
+      it("should not throw for valid P2TR output", () => {
+        const { publicKey } = dataGenerator.generateRandomKeyPair();
+        const publicKeyBuffer = Buffer.from(publicKey, "hex");
+
+        const p2trPayment = payments.p2tr({
+          internalPubkey: toXOnly(publicKeyBuffer),
+          network,
+        });
+        const outputScripts = [p2trPayment.output!];
+
+        expect(() =>
+          assertWithdrawalAddressesValid(outputScripts, publicKey, network),
+        ).not.toThrow();
+      });
+
+      it("should not throw for valid P2WPKH output", () => {
+        const { publicKey } = dataGenerator.generateRandomKeyPair();
+        const publicKeyBuffer = Buffer.from(publicKey, "hex");
+
+        const p2wpkhPayment = payments.p2wpkh({
+          pubkey: publicKeyBuffer,
+          network,
+        });
+        const outputScripts = [p2wpkhPayment.output!];
+
+        expect(() =>
+          assertWithdrawalAddressesValid(outputScripts, publicKey, network),
+        ).not.toThrow();
+      });
+
+      it("should throw StakingError with INVALID_OUTPUT code for invalid output", () => {
+        const { publicKey: userPk } = dataGenerator.generateRandomKeyPair();
+        const { publicKey: attackerPk } = dataGenerator.generateRandomKeyPair();
+
+        const attackerPkBuffer = Buffer.from(attackerPk, "hex");
+        const attackerPayment = payments.p2tr({
+          internalPubkey: toXOnly(attackerPkBuffer),
+          network,
+        });
+        const outputScripts = [attackerPayment.output!];
+
+        expect(() =>
+          assertWithdrawalAddressesValid(outputScripts, userPk, network),
+        ).toThrow(StakingError);
+
+        try {
+          assertWithdrawalAddressesValid(outputScripts, userPk, network);
+        } catch (error) {
+          expect(error).toBeInstanceOf(StakingError);
+          expect((error as StakingError).code).toBe(
+            StakingErrorCode.INVALID_OUTPUT,
+          );
+          expect((error as StakingError).message).toContain(
+            "Withdrawal address validation failed",
+          );
+          expect((error as StakingError).message).toContain(
+            attackerPayment.address,
+          );
+        }
+      });
+
+      it("should include all invalid addresses in error message", () => {
+        const { publicKey: userPk } = dataGenerator.generateRandomKeyPair();
+        const { publicKey: attacker1Pk } =
+          dataGenerator.generateRandomKeyPair();
+        const { publicKey: attacker2Pk } =
+          dataGenerator.generateRandomKeyPair();
+
+        const attacker1Payment = payments.p2tr({
+          internalPubkey: toXOnly(Buffer.from(attacker1Pk, "hex")),
+          network,
+        });
+        const attacker2Payment = payments.p2wpkh({
+          pubkey: Buffer.from(attacker2Pk, "hex"),
+          network,
+        });
+        const outputScripts = [
+          attacker1Payment.output!,
+          attacker2Payment.output!,
+        ];
+
+        try {
+          assertWithdrawalAddressesValid(outputScripts, userPk, network);
+          fail("Expected error to be thrown");
+        } catch (error) {
+          expect(error).toBeInstanceOf(StakingError);
+          expect((error as StakingError).message).toContain(
+            attacker1Payment.address!,
+          );
+          expect((error as StakingError).message).toContain(
+            attacker2Payment.address!,
+          );
+        }
+      });
+
+      it("should not throw for outputs with only OP_RETURN", () => {
+        const { publicKey } = dataGenerator.generateRandomKeyPair();
+
+        const opReturnScript = script.compile([
+          script.OPS.OP_RETURN,
+          Buffer.from("test data"),
+        ]);
+        const outputScripts = [opReturnScript];
+
+        expect(() =>
+          assertWithdrawalAddressesValid(outputScripts, publicKey, network),
+        ).not.toThrow();
+      });
+
+      it("should not throw for empty output scripts", () => {
+        const { publicKey } = dataGenerator.generateRandomKeyPair();
+
+        expect(() =>
+          assertWithdrawalAddressesValid([], publicKey, network),
+        ).not.toThrow();
+      });
+    },
+  );
+});
+
+describe("cross-network validation", () => {
+  const [mainnetConfig, testnetConfig] = testingNetworks;
+
+  it("should validate same public key output across networks (script is network-agnostic)", () => {
+    const { publicKey } =
+      mainnetConfig.datagen.stakingDatagen.generateRandomKeyPair();
+    const publicKeyBuffer = Buffer.from(publicKey, "hex");
+
+    const p2tr = payments.p2tr({
+      internalPubkey: toXOnly(publicKeyBuffer),
+      network: networks.bitcoin,
+    });
+
+    const mainnetResult = validateWithdrawalOutputs(
+      [p2tr.output!],
+      publicKey,
+      networks.bitcoin,
+    );
+    const testnetResult = validateWithdrawalOutputs(
+      [p2tr.output!],
+      publicKey,
+      networks.testnet,
+    );
+
+    expect(mainnetResult.isValid).toBe(true);
+    expect(testnetResult.isValid).toBe(true);
+  });
+
+  it("should reject different public key output regardless of network", () => {
+    const { publicKey: userPk } =
+      mainnetConfig.datagen.stakingDatagen.generateRandomKeyPair();
+    const { publicKey: attackerPk } =
+      testnetConfig.datagen.stakingDatagen.generateRandomKeyPair();
+
+    const attackerP2tr = payments.p2tr({
+      internalPubkey: toXOnly(Buffer.from(attackerPk, "hex")),
+      network: networks.bitcoin,
+    });
+
+    const mainnetResult = validateWithdrawalOutputs(
+      [attackerP2tr.output!],
+      userPk,
+      networks.bitcoin,
+    );
+    const testnetResult = validateWithdrawalOutputs(
+      [attackerP2tr.output!],
+      userPk,
+      networks.testnet,
+    );
+
+    expect(mainnetResult.isValid).toBe(false);
+    expect(testnetResult.isValid).toBe(false);
+  });
+
+  it("should validate correctly when network matches", () => {
+    const { publicKey } =
+      testnetConfig.datagen.stakingDatagen.generateRandomKeyPair();
+    const publicKeyBuffer = Buffer.from(publicKey, "hex");
+
+    const testnetP2tr = payments.p2tr({
+      internalPubkey: toXOnly(publicKeyBuffer),
+      network: networks.testnet,
+    });
+
+    const result = validateWithdrawalOutputs(
+      [testnetP2tr.output!],
+      publicKey,
+      networks.testnet,
+    );
+
+    expect(result.isValid).toBe(true);
+  });
+});
