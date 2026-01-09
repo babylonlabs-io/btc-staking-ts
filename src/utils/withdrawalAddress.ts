@@ -33,11 +33,15 @@ function assertValidPublicKeyHex(publicKeyHex: string): void {
   }
 
   const publicKeyBuffer = Buffer.from(publicKeyHex, "hex");
+  // For 33-byte compressed keys, validate directly.
+  // For 32-byte x-only keys, check if the x-coordinate is valid on secp256k1
+  // by trying either compressed form (0x02 for even y, 0x03 for odd y).
+  const compressedKeyEven = new Uint8Array([0x02, ...publicKeyBuffer]);
+  const compressedKeyOdd = new Uint8Array([0x03, ...publicKeyBuffer]);
   const isValidPoint =
     publicKeyBuffer.length === 33
-      ? ecc.isPoint(publicKeyBuffer)
-      : ecc.isPoint(Buffer.concat([Buffer.from([0x02]), publicKeyBuffer])) ||
-        ecc.isPoint(Buffer.concat([Buffer.from([0x03]), publicKeyBuffer]));
+      ? ecc.isPoint(new Uint8Array(publicKeyBuffer))
+      : ecc.isPoint(compressedKeyEven) || ecc.isPoint(compressedKeyOdd);
 
   if (!isValidPoint) {
     throw new StakingError(
@@ -85,18 +89,12 @@ export function deriveAllowedWithdrawalAddresses(
       addresses.push(p2wpkhResult.address);
     }
   } else if (publicKeyBuffer.length === 32) {
-    const compressedKeyEven = Buffer.concat([
-      Buffer.from([0x02]),
-      publicKeyBuffer,
-    ]);
-    const compressedKeyOdd = Buffer.concat([
-      Buffer.from([0x03]),
-      publicKeyBuffer,
-    ]);
+    const compressedKeyEven = new Uint8Array([0x02, ...publicKeyBuffer]);
+    const compressedKeyOdd = new Uint8Array([0x03, ...publicKeyBuffer]);
 
     if (ecc.isPoint(compressedKeyEven)) {
       const p2wpkhEven = payments.p2wpkh({
-        pubkey: compressedKeyEven,
+        pubkey: Buffer.from(compressedKeyEven),
         network,
       });
       if (p2wpkhEven.address) {
@@ -106,7 +104,7 @@ export function deriveAllowedWithdrawalAddresses(
 
     if (ecc.isPoint(compressedKeyOdd)) {
       const p2wpkhOdd = payments.p2wpkh({
-        pubkey: compressedKeyOdd,
+        pubkey: Buffer.from(compressedKeyOdd),
         network,
       });
       if (p2wpkhOdd.address && !addresses.includes(p2wpkhOdd.address)) {

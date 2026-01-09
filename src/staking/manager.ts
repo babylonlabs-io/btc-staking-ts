@@ -868,6 +868,9 @@ export class BabylonBtcStakingManager {
    * @param feeRate - The fee rate in satoshis per byte. Typical value for the
    * fee rate is above 1. If the fee rate is too low, the transaction will not
    * be included in a block.
+   * @param options - Optional configuration.
+   * @param options.validateWithdrawalAddress - Whether to validate the withdrawal
+   * address belongs to the staker's public key. Defaults to true.
    * @returns The signed withdrawal transaction and its fee.
    */
   async createSignedBtcWithdrawEarlyUnbondedTransaction(
@@ -876,7 +879,10 @@ export class BabylonBtcStakingManager {
     stakingParamsVersion: number,
     earlyUnbondingTx: Transaction,
     feeRate: number,
+    options?: { validateWithdrawalAddress?: boolean },
   ): Promise<TransactionResult> {
+    const { validateWithdrawalAddress = true } = options ?? {};
+
     const params = getBabylonParamByVersion(
       stakingParamsVersion,
       this.stakingParams,
@@ -892,6 +898,15 @@ export class BabylonBtcStakingManager {
 
     const { psbt: unbondingPsbt, fee } =
       staking.createWithdrawEarlyUnbondedTransaction(earlyUnbondingTx, feeRate);
+
+    if (validateWithdrawalAddress) {
+      const outputScripts = unbondingPsbt.txOutputs.map((out) => out.script);
+      assertWithdrawalAddressesValid(
+        outputScripts,
+        stakerBtcInfo.publicKeyNoCoordHex,
+        this.network,
+      );
+    }
 
     const contracts: Contract[] = [
       {
@@ -924,16 +939,8 @@ export class BabylonBtcStakingManager {
     const signedWithdrawalPsbt = Psbt.fromHex(signedWithdrawalPsbtHex);
     validateSignedPsbtIntegrity(unbondingPsbt, signedWithdrawalPsbt);
 
-    const signedWithdrawalTx = signedWithdrawalPsbt.extractTransaction();
-    const outputScripts = signedWithdrawalTx.outs.map((out) => out.script);
-    assertWithdrawalAddressesValid(
-      outputScripts,
-      stakerBtcInfo.publicKeyNoCoordHex,
-      this.network,
-    );
-
     return {
-      transaction: signedWithdrawalTx,
+      transaction: signedWithdrawalPsbt.extractTransaction(),
       fee,
     };
   }
@@ -950,6 +957,9 @@ export class BabylonBtcStakingManager {
    * @param feeRate - The fee rate in satoshis per byte. Typical value for the
    * fee rate is above 1. If the fee rate is too low, the transaction will not
    * be included in a block.
+   * @param options - Optional configuration.
+   * @param options.validateWithdrawalAddress - Whether to validate the withdrawal
+   * address belongs to the staker's public key. Defaults to true.
    * @returns The signed withdrawal transaction and its fee.
    */
   async createSignedBtcWithdrawStakingExpiredTransaction(
@@ -958,7 +968,10 @@ export class BabylonBtcStakingManager {
     stakingParamsVersion: number,
     stakingTx: Transaction,
     feeRate: number,
+    options?: { validateWithdrawalAddress?: boolean },
   ): Promise<TransactionResult> {
+    const { validateWithdrawalAddress = true } = options ?? {};
+
     const params = getBabylonParamByVersion(
       stakingParamsVersion,
       this.stakingParams,
@@ -976,6 +989,15 @@ export class BabylonBtcStakingManager {
       stakingTx,
       feeRate,
     );
+
+    if (validateWithdrawalAddress) {
+      const outputScripts = psbt.txOutputs.map((out) => out.script);
+      assertWithdrawalAddressesValid(
+        outputScripts,
+        stakerBtcInfo.publicKeyNoCoordHex,
+        this.network,
+      );
+    }
 
     const contracts: Contract[] = [
       {
@@ -1008,16 +1030,8 @@ export class BabylonBtcStakingManager {
     const signedWithdrawalPsbt = Psbt.fromHex(signedWithdrawalPsbtHex);
     validateSignedPsbtIntegrity(psbt, signedWithdrawalPsbt);
 
-    const signedWithdrawalTx = signedWithdrawalPsbt.extractTransaction();
-    const outputScripts = signedWithdrawalTx.outs.map((out) => out.script);
-    assertWithdrawalAddressesValid(
-      outputScripts,
-      stakerBtcInfo.publicKeyNoCoordHex,
-      this.network,
-    );
-
     return {
-      transaction: signedWithdrawalTx,
+      transaction: signedWithdrawalPsbt.extractTransaction(),
       fee,
     };
   }
@@ -1034,6 +1048,9 @@ export class BabylonBtcStakingManager {
    * @param feeRate - The fee rate in satoshis per byte. Typical value for the
    * fee rate is above 1. If the fee rate is too low, the transaction will not
    * be included in a block.
+   * @param options - Optional configuration.
+   * @param options.validateWithdrawalAddress - Whether to validate the withdrawal
+   * address belongs to the staker's public key. Defaults to true.
    * @returns The signed withdrawal transaction and its fee.
    */
   async createSignedBtcWithdrawSlashingTransaction(
@@ -1042,7 +1059,10 @@ export class BabylonBtcStakingManager {
     stakingParamsVersion: number,
     slashingTx: Transaction,
     feeRate: number,
+    options?: { validateWithdrawalAddress?: boolean },
   ): Promise<TransactionResult> {
+    const { validateWithdrawalAddress = true } = options ?? {};
+
     const params = getBabylonParamByVersion(
       stakingParamsVersion,
       this.stakingParams,
@@ -1060,6 +1080,15 @@ export class BabylonBtcStakingManager {
       slashingTx,
       feeRate,
     );
+
+    if (validateWithdrawalAddress) {
+      const outputScripts = psbt.txOutputs.map((out) => out.script);
+      assertWithdrawalAddressesValid(
+        outputScripts,
+        stakerBtcInfo.publicKeyNoCoordHex,
+        this.network,
+      );
+    }
 
     const contracts: Contract[] = [
       {
@@ -1094,19 +1123,8 @@ export class BabylonBtcStakingManager {
     );
     validateSignedPsbtIntegrity(psbt, signedWithdrawSlashingPsbt);
 
-    const signedWithdrawSlashingTx =
-      signedWithdrawSlashingPsbt.extractTransaction();
-    const outputScripts = signedWithdrawSlashingTx.outs.map(
-      (out) => out.script,
-    );
-    assertWithdrawalAddressesValid(
-      outputScripts,
-      stakerBtcInfo.publicKeyNoCoordHex,
-      this.network,
-    );
-
     return {
-      transaction: signedWithdrawSlashingTx,
+      transaction: signedWithdrawSlashingPsbt.extractTransaction(),
       fee,
     };
   }
