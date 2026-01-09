@@ -53,8 +53,8 @@ function assertValidPublicKeyHex(publicKeyHex: string): void {
 
 /**
  * Derives allowed withdrawal addresses from a public key.
- * Always includes a P2TR (Taproot) address. Additionally includes a P2WPKH (Native SegWit)
- * address when the public key is a 33-byte compressed key.
+ * Always includes a P2TR (Taproot) address and P2WPKH (Native SegWit) address.
+ * For 32-byte x-only keys, P2WPKH is derived using both possible compressed key forms.
  *
  * @param {string} publicKeyHex - The public key in hex format (32 or 33 bytes).
  * @param {networks.Network} network - The Bitcoin network.
