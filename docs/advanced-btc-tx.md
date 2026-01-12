@@ -1,10 +1,10 @@
 # Advanced BTC Staking Transaction Usage
 
-> ⚠️ **WARNING**: This documentation describes advanced usage of btc-staking-ts 
-> where you can customize transaction parameters to fit your specific needs. 
-> While this offers more flexibility, creating custom Bitcoin transactions 
-> carries inherent risks. Incorrect parameters or improper usage could result 
-> in loss of funds. Proceed at your own risk and thoroughly test all transactions 
+> ⚠️ **WARNING**: This documentation describes advanced usage of btc-staking-ts
+> where you can customize transaction parameters to fit your specific needs.
+> While this offers more flexibility, creating custom Bitcoin transactions
+> carries inherent risks. Incorrect parameters or improper usage could result
+> in loss of funds. Proceed at your own risk and thoroughly test all transactions
 > in a test environment first.
 
 
@@ -38,9 +38,9 @@ import { networks } from "bitcoinjs-lib";
 //       - `lockHeight: number`: Indicates the BTC height before which
 //          the transaction is considered invalid. This value can be derived from
 //          the `activationHeight` of the Babylon versioned global parameters
-//          where the current BTC height is. Note that if the 
+//          where the current BTC height is. Note that if the
 //          `current BTC height + 1 + confirmationDepth` is going to be >=
-//          the next versioned `activationHeight`, then you should use the 
+//          the next versioned `activationHeight`, then you should use the
 //          `activationHeight` from the next version of the global parameters.
 //    Below, these values are hardcoded, but they should be retrieved from the
 //    Babylon system.
@@ -299,13 +299,13 @@ const unbondingTx = Psbt.fromHex(signedUnbondingPsbt).extractTransaction();
 
 #### Collecting Unbonding Signatures
 
-The unbonding transaction requires two types of signatures to be valid and 
+The unbonding transaction requires two types of signatures to be valid and
 acceptable by the Bitcoin network:
 1. The staker's signature
 2. The covenant committee signatures
 
-To obtain a complete, valid unbonding transaction that can be submitted to 
-Bitcoin, you'll need to retrieve the covenant signatures from the Babylon 
+To obtain a complete, valid unbonding transaction that can be submitted to
+Bitcoin, you'll need to retrieve the covenant signatures from the Babylon
 network after:
 - Your delegation has been successfully registered on Babylon
 - The covenant committee has verified your delegation
@@ -314,7 +314,7 @@ You can obtain these covenant signatures either by:
 - Querying the Babylon node directly
 - Using the Babylon API endpoints
 
-Once you have both the staker's signature and the covenant signatures, 
+Once you have both the staker's signature and the covenant signatures,
 you can combine them like this:
 
 ```ts

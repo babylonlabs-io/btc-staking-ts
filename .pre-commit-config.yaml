@@ -41,30 +41,6 @@ repos:
     hooks:
       - id: gitleaks
 
-  # Prettier - format TypeScript files
-  - repo: https://github.com/pre-commit/mirrors-prettier
-    rev: v4.0.0-alpha.8
-    hooks:
-      - id: prettier
-        types_or: [ts, tsx, javascript, json, yaml, markdown]
-        additional_dependencies:
-          - prettier@3.2.5
-          - prettier-plugin-organize-imports@3.2.4
-
-  # ESLint - lint TypeScript files
-  - repo: https://github.com/pre-commit/mirrors-eslint
-    rev: v9.17.0
-    hooks:
-      - id: eslint
-        files: ^src/.*\.ts$
-        types: [ts]
-        additional_dependencies:
-          - eslint@8.57.0
-          - '@typescript-eslint/parser@7.4.0'
-          - eslint-config-prettier@9.1.0
-          - eslint-plugin-prettier@5.1.3
-          - typescript@5.4.5
-
   # Commitlint - validate commit messages (replaces husky commit-msg)
   - repo: https://github.com/alessandrojcm/commitlint-pre-commit-hook
     rev: v9.18.0
@@ -75,9 +51,25 @@ repos:
           - '@commitlint/cli@19.8.0'
           - '@commitlint/config-conventional@19.8.0'
 
-  # Local hooks for project-specific commands
+  # Local hooks using project's node_modules
   - repo: local
     hooks:
+      # Prettier - format files
+      - id: prettier
+        name: Prettier
+        entry: npm run format:fix
+        language: system
+        pass_filenames: false
+        stages: [pre-commit]
+
+      # ESLint - lint TypeScript files
+      - id: eslint
+        name: ESLint
+        entry: npm run lint
+        language: system
+        pass_filenames: false
+        stages: [pre-commit]
+
       # Run tests (with repeat for flakiness detection)
       - id: npm-test
         name: Run tests

@@ -115,7 +115,7 @@ describe.each(testingNetworks)(
         ).toThrow("Unbonding transaction must have exactly one input");
       });
 
-      it(`${networkName} - should throw error if unbonding output script does 
+      it(`${networkName} - should throw error if unbonding output script does
       not match the expected script`, () => {
         const differentScripts = dataGenerator.generateMockStakingScripts();
         expect(() =>
