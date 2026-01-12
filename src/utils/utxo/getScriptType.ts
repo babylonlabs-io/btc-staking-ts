@@ -31,23 +31,33 @@ export const getScriptType = (script: Buffer): BitcoinScriptType => {
   try {
     payments.p2pkh({ output: script });
     return BitcoinScriptType.P2PKH;
-  } catch {}
+  } catch {
+    /* not p2pkh, try next */
+  }
   try {
     payments.p2sh({ output: script });
     return BitcoinScriptType.P2SH;
-  } catch {}
+  } catch {
+    /* not p2sh, try next */
+  }
   try {
     payments.p2wpkh({ output: script });
     return BitcoinScriptType.P2WPKH;
-  } catch {}
+  } catch {
+    /* not p2wpkh, try next */
+  }
   try {
     payments.p2wsh({ output: script });
     return BitcoinScriptType.P2WSH;
-  } catch {}
+  } catch {
+    /* not p2wsh, try next */
+  }
   try {
     payments.p2tr({ output: script });
     return BitcoinScriptType.P2TR;
-  } catch {}
+  } catch {
+    /* not p2tr */
+  }
 
   throw new Error("Unknown script type");
 };

@@ -104,7 +104,7 @@ const stakerInput = {
 **Staker's Babylon Genesis Details**
 
 The Babylon Genesis address specifies the address of the staker on the Babylon
-Genesis blockchain. It is used as the signer of the 
+Genesis blockchain. It is used as the signer of the
 Babylon Genesis transaction to register the stake and
 to create the Proof of Possession (PoP),
 which must be signed during the registration process.
@@ -212,7 +212,7 @@ For more details about the two types, refer to the
 
 > **Important**: Phase-1 stakers should always use the post-staking
 > registration method to register their phase-1 stakes. For newly created
-> phase-2 stakes, both methods can be used. 
+> phase-2 stakes, both methods can be used.
 
 
 ### 3.1 Post-Staking Registration
@@ -231,7 +231,7 @@ some requiring  signatures from the BTC Provider:
 - Bitcoin slashing unbonding transaction (**requires signing**)
 - Proof of Possession (**requires signing**)
 
-The final constructed message will be signed by the Babylon Provider as a 
+The final constructed message will be signed by the Babylon Provider as a
 Babylon Genesis transaction, ready for submission to the network.
 
 ```ts
@@ -242,7 +242,7 @@ const {
   stakingTx,
   stakingHeight,
   stakingInput,
-  inclusionProof, 
+  inclusionProof,
   bech32Address,
 );
 ```
@@ -259,7 +259,7 @@ ledger. It is a multi-step process, involving:
    the Babylon Genesis chain is notified about its inclusion.
 
 The registration to the Babylon Genesis blockchain
-consists of the submission of multiple transactions and messages, some requiring 
+consists of the submission of multiple transactions and messages, some requiring
 signatures from the BTC Provider:
 - Bitcoin staking transaction
 - Bitcoin unbonding transaction
@@ -267,7 +267,7 @@ signatures from the BTC Provider:
 - Bitcoin slashing unbonding transaction (**requires signing**)
 - Proof of Possession (**requires signing**)
 
-First, we create the initial registration message that will be signed 
+First, we create the initial registration message that will be signed
 by the Babylon Provider as a Babylon Genesis transaction,
 ready for submission to the network.
 
@@ -514,4 +514,4 @@ the Babylon Genesis transaction fees for the `pre-staking registration`
 and `post-staking registration` operations. This feature will be added in a
 future release.
 For now please refer to the
-[simple-staking example](https://github.com/babylonlabs-io/simple-staking/blob/main/src/app/hooks/client/rpc/mutation/useBbnTransaction.ts#L27). 
+[simple-staking example](https://github.com/babylonlabs-io/simple-staking/blob/main/src/app/hooks/client/rpc/mutation/useBbnTransaction.ts#L27).
